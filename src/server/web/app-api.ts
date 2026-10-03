@@ -905,7 +905,7 @@ export async function registerAppApi(app: FastifyInstance, ctx: AppContext, hook
       api.post('/rehearsals', async (req, reply) => {
         try {
           if (!hooks.startRehearsal) throw new TempoError(503, 'unavailable', 'Rehearsals are not available on this server.');
-          const rounds = Math.min(Math.max(Number((req.body as Record<string, unknown>)?.max_rounds ?? 8) || 8, 2), 20);
+          const rounds = Math.min(Math.max(Number((req.body as Record<string, unknown>)?.max_rounds ?? 12) || 12, 8), 20);
           const id = await hooks.startRehearsal(me(req), rounds);
           return reply.send({ ok: true, id });
         } catch (e) {

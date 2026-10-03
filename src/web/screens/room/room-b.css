@@ -1,0 +1,275 @@
+/*
+ * Styles for the agent strip, the working-now lanes and the waiting-on-you panel.
+ * Tokens only (var(--...)), so light and dark themes both work.
+ */
+
+/* ------------------------------------------------------------ agent strip */
+.agent-strip {
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 16px;
+  align-items: stretch;
+}
+.strip-empty {
+  align-items: center;
+  min-height: 56px;
+}
+.strip-item {
+  display: flex;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+.strip-tile {
+  width: 232px;
+  max-width: none;
+  min-width: 0;
+  gap: 4px;
+  color: var(--text);
+  text-decoration: none;
+}
+.strip-tile > * {
+  min-width: 0;
+}
+.strip-tile[data-light='amber'] {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+}
+.strip-tile[data-light='red'] {
+  border-color: color-mix(in srgb, var(--red) 50%, var(--border));
+}
+.strip-tile-link:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  text-decoration: none;
+}
+.strip-tile-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.strip-type {
+  margin-left: auto;
+  flex: none;
+  font-size: 0.7rem;
+}
+.strip-reason {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
+}
+.strip-times {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--text-muted);
+}
+.strip-owner {
+  margin-top: auto;
+  padding-top: 2px;
+}
+
+/* ------------------------------------------------------------ lanes */
+.b-touch {
+  min-height: 36px;
+}
+.lane {
+  min-width: 0;
+}
+.lane-head {
+  flex-wrap: nowrap;
+}
+.lane-head h3 {
+  font-size: 1rem;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.lane-head .row {
+  flex-wrap: nowrap;
+}
+.lane-ins .btn-ghost {
+  margin-left: -9px;
+}
+.lane-label {
+  margin: 0 0 3px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+}
+.lane-working {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.lane-blocked {
+  background: var(--red-soft);
+  border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.lane-blocked strong {
+  color: var(--red);
+}
+.lane-unblock {
+  border-top: 1px solid color-mix(in srgb, var(--red) 25%, transparent);
+  padding-top: 5px;
+}
+.lane-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lane-ins {
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.lane-ins-gone {
+  opacity: 0.6;
+}
+.lane-ins-gone .lane-ins-text {
+  text-decoration: line-through;
+}
+.lane-ins-head {
+  gap: 6px;
+}
+.lane-ins-text {
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+.lane-ins-kv {
+  margin: 0;
+  font-size: 0.82rem;
+}
+.lane-quote {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border-strong);
+  background: var(--bg-sunken);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.92rem;
+}
+
+/* ------------------------------------------------------------ waiting on you */
+.dec-panel {
+  min-width: 0;
+}
+.dec-sub {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.dec-calm {
+  background: var(--bg-sunken);
+  border-radius: var(--radius);
+}
+.dec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-left: 3px solid var(--accent);
+  min-width: 0;
+}
+.dec-title {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+.dec-proposed {
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+.dec-proposed-label {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.dec-proposed > * {
+  max-width: 100%;
+}
+.dec-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dec-option {
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+}
+.dec-option-label {
+  flex: 1;
+  min-width: 0;
+}
+.dec-option-rec {
+  border-color: color-mix(in srgb, var(--green) 55%, var(--border-strong));
+}
+.btn.dec-option-open {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.dec-write {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dec-foot {
+  margin-top: -2px;
+}
+.dec-foot .btn-ghost {
+  color: var(--text-muted);
+}
+.dec-foot .btn-ghost:first-child {
+  margin-left: -9px;
+}
+.dec-foot .btn-ghost:last-child {
+  margin-right: -9px;
+}
+.dec-q-text {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.dec-recent {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.dec-recent summary {
+  cursor: pointer;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.dec-recent summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.dec-recent-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dec-recent-title {
+  font-weight: 600;
+}

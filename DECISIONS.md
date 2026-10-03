@@ -259,6 +259,26 @@ in the research notes; the conclusions that changed the build are below.
 29. **Container user.** The container runs as root because Railway (and Fly) mount volumes as root.
     It is a single-purpose container with no other services.
 
+30. **Build tools in the image.** better-sqlite3 ships a ready-made binary, but npm still runs its
+    build step during install, which needs python3 and make. They are installed in the build stage
+    only; the final image has just Node, the production packages and the compiled app (about 100 MB
+    compressed). Rejected: an Alpine image (native modules would need compiling against musl) and a
+    distroless image (no shell for `railway ssh` to create the first admin).
+
+31. **Hosting config as code.** Railway now takes its settings from `.railway/railway.ts` (the
+    old `railway.json` is deprecated, see Part 1). Secrets and the public address are never in that
+    file, because it is in git; they are set with `railway variable set`. The same settings are
+    listed in plain words at the top of the file for anyone who prefers the dashboard.
+
+32. **Manual backups and restore.** `npm run backup` writes a copy any time (safe while running)
+    next to the nightly ones; manual copies are never pruned. Restoring is deliberately not a
+    button: you stop Tempo, replace the file and start it again, so a mistaken click can never
+    overwrite the live database. The owner guide explains the steps.
+
+33. **Where the "Run rehearsal" button lives.** On its own page in the sidebar rather than inside a
+    room, because a rehearsal creates its own sandbox room and must never touch a real one. Any
+    signed-in person can start one; only one runs at a time, and it is capped at 20 rounds (the full script needs 8).
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

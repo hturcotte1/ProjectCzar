@@ -12,6 +12,7 @@ import { AgentsPage } from './screens/agents/AgentsPage';
 import { AgentDetailPage } from './screens/agents/AgentDetailPage';
 import { SettingsPage } from './screens/settings/SettingsPage';
 import { AlertsPage } from './screens/alerts/AlertsPage';
+import { RehearsalPage } from './screens/rehearsal/RehearsalPage';
 
 export function App() {
   const path = usePath();
@@ -95,6 +96,7 @@ function Shell({ me, path, reload }: { me: MeResponse; path: string; reload: () 
   else if (agentMatch) content = <Page title="Agent" onMenu={() => setMenuOpen(true)}><AgentDetailPage agentId={agentMatch.id} /></Page>;
   else if (path.startsWith('/settings')) content = <Page title="Settings" onMenu={() => setMenuOpen(true)}><SettingsPage /></Page>;
   else if (path === '/alerts') content = <Page title="Alerts" onMenu={() => setMenuOpen(true)}><AlertsPage /></Page>;
+  else if (path === '/rehearsal') content = <Page title="Rehearsal" onMenu={() => setMenuOpen(true)}><RehearsalPage /></Page>;
   else content = <Home rooms={rooms} onMenu={() => setMenuOpen(true)} />;
 
   return (
@@ -133,6 +135,9 @@ function Shell({ me, path, reload }: { me: MeResponse; path: string; reload: () 
           </a>
           <a className={`nav-item${path === '/alerts' ? ' active' : ''}`} {...linkProps('/alerts')}>
             Alerts {unread > 0 && <span className="count">{unread}</span>}
+          </a>
+          <a className={`nav-item${path === '/rehearsal' ? ' active' : ''}`} {...linkProps('/rehearsal')}>
+            Rehearsal
           </a>
           <a className={`nav-item${path.startsWith('/settings') ? ' active' : ''}`} {...linkProps('/settings')}>
             Settings

@@ -1,0 +1,657 @@
+/*
+ * The room feed and composer. Uses only the tokens from styles.css so light and dark both work.
+ * Class names start with "feed-" (timeline) or "cmp-" (composer).
+ */
+
+.feed-wrap {
+  flex: 1;
+  /* Never squeezed to nothing: on a small screen the page scrolls instead. */
+  min-height: 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.feed-wrap:has(.feed-filter-panel.open) {
+  min-height: 340px;
+}
+.feed-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.feed:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.feed-dim {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+/* ---------------------------------------------------------------- filter bar */
+
+.feed-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+.feed-search {
+  flex: 1 1 200px;
+  min-width: 0;
+  order: 1;
+}
+.feed-filter-toggle {
+  order: 3;
+  min-height: 38px;
+}
+.feed-filter-panel {
+  display: contents;
+}
+.feed-agent {
+  order: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feed-agent label {
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+.feed-agent .select {
+  width: auto;
+  min-width: 150px;
+}
+.feed-chiprow {
+  order: 4;
+  flex: 1 1 100%;
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.feed-filter-panel.open .feed-chiprow {
+  display: flex;
+}
+.feed-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.feed-chip {
+  appearance: none;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 550;
+  padding: 3px 9px;
+  min-height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  color: var(--text);
+  cursor: pointer;
+}
+.feed-chip:hover {
+  background: var(--bg-hover);
+}
+.feed-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.feed-chip[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+@media (max-width: 699px) {
+  .feed-wrap:has(.feed-filter-panel.open) {
+    min-height: 480px;
+  }
+  .feed-filters {
+    padding: 8px 10px;
+  }
+  .feed-search {
+    flex: 1 1 0;
+  }
+  .feed-filter-panel {
+    display: none;
+    order: 4;
+    flex: 1 1 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .feed-filter-panel.open {
+    display: flex;
+  }
+  .feed-agent {
+    order: 0;
+  }
+  .feed-agent .select {
+    flex: 1;
+  }
+  .feed-chiprow {
+    order: 0;
+    display: flex;
+  }
+  .feed-chip {
+    min-height: 36px;
+  }
+}
+
+/* ---------------------------------------------------------------- timeline */
+
+.feed-row {
+  min-width: 0;
+}
+.feed-main {
+  min-width: 0;
+}
+.feed-day {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 12px 4px;
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.feed-day::before,
+.feed-day::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.feed-earlier,
+.feed-start {
+  text-align: center;
+  padding: 4px 0 6px;
+}
+.feed-start {
+  color: var(--text-faint);
+  font-size: 0.8rem;
+}
+.feed-error {
+  padding: 12px;
+}
+
+.feed-meta .feed-to {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.feed-time,
+.feed-time time {
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+.feed-updated {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: var(--bg-sunken);
+  border-radius: 999px;
+  padding: 0 7px;
+  line-height: 1.6;
+}
+.feed-door,
+.feed-re {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+.feed-re {
+  font-family: var(--mono);
+}
+
+.feed-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-right: 4px;
+}
+.feed-sub {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  word-break: break-word;
+}
+.feed-title {
+  font-weight: 650;
+  word-break: break-word;
+}
+.feed-mention {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.feed-link-button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.84rem;
+  padding: 2px 0;
+  min-height: 28px;
+  cursor: pointer;
+}
+.feed-link-button:hover {
+  text-decoration: underline;
+}
+.feed-clamp {
+  max-height: 7.4em;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 65%, transparent);
+  mask-image: linear-gradient(#000 65%, transparent);
+}
+
+/* Reports */
+.feed-report {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 3px;
+}
+.feed-working {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.feed-working .feed-label {
+  vertical-align: 1px;
+}
+.feed-list {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.92rem;
+}
+.feed-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  word-break: break-word;
+}
+.feed-tick {
+  color: var(--green);
+  font-weight: 700;
+  flex: none;
+}
+.feed-proof {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+.feed-note {
+  color: var(--text-muted);
+  border-left: 3px solid var(--border-strong);
+  padding-left: 9px;
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+.feed-blocked,
+.feed-disagree {
+  border-left: 3px solid var(--red);
+  background: var(--red-soft);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 6px 10px;
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+.feed-blocked strong {
+  color: color-mix(in srgb, var(--red) 70%, var(--text));
+}
+.feed-disagree {
+  border-left-color: var(--amber);
+  background: var(--amber-soft);
+}
+
+/* Replies nested under a question, instruction or decision */
+.feed-reply {
+  font-size: 0.92rem;
+  min-width: 0;
+}
+.feed-reply-head {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+.feed-reply-green .feed-reply-head strong {
+  color: color-mix(in srgb, var(--green) 65%, var(--text));
+}
+.feed-detail {
+  font-size: 0.92rem;
+  min-width: 0;
+  word-break: break-word;
+}
+.feed-pending {
+  font-size: 0.86rem;
+  color: var(--text-faint);
+}
+.feed-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.feed-arrow {
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}
+.feed-step {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.7;
+  background: var(--gray-soft);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.feed-step-acknowledged,
+.feed-step-in_progress {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.feed-step-done {
+  background: var(--green-soft);
+  color: color-mix(in srgb, var(--green) 70%, var(--text));
+}
+.feed-step-blocked,
+.feed-step-declined {
+  background: var(--amber-soft);
+  color: color-mix(in srgb, var(--amber) 55%, var(--text));
+}
+
+/* Decisions */
+.feed-decision {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--amber-soft);
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+.feed-options {
+  list-style: none;
+  margin: 2px 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.feed-option {
+  font-size: 0.82rem;
+  padding: 1px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  word-break: break-word;
+}
+.feed-option-chosen {
+  background: var(--green-soft);
+  border-color: var(--green);
+  font-weight: 650;
+}
+.feed-resolution {
+  margin-top: 2px;
+}
+
+/* Conductor, brief and playbook */
+.feed-kind-conductor_note .feed-body,
+.feed-kind-brief .feed-body,
+.feed-kind-playbook .feed-body {
+  border-left: 3px solid var(--purple);
+  padding-left: 9px;
+}
+
+/* System lines: compact and grey */
+.feed-sys {
+  padding-top: 3px;
+  padding-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.feed-sys-mark {
+  display: flex;
+  justify-content: center;
+  padding-top: 7px;
+}
+.feed-sys-text {
+  min-width: 0;
+  word-break: break-word;
+}
+
+/* What just changed */
+@keyframes feed-flash {
+  from {
+    background: var(--accent-soft);
+  }
+  to {
+    background: transparent;
+  }
+}
+.feed-fresh > .feed-item {
+  animation: feed-flash 3.2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-fresh > .feed-item {
+    animation: none;
+    background: var(--accent-soft);
+  }
+}
+
+/* "N new" button over the bottom of the feed */
+.feed-newwrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.feed-newpill {
+  pointer-events: auto;
+  border-radius: 999px;
+  padding: 6px 16px;
+  min-height: 36px;
+  font-size: 0.86rem;
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 699px) {
+  .feed-item {
+    gap: 8px;
+    padding: 8px 8px;
+  }
+  .feed-link-button {
+    min-height: 36px;
+  }
+}
+
+/* ---------------------------------------------------------------- composer */
+
+.cmp-paused {
+  background: var(--amber-soft);
+  border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.82rem;
+  margin-bottom: 8px;
+}
+.cmp-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cmp-pick {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cmp-pick label,
+.cmp-inline label {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  flex: none;
+}
+.cmp-pick .select,
+.cmp-inline .input,
+.cmp-inline .select {
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 8px;
+  font-size: 0.9rem;
+}
+.cmp-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.cmp-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.cmp-done .input {
+  flex: 1;
+}
+.cmp-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.cmp-more {
+  flex: none;
+  min-height: 36px;
+  position: relative;
+}
+.cmp-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+}
+.cmp-tip {
+  padding-top: 0;
+}
+.cmp-field {
+  position: relative;
+}
+.composer .cmp-field .textarea {
+  resize: none;
+  display: block;
+  overflow-y: auto;
+}
+.cmp-count {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  text-align: right;
+}
+.cmp-mentions {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 4px);
+  z-index: 5;
+  min-width: min(240px, 100%);
+  max-width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+.cmp-mention {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cmp-mention[aria-selected='true'],
+.cmp-mention:hover {
+  background: var(--bg-selected);
+}
+.cmp-mention small {
+  color: var(--text-faint);
+}
+.cmp-foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 6px;
+}
+.cmp-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  padding-top: 2px;
+}
+.cmp-send {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.cmp-send .btn {
+  min-width: 84px;
+}
+.cmp-keys {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+}
+.cmp-error {
+  margin-top: 6px;
+}
+
+@media (max-width: 699px) {
+  .composer {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .cmp-keys {
+    display: none;
+  }
+  .cmp-options .cmp-inline {
+    flex: 1 1 140px;
+  }
+  .cmp-options .cmp-inline .input,
+  .cmp-options .cmp-inline .select {
+    flex: 1;
+  }
+}

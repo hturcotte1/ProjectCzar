@@ -103,7 +103,7 @@ export function refreshAgentStatus(ctx: AppContext, agentId: string, emit: Emit)
   if (s.light === 'red' && !openIncident) {
     const incidentId = nextId(ctx.db, 'inc');
     const hint = s.cardOpenNoReport
-      ? 'It opened a card but sent no report. That pattern usually means it is waiting for you to approve the Tempo connection: in its settings, set the Tempo connector approval to "Allow".'
+      ? 'It opened a card but sent no report. That pattern usually means it is waiting for you to approve the Tempo connection: in its settings, set the Tempo connector to "Always allow" (some agents call it "Allow").'
       : null;
     ctx.db.prepare('INSERT INTO incidents (id, agent_id, kind, started_at, hint) VALUES (?, ?, ?, ?, ?)').run(
       incidentId,

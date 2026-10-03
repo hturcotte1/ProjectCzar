@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.tmp/
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+test-results/
+playwright-report/
+coverage/

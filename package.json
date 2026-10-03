@@ -1,0 +1,60 @@
+{
+  "name": "tempo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tempo: a private control room where AI agents report, talk to each other, and take direction.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "npm run build:server && npm run build:web",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build:web": "vite build",
+    "start": "node dist/server/main.js",
+    "dev": "tsx watch src/server/main.ts",
+    "dev:web": "vite",
+    "setup": "node dist/server/cli/setup.js",
+    "rehearsal": "node dist/server/cli/rehearsal.js",
+    "demo": "node dist/server/cli/demo.js",
+    "backup": "node dist/server/cli/backup.js",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "lint:openapi": "node dist/server/cli/write-openapi.js .tmp/openapi.json && redocly lint .tmp/openapi.json --format=stylish"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/formbody": "^8.0.2",
+    "@fastify/static": "^10.1.5",
+    "@modelcontextprotocol/client": "^2.3.0",
+    "@modelcontextprotocol/node": "^2.1.1",
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "@modelcontextprotocol/server": "^2.3.0",
+    "@node-rs/argon2": "^2.2.1",
+    "better-sqlite3": "^13.0.3",
+    "fastify": "^5.12.5",
+    "luxon": "^3.7.2",
+    "nodemailer": "^10.0.13",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@redocly/cli": "^2.57.0",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/luxon": "^3.7.6",
+    "@types/node": "^24.19.1",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}

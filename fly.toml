@@ -1,0 +1,56 @@
+# Fly.io configuration for Tempo. This is the FALLBACK host; the main plan is Railway (see
+# .railway/railway.ts). Use Fly only if Railway does not work out.
+#
+# How to use it, from this folder:
+#   1. fly launch --no-deploy     Creates the app on Fly. It may rewrite this file; keep the settings below.
+#   2. Edit the app name below ("tempo-REPLACE-ME") to the name Fly gave you.
+#   3. The first "fly deploy" creates the "data" disk from the [mounts] section below. If Fly says
+#      the volume is missing, create it by hand: fly volumes create data --region iad --size 1
+#   4. fly secrets set BASE_URL=https://<your-app>.fly.dev ANTHROPIC_API_KEY=sk-ant-...
+#                                 Secrets are not kept in this file because it is saved in git.
+#                                 BASE_URL is your public https address, with no trailing slash.
+#   5. fly deploy                 Builds the Dockerfile and starts Tempo. Later updates: the same command.
+#   6. fly ssh console            Then run: node dist/server/cli/setup.js   (creates the first admin)
+#
+# Tempo keeps its database in one file on the disk (the [mounts] section) and runs its scheduler
+# inside the web process. So it is one machine with one disk, and the machine is never stopped
+# for being idle (auto_stop_machines = "off").
+
+app = "tempo-REPLACE-ME"
+primary_region = "iad"
+
+# Fly stops a machine with SIGTERM and waits up to kill_timeout seconds. Tempo needs a few seconds
+# to close the web server and flush the database.
+kill_signal = "SIGTERM"
+kill_timeout = 30
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+  DATA_DIR = "/data"
+  TRUST_PROXY = "true"
+
+[mounts]
+  source = "data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

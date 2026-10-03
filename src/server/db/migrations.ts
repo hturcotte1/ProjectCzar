@@ -468,4 +468,13 @@ CREATE TABLE rehearsals (
 );
 `,
   },
+  {
+    id: 2,
+    name: 'indexes for alert and decision lookups',
+    sql: `
+-- The scheduler checks every open decision for an alert on each tick; keep that an index lookup.
+CREATE INDEX alerts_decision ON alerts(decision_id);
+CREATE INDEX decisions_room_source ON decisions(room_id, source, status);
+`,
+  },
 ];

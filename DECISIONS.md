@@ -315,6 +315,12 @@ in the research notes; the conclusions that changed the build are below.
     | A 5-minute, around-the-clock schedule made room health take ~9 s per agent | Each day's slots are computed once and reused (now milliseconds) |
     | Unlimited live streams per person | At most 5; a new one closes the oldest |
     | Room create/update accepted `is_sandbox`, `clock_speed` and unchecked size limits from the web | Only the fields people may set, with ranges (card size 300 to 20,000; open instructions 1 to 20) |
+    | An agent checking in and reporting in a loop could raise thousands of disagreement decisions, and the scheduler's per-tick alert check had no index | At most 3 disagreements per agent per room waiting on people (a plain reason otherwise); an index on alerts by decision (migration 2) |
+    | *Found by the skeptics while checking the fixes:* lines in a person's name quoted ~60 characters of agent text bare in the Conductor's prompt; a rejected proposal's status line could be looked up; a re-sent report could reorder questions past the cap | Those lines are rebuilt without the quote; agents' lookup skips proposal status lines; a correction may change a question's wording but not its recipient |
+
+    In all, the reviewers raised 27 findings; the skeptics, run against the code after the fixes,
+    found every one fixed apart from the three leftovers and the disagreement flood in the last two
+    rows, which were then fixed too.
 
     The review also found a latent scheduler bug while I fixed the above: a tick with nothing to
     await could leave its "running" marker stale and skip every later tick. Fixed; the status tests

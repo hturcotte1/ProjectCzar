@@ -301,3 +301,34 @@ describe('leftovers found by the skeptics', () => {
     expect(count(w.ctx, "SELECT COUNT(*) n FROM questions WHERE status = 'open'")).toBe(5);
   });
 });
+
+describe('decision floods', () => {
+  it('one agent can have at most 3 disagreements waiting on people per room, however often it checks in', async () => {
+    const w = await makeWorld();
+    const dis = (n: number) => Array.from({ length: n }, (_, i) => ({ with: 'Muse Sam', about: `Topic ${i}`, my_view: 'I see it differently.' }));
+    const card = (await checkIn(w, w.a.apiKey)).body;
+    const first = await report(w, w.a.apiKey, { ...fullReport(card), rooms: [{ room_id: w.room.id, working_on: 'Work.', disagreements: dis(3) }] });
+    expect(first.status).toBe(200);
+    // Re-sending the same report updates those three in place.
+    expect((await report(w, w.a.apiKey, { ...fullReport(card), rooms: [{ room_id: w.room.id, working_on: 'Work.', disagreements: dis(3) }] })).status).toBe(200);
+    // A new check-in cannot add more while three are waiting.
+    for (let i = 0; i < 5; i++) {
+      const c = (await checkIn(w, w.a.apiKey)).body;
+      const r = await report(w, w.a.apiKey, { ...fullReport(c), rooms: [{ room_id: w.room.id, working_on: 'Work.', disagreements: dis(1) }] });
+      expect(r.status).toBe(422);
+      expect(r.body.error.message).toMatch(/already have 3 disagreements waiting for a person/);
+      // The agent can still check in without raising more.
+      expect((await report(w, w.a.apiKey, fullReport(c))).status).toBe(200);
+    }
+    expect(count(w.ctx, "SELECT COUNT(*) n FROM decisions WHERE source = 'disagreement' AND status = 'open'")).toBe(3);
+  });
+
+  it('the scheduler finds decisions without alerts through an index', () => {
+    return makeWorld().then((w) => {
+      const plan = w.ctx.db
+        .prepare(`EXPLAIN QUERY PLAN SELECT d.* FROM decisions d WHERE d.status = 'open' AND NOT EXISTS (SELECT 1 FROM alerts a WHERE a.decision_id = d.id)`)
+        .all() as { detail: string }[];
+      expect(plan.map((p) => p.detail).join(' | ')).toMatch(/alerts_decision/);
+    });
+  });
+});

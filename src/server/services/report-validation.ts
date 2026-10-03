@@ -7,6 +7,9 @@ import type { AgentRow, CardRequirements, InstructionRow, QuestionRow } from './
 import { OPEN_INSTRUCTION_STATUSES } from './rows.js';
 import { getInstruction, getQuestion, questionCapProblem, quote } from './work.js';
 
+/** Disagreements one agent may have waiting on people in one room. */
+export const MAX_OPEN_DISAGREEMENTS = 3;
+
 /**
  * Validates a report against the card it answers.
  *
@@ -278,6 +281,17 @@ export function validateReport(i: ValidationInput): { report: NormalizedReport; 
     }
 
     const disagreements: NormalizedReport['rooms'][number]['disagreements'] = [];
+    // At most MAX_OPEN_DISAGREEMENTS waiting on people per agent per room; a re-sent report's own
+    // disagreements are updated in place, so they do not count twice.
+    const prior = db.prepare('SELECT id FROM reports WHERE card_id = ?').get(i.cardId) as { id: string } | undefined;
+    const openDisagreements = (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS n FROM decisions WHERE room_id = ? AND source = 'disagreement' AND status = 'open'
+           AND json_extract(agent_ids, '$[0]') = ? AND (source_key IS NULL OR source_key NOT LIKE ?)`,
+        )
+        .get(roomId, agent.id, prior ? `${prior.id}:dis:${roomId}:%` : '') as { n: number }
+    ).n;
     const disList = asList(pick(entryRaw, 'disagreements', 'disagreement'));
     if (disList.length > 3) invalid(`${f}.disagreements`, `${f}.disagreements has ${disList.length} items; send at most 3.`);
     disList.slice(0, 3).forEach((d, j) => {
@@ -293,6 +307,13 @@ export function validateReport(i: ValidationInput): { report: NormalizedReport; 
       const other = findAgentInRoom(db, roomId!, withName);
       if (!other || other.id === agent.id) {
         invalid(`${df}.with`, `${df}.with "${withName}" is not another agent in room "${roomName(roomId!)}".`);
+        return;
+      }
+      if (openDisagreements + disagreements.length + 1 > MAX_OPEN_DISAGREEMENTS) {
+        invalid(
+          df,
+          `${df} cannot be sent: you already have ${openDisagreements} disagreement${openDisagreements === 1 ? '' : 's'} waiting for a person in room "${roomName(roomId!)}", and at most ${MAX_OPEN_DISAGREEMENTS} can wait at once. The decisions will appear on your card; raise more after that.`,
+        );
         return;
       }
       disagreements.push({ with_agent_id: other.id, with_name: other.name, about, my_view: myView });

@@ -263,20 +263,14 @@ describe('formToReport', () => {
     });
   });
 
-  it('includes an entry for everything on the card even when empty, so the shared validator writes the "missing" messages', () => {
+  it('includes every room (even empty) and leaves out untouched answers and statuses, so the shared validator names them', () => {
     const r = formToReport({ card_id: 'card_7' }, card) as any;
     expect(r.rooms).toEqual([
       { room_id: 'room_1', working_on: '', finished: [], blocked: null },
       { room_id: 'room_3', working_on: '', finished: [], blocked: null },
     ]);
-    expect(r.answers).toEqual([
-      { question_id: 'q_12', answer: '' },
-      { question_id: 'q_13', answer: '' },
-    ]);
-    expect(r.instruction_updates).toEqual([
-      { instruction_id: 'ins_31', status: '' },
-      { instruction_id: 'ins_32', status: '' },
-    ]);
+    expect(r.answers).toEqual([]);
+    expect(r.instruction_updates).toEqual([]);
     expect(r.questions).toEqual([]);
     expect(r.playbook_entries).toEqual([]);
   });
@@ -556,10 +550,11 @@ describe('agent page: sending the report', () => {
     const viaRest = await report(w2, w2.a.apiKey, {
       card_id: cardId,
       rooms: [{ room_id: rid, working_on: '', notes_for_others: 'Typed <notes> & more' }],
-      answers: [{ question_id: qid, answer: '' }],
+      answers: [],
       instruction_updates: [{ instruction_id: iid, status: '', note: 'A typed note' }],
     });
     expect(viaRest.status).toBe(422);
+    expect(viaRest.body.error.message).toContain(`an answer to ${qid} ('`);
     expect(viaRest.body.error.message).toMatch(/^Report not accepted\. Missing: /);
 
     const res = await postPage(w, w.a.pageToken, {

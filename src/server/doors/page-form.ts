@@ -113,8 +113,12 @@ export function formToReport(fields: FormFields, card: CardT): Record<string, un
     return entry;
   });
 
+  // Unanswered questions and untouched instructions are left out, so the shared validator names
+  // them the way every door does ("an answer to q_12 ('Which tier?') in answers").
   const answers = activeRooms.flatMap((r) =>
-    r.questions_for_you.map((q) => ({ question_id: q.id, answer: get(FIELD.answer(q.id)) })),
+    r.questions_for_you
+      .map((q) => ({ question_id: q.id, answer: get(FIELD.answer(q.id)) }))
+      .filter((a) => a.answer !== ''),
   );
 
   const instruction_updates = activeRooms.flatMap((r) =>
@@ -125,7 +129,7 @@ export function formToReport(fields: FormFields, card: CardT): Record<string, un
       if (note) entry.note = note;
       if (proof) entry.proof = proof;
       return entry;
-    }),
+    }).filter((e) => e.status !== '' || e.note !== undefined || e.proof !== undefined),
   );
 
   const questions: Record<string, unknown>[] = [];

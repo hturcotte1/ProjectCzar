@@ -54,7 +54,7 @@ async function world(config: Partial<Config> = {}) {
 
 let toClose: (() => Promise<void>)[] = [];
 afterEach(async () => {
-  for (const c of toClose) await c().catch(() => {});
+  for (const c of toClose.reverse()) await c().catch(() => {});
   toClose = [];
 });
 
@@ -161,7 +161,13 @@ describe('security review fixes', () => {
   });
 
   it('a client cannot dodge the per-address limit by inventing X-Forwarded-For entries', async () => {
-    const { w } = await world({ trustProxy: 1 });
+    const { loadConfig } = await import('../src/server/config.js');
+    // Production trusts exactly one proxy by default, and "true" means one, never "all".
+    expect(loadConfig({ NODE_ENV: 'production' }).trustProxy).toBe(1);
+    expect(loadConfig({ NODE_ENV: 'production', TRUST_PROXY: 'true' }).trustProxy).toBe(1);
+    expect(loadConfig({ NODE_ENV: 'production', TRUST_PROXY: 'false' }).trustProxy).toBe(false);
+    expect(loadConfig({ NODE_ENV: 'development' }).trustProxy).toBe(false);
+    const { w } = await world(loadConfig({ NODE_ENV: 'production', TRUST_PROXY: 'true', BASE_URL: 'http://tempo.test' }));
     const statuses: number[] = [];
     for (let i = 0; i < 25; i++) {
       // The proxy appends the real address (1.2.3.4); the client made up the first entry.

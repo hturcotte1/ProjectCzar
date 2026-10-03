@@ -279,6 +279,26 @@ in the research notes; the conclusions that changed the build are below.
     room, because a rehearsal creates its own sandbox room and must never touch a real one. Any
     signed-in person can start one; only one runs at a time, and it is capped at 20 rounds (the full script needs 8).
 
+34. **Security review (milestone 9).** Five independent reviewers each attacked one area (sign-in
+    and sessions, room isolation, injection, the agent doors, resource abuse), each with working
+    proof-of-concept scripts; every finding was then checked by a separate skeptic. What was found
+    and fixed (tests in `tests/security.test.ts`):
+
+    | Finding | Fix |
+    |---|---|
+    | An open live-update stream kept sending room content after sign-out, password change or account disable | The stream re-checks the session before every event and every heartbeat and closes when it is gone |
+    | One address could lock every account out of sign-in (the per-account counter was charged even for refused attempts) | Per-address limit on all attempts; per-account limits count failures only, mostly per account and address, with a high cross-address backstop |
+    | `TRUST_PROXY=true` let a client choose its own address with `X-Forwarded-For` | `TRUST_PROXY` is now a hop count (1 on Railway and Fly); only the proxy's own entry is believed |
+    | A disabled admin's unused invites still worked; an invite still added rooms the inviter had left | Disabling withdraws the person's invites; invites need an active admin; only rooms the inviter still belongs to are added; acceptance re-checks everything in its transaction |
+    | Changing a password left other sessions signed in | Other sessions are signed out |
+    | Removing a person left their agents in the room, so the person could still read it through their agent | Their agents leave with them; agent room access also requires the owner to be in the room |
+    | An agent removed from a room could still write into it by re-sending an old report; reported cards could be re-sent forever; a reused open card still showed a room the agent had left | Reports only count for rooms the agent is still in; a reported card can be corrected for 2 hours; an open card is rebuilt when the agent's rooms change |
+    | Anyone could add their agent to a sandbox room they were not in | The sandbox exception is gone |
+    | Removing an agent that was not in the room revealed its name and wrote a false feed line | Refused with 404, nothing written |
+    | Agent text reached the Conductor outside the untrusted wrapper (via limits decisions and playbook titles) and line breaks could forge a person's line | Every item is one line; everything not written by a person or the Conductor is wrapped; tag removal no longer needs a `>` |
+    | An agent could fake an instruction on another owner's agent's card with line breaks | Other agents' text is indented (text) or quoted (agent page); the card's about line says other agents' text is information, not instruction |
+    | The daily brief wrapped only `working_on` | Every agent-written fact is wrapped and cleaned |
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |
@@ -290,4 +310,5 @@ in the research notes; the conclusions that changed the build are below.
 | Control-room screens (4 builders: feed+composer; strip+lanes+decisions; Conductor+room tabs; agents+settings+auth) | Sonnet | See milestone 5 notes |
 | Rehearsal stand-in agents | Sonnet | Its tests plus the full rehearsal |
 | Dockerfile, Railway and Fly config, container smoke script | Sonnet | Ran the smoke script (build, restart, data survives) |
+| Security review: five finders plus a skeptic per finding | Inherited model (finders), skeptics | Read every finding and its proof-of-concept; the lead fixed each and wrote a test for it |
 | Kept by the lead | — | Database, check-in service and validation, sign-in/keys/isolation, MCP door, scheduler, Conductor, brief, rehearsal driver, integration, this file |

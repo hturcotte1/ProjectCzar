@@ -8,6 +8,10 @@ import { silentLogger } from './context.js';
 import { makeDoorLimits, type DoorLimits } from './doors/agent-auth.js';
 import { registerRestDoor } from './doors/rest.js';
 import { registerMcpDoor } from './doors/mcp.js';
+import { registerPageDoor } from './doors/page.js';
+import { registerPublicDocs } from './web/public-docs.js';
+import { registerAppApi, type AppApiHooks } from './web/app-api.js';
+import { registerStatic } from './web/static.js';
 
 export interface BuildOptions {
   config?: Partial<Config>;
@@ -16,6 +20,9 @@ export interface BuildOptions {
   db?: DB;
   integrations?: Partial<Integrations>;
   logger?: boolean;
+  hooks?: AppApiHooks;
+  /** Folder with the built control room (dist/web). Omit to skip serving it. */
+  webDir?: string;
 }
 
 export interface BuiltApp {
@@ -91,6 +98,10 @@ export async function buildApp(opts: BuildOptions = {}, ctxIn?: AppContext): Pro
 
   await registerRestDoor(app, ctx, limits);
   await registerMcpDoor(app, ctx, limits);
+  await registerPageDoor(app, ctx, limits);
+  await registerPublicDocs(app, ctx);
+  await registerAppApi(app, ctx, opts.hooks ?? {});
+  if (opts.webDir) await registerStatic(app, opts.webDir);
 
   return { app, ctx, limits };
 }

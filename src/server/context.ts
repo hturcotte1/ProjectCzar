@@ -21,6 +21,8 @@ export const silentLogger: Logger = {
 export interface Integrations {
   /** The Conductor's model. Null when there is no API key (rooms then behave as relay). */
   conductorModel: import('./conductor/model.js').ConductorModel | null;
+  /** The scripted stand-in Conductor used only in sandbox rooms when there is no API key. */
+  scriptedConductor?: import('./conductor/model.js').ConductorModel | null;
   /** Sends one email. Null when email is not configured. */
   sendEmail: ((to: string, subject: string, text: string) => Promise<void>) | null;
   /** Sends one phone push through ntfy. */

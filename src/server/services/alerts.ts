@@ -68,51 +68,53 @@ export function createAlert(
   return id;
 }
 
-let delivering: Promise<void> | null = null;
+const delivering = new WeakMap<AppContext, Promise<void>>();
 
 /**
  * Sends email and push for alerts that have not been attempted yet. Safe to call often; only one
- * delivery pass runs at a time, and each alert is attempted once per channel.
+ * delivery pass runs at a time per app, and each alert is attempted once per channel.
  */
 export function deliverPendingAlerts(ctx: AppContext): Promise<void> {
-  if (delivering) return delivering;
-  delivering = (async () => {
-    try {
-      const pending = ctx.db.prepare(`SELECT * FROM alerts WHERE deliveries = '{}' ORDER BY created_at LIMIT 50`).all() as AlertRow[];
-      for (const alert of pending) {
-        const person = getPerson(ctx.db, alert.person_id);
-        const results: Record<string, string> = { app: 'shown' };
-        if (person && !person.disabled_at) {
-          if (person.notify_email && ctx.integrations.sendEmail) {
-            try {
-              await ctx.integrations.sendEmail(person.email, alert.title, `${alert.body}\n\nOpen Tempo: ${ctx.config.baseUrl}/`);
-              results.email = 'sent';
-            } catch (e) {
-              results.email = `failed: ${(e as Error).message.slice(0, 200)}`;
-              ctx.log.warn({ alert: alert.id, channel: 'email' }, 'alert email failed');
-            }
-          } else {
-            results.email = ctx.integrations.sendEmail ? 'off for this person' : 'email not set up';
-          }
-          if (person.ntfy_topic && ctx.integrations.sendPush) {
-            try {
-              await ctx.integrations.sendPush(person.ntfy_topic, alert.title, alert.body, `${ctx.config.baseUrl}/`);
-              results.push = 'sent';
-            } catch (e) {
-              results.push = `failed: ${(e as Error).message.slice(0, 200)}`;
-              ctx.log.warn({ alert: alert.id, channel: 'push' }, 'alert push failed');
-            }
-          } else {
-            results.push = person.ntfy_topic ? 'push not set up' : 'no push topic for this person';
-          }
+  const current = delivering.get(ctx);
+  if (current) return current;
+  const p = deliverOnce(ctx).finally(() => {
+    if (delivering.get(ctx) === p) delivering.delete(ctx);
+  });
+  delivering.set(ctx, p);
+  return p;
+}
+
+async function deliverOnce(ctx: AppContext): Promise<void> {
+  const pending = ctx.db.prepare(`SELECT * FROM alerts WHERE deliveries = '{}' ORDER BY created_at LIMIT 50`).all() as AlertRow[];
+  for (const alert of pending) {
+    const person = getPerson(ctx.db, alert.person_id);
+    const results: Record<string, string> = { app: 'shown' };
+    if (person && !person.disabled_at) {
+      if (person.notify_email && ctx.integrations.sendEmail) {
+        try {
+          await ctx.integrations.sendEmail(person.email, alert.title, `${alert.body}\n\nOpen Tempo: ${ctx.config.baseUrl}/`);
+          results.email = 'sent';
+        } catch (e) {
+          results.email = `failed: ${(e as Error).message.slice(0, 200)}`;
+          ctx.log.warn({ alert: alert.id, channel: 'email' }, 'alert email failed');
         }
-        ctx.db.prepare('UPDATE alerts SET deliveries = ? WHERE id = ?').run(JSON.stringify(results), alert.id);
+      } else {
+        results.email = ctx.integrations.sendEmail ? 'off for this person' : 'email not set up';
       }
-    } finally {
-      delivering = null;
+      if (person.ntfy_topic && ctx.integrations.sendPush) {
+        try {
+          await ctx.integrations.sendPush(person.ntfy_topic, alert.title, alert.body, `${ctx.config.baseUrl}/`);
+          results.push = 'sent';
+        } catch (e) {
+          results.push = `failed: ${(e as Error).message.slice(0, 200)}`;
+          ctx.log.warn({ alert: alert.id, channel: 'push' }, 'alert push failed');
+        }
+      } else {
+        results.push = person.ntfy_topic ? 'push not set up' : 'no push topic for this person';
+      }
     }
-  })();
-  return delivering;
+    ctx.db.prepare('UPDATE alerts SET deliveries = ? WHERE id = ?').run(JSON.stringify(results), alert.id);
+  }
 }
 
 export function listAlerts(db: DB, personId: string, limit = 50): (AlertRow & { deliveriesParsed: Record<string, string> })[] {

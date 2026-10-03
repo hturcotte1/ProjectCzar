@@ -57,9 +57,10 @@ Do these once, in this folder.
    npm start
    ```
 
-   Tempo prints a few lines. One of them starts with `responseMode: 'json' drops mid-call
-   notifications`. That is a harmless note from a library, not a problem. The line to look for is
-   `Tempo is running`.
+   Tempo prints a few log lines. One of them starts with `responseMode: 'json' drops mid-call
+   notifications`. That is a harmless note from a library, not a problem. The line to look for
+   contains `"msg":"Tempo is running"`; it also says which database it uses and whether the
+   Conductor and email are on.
 
 5. Open <http://localhost:3000> in your browser and sign in with the email and password from step 3.
    You land on a page to create your first room.

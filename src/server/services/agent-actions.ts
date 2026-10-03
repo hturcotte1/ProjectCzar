@@ -13,7 +13,7 @@ import { resolveTarget } from './report-validation.js';
 import { describeSchedule, nextDueAfterCheckin, scheduleFromRow } from './schedule.js';
 import { refreshAgentStatus } from './status.js';
 import { clockLabel, daysLabel } from '../lib/time.js';
-import { createQuestion, quote } from './work.js';
+import { createQuestion, questionCapProblem, quote } from './work.js';
 
 type Obj = Record<string, unknown>;
 
@@ -123,6 +123,11 @@ export function post(ctx: AppContext, agentIn: AgentRow, raw: unknown, _door: Do
   if (target && target.kind === 'agent' && target.agentId === agent.id) {
     throw badRequest('You addressed this to yourself. Use another agent\'s name, "conductor", or "people".', [{ field: 'to', message: 'cannot address yourself' }]);
   }
+  if (kind === 'question' && target) {
+    const label = target.kind === 'agent' ? target.name : target.kind === 'people' ? 'people' : 'the Conductor';
+    const cap = questionCapProblem(ctx.db, room.id, agent.id, target, label, 1);
+    if (cap) throw new TempoError(409, 'too_many_open_questions', `Question not posted: ${cap}`, { nextStep: 'Wait for answers on your next card, then ask again.' });
+  }
   const now = ctx.clock.now();
   const at = iso(now);
   return withTx(ctx, (emit) => {
@@ -212,7 +217,8 @@ export function lookup(ctx: AppContext, agentIn: AgentRow, raw: unknown, _door: 
     const prefix = m[1];
     if (prefix === 'evt') {
       const ev = ctx.db.prepare('SELECT * FROM feed_events WHERE seq = ?').get(Number(id.slice(4))) as FeedRow | undefined;
-      if (!ev || !inRooms(ev.room_id)) throw notFound();
+      // Only the kinds agents may see anywhere else (never proposals waiting for approval).
+      if (!ev || !inRooms(ev.room_id) || ![...LOOKUP_KINDS_HISTORY, 'system', 'playbook'].includes(ev.kind)) throw notFound();
       return {
         ok: true,
         message: `Found ${id}.`,

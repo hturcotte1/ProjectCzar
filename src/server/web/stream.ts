@@ -16,9 +16,12 @@ import { feedEventView } from './views.js';
  * or a disabled account ends the stream before anything else is sent.
  */
 const HEARTBEAT_MS = 15_000;
+/** Open streams allowed per person (several tabs and devices); a new one beyond this closes the oldest. */
+const MAX_STREAMS_PER_PERSON = 5;
 
 export async function registerStream(api: FastifyInstance, ctx: AppContext): Promise<void> {
   const open = new Set<() => void>();
+  const perPerson = new Map<string, Set<() => void>>();
   // On shutdown, end every open stream so the server can close promptly (browsers reconnect).
   api.addHook('onClose', async () => {
     for (const end of [...open]) end();
@@ -55,6 +58,15 @@ export async function registerStream(api: FastifyInstance, ctx: AppContext): Pro
       if (closed) return;
       res.write(`${id !== undefined ? `id: ${id}\n` : ''}event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`);
     };
+    // For live events: the session is checked again right before anything is sent.
+    const sendLive = (e: StreamEvent, id?: number) => {
+      if (closed) return;
+      if (!sessionAlive()) {
+        end();
+        return;
+      }
+      send(e, id);
+    };
     res.write('retry: 3000\n\n');
     send({ type: 'hello', server_time: new Date(ctx.clock.now()).toISOString() });
 
@@ -71,41 +83,37 @@ export async function registerStream(api: FastifyInstance, ctx: AppContext): Pro
     const onEvent = (e: BusEvent) => {
       try {
         if (closed) return;
-        if (!sessionAlive()) {
-          end();
-          return;
-        }
         switch (e.type) {
           case 'feed': {
             if (!rooms.has(e.roomId)) return;
             const row = getFeedRow(ctx.db, e.seq);
-            if (row) send({ type: 'feed', room_id: e.roomId, event: feedEventView(ctx, row), updated: !!e.updated }, e.updated ? undefined : e.seq);
+            if (row) sendLive({ type: 'feed', room_id: e.roomId, event: feedEventView(ctx, row), updated: !!e.updated }, e.updated ? undefined : e.seq);
             return;
           }
           case 'room':
             if (e.what === 'members' || e.what === 'agents') loadRooms();
-            if (rooms.has(e.roomId)) send({ type: 'room', room_id: e.roomId, what: e.what });
+            if (rooms.has(e.roomId)) sendLive({ type: 'room', room_id: e.roomId, what: e.what });
             return;
           case 'agent': {
             const agent = getAgent(ctx.db, e.agentId);
             if (agent?.owner_id === person.id || e.roomIds.some((r) => rooms.has(r))) {
-              send({ type: 'agent', agent_id: e.agentId, room_ids: e.roomIds.filter((r) => rooms.has(r)) });
+              sendLive({ type: 'agent', agent_id: e.agentId, room_ids: e.roomIds.filter((r) => rooms.has(r)) });
             }
             return;
           }
           case 'decision':
-            if (rooms.has(e.roomId)) send({ type: 'decision', room_id: e.roomId, decision_id: e.decisionId });
+            if (rooms.has(e.roomId)) sendLive({ type: 'decision', room_id: e.roomId, decision_id: e.decisionId });
             return;
           case 'conductor':
-            if (rooms.has(e.roomId)) send({ type: 'conductor', room_id: e.roomId });
+            if (rooms.has(e.roomId)) sendLive({ type: 'conductor', room_id: e.roomId });
             return;
           case 'alert':
-            if (e.personId === person.id) send({ type: 'alert', alert_id: e.alertId });
+            if (e.personId === person.id) sendLive({ type: 'alert', alert_id: e.alertId });
             return;
           case 'membership':
             if (e.personId === person.id) {
               loadRooms();
-              send({ type: 'rooms' });
+              sendLive({ type: 'rooms' });
             }
             return;
         }
@@ -129,12 +137,24 @@ export async function registerStream(api: FastifyInstance, ctx: AppContext): Pro
       clearInterval(heartbeat);
       unsubscribe();
       open.delete(end);
+      const mine = perPerson.get(person.id);
+      mine?.delete(end);
+      if (mine && !mine.size) perPerson.delete(person.id);
     };
     const end = () => {
       close();
       res.end();
     };
     open.add(end);
+    const mine = perPerson.get(person.id) ?? new Set<() => void>();
+    perPerson.set(person.id, mine);
+    mine.add(end);
+    while (mine.size > MAX_STREAMS_PER_PERSON) {
+      const oldest = mine.values().next().value as (() => void) | undefined;
+      if (!oldest) break;
+      oldest();
+      mine.delete(oldest);
+    }
     req.raw.on('close', close);
     res.on('close', close);
     res.on('error', close);

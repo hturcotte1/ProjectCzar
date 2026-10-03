@@ -5,7 +5,7 @@ import { MAX_TEXT } from '../schemas/agent.js';
 import { agentRooms, findAgentInRoom, getRoom } from './repo.js';
 import type { AgentRow, CardRequirements, InstructionRow, QuestionRow } from './rows.js';
 import { OPEN_INSTRUCTION_STATUSES } from './rows.js';
-import { getInstruction, getQuestion, quote } from './work.js';
+import { getInstruction, getQuestion, questionCapProblem, quote } from './work.js';
 
 /**
  * Validates a report against the card it answers.
@@ -420,6 +420,7 @@ export function validateReport(i: ValidationInput): { report: NormalizedReport; 
 
   // ----- new questions -------------------------------------------------------------------------
   const qEntries = asList(pick(raw, 'questions', 'new_questions'));
+  const pendingQuestions = new Map<string, number>();
   if (qEntries.length > 10) invalid('questions', `questions has ${qEntries.length} items; send at most 10.`);
   qEntries.slice(0, 10).forEach((q, idx) => {
     const f = `questions[${idx}]`;
@@ -444,6 +445,17 @@ export function validateReport(i: ValidationInput): { report: NormalizedReport; 
       invalid(`${f}.to`, `${f} is addressed to you. Ask another agent, "conductor", or "people".`);
       return;
     }
+    // At most a few open questions per recipient, so no agent can flood another's card.
+    const key = `${roomId}|${target.kind}|${target.kind === 'agent' ? target.agentId : ''}`;
+    const adding = (pendingQuestions.get(key) ?? 0) + 1;
+    const label = target.kind === 'agent' ? target.name : target.kind === 'people' ? 'people' : 'the Conductor';
+    const existingReport = db.prepare('SELECT id FROM reports WHERE card_id = ?').get(i.cardId) as { id: string } | undefined;
+    const cap = questionCapProblem(db, roomId, agent.id, target, label, adding, existingReport ? `${existingReport.id}:q:` : null);
+    if (cap) {
+      invalid(`${f}`, `${f} cannot be sent: ${cap}`);
+      return;
+    }
+    pendingQuestions.set(key, adding);
     report.questions.push({ room_id: roomId, target, text });
   });
 

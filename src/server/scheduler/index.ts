@@ -81,7 +81,9 @@ export class Scheduler {
   /** One pass over every job. Safe to call directly (tests do, with a fake clock). */
   tick(): Promise<void> {
     if (this.running) return this.running;
-    this.running = (async () => {
+    // The marker is cleared only after it was set: a tick with nothing to await finishes
+    // synchronously, and clearing it from inside would leave a stale promise behind.
+    const p: Promise<void> = (async () => {
       try {
         expireCards(this.ctx);
         refreshAllStatuses(this.ctx);
@@ -94,14 +96,16 @@ export class Scheduler {
           }
         }
         pruneLogs(this.ctx);
-        await this.track(deliverPendingAlerts(this.ctx));
+        // In the background: a slow mail server must never hold up the tick.
+        this.track(deliverPendingAlerts(this.ctx)).catch((e) => this.ctx.log.error({ err: (e as Error).message }, 'alert delivery failed'));
       } catch (e) {
         this.ctx.log.error({ err: (e as Error).message, stack: (e as Error).stack }, 'scheduler tick failed');
-      } finally {
-        this.running = null;
       }
-    })();
-    return this.running;
+    })().finally(() => {
+      if (this.running === p) this.running = null;
+    });
+    this.running = p;
+    return p;
   }
 }
 

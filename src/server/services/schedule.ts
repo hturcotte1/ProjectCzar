@@ -67,9 +67,23 @@ function isSped(s: Schedule): boolean {
   return s.clockSpeed > 1;
 }
 
-/** Slot times (ms) on the local calendar day containing `dayStart`. */
-function slotsForDay(s: Schedule, day: DateTime): number[] {
+// Each day's slots are computed once per schedule and reused (time zone math is the slow part).
+const slotCache = new Map<string, readonly number[]>();
+const SLOT_CACHE_MAX = 5000;
+
+/** Slot times (ms) on the local calendar day containing `dayStart`. The result must not be changed. */
+function slotsForDay(s: Schedule, day: DateTime): readonly number[] {
   if (!s.workDays.includes(day.weekday)) return [];
+  const key = `${s.timezone}|${s.intervalMinutes}|${s.offsetMinutes}|${s.workStart}|${s.workEnd}|${day.year}-${day.month}-${day.day}`;
+  const hit = slotCache.get(key);
+  if (hit) return hit;
+  const out = computeSlotsForDay(s, day);
+  if (slotCache.size >= SLOT_CACHE_MAX) slotCache.clear();
+  slotCache.set(key, out);
+  return out;
+}
+
+function computeSlotsForDay(s: Schedule, day: DateTime): number[] {
   const start = toMinutes(s.workStart);
   const end = toMinutes(s.workEnd);
   const out: number[] = [];
@@ -100,6 +114,23 @@ export function firstSlotAfter(s: Schedule, t: number): number | null {
     day = day.plus({ days: 1 });
   }
   return null;
+}
+
+/** Every slot after `from` and up to `to`, in order (at most `max`). One pass over the days. */
+export function slotsBetween(s: Schedule, from: number, to: number, max = 5000): number[] {
+  const out: number[] = [];
+  if (isSped(s)) {
+    for (let slot = firstSlotAfter(s, from); slot !== null && slot <= to && out.length < max; slot = firstSlotAfter(s, slot)) out.push(slot);
+    return out;
+  }
+  let day = DateTime.fromMillis(from, { zone: s.timezone }).startOf('day');
+  while (day.toMillis() <= to && out.length < max) {
+    for (const slot of slotsForDay(s, day)) {
+      if (slot > from && slot <= to && out.length < max) out.push(slot);
+    }
+    day = day.plus({ days: 1 });
+  }
+  return out;
 }
 
 /** The next slot an agent owes, given its last completed check-in (or first contact). */

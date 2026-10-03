@@ -203,6 +203,9 @@ export async function registerAppApi(app: FastifyInstance, ctx: AppContext, hook
         try {
           const body = (req.body ?? {}) as Record<string, unknown>;
           const email = String(body.email ?? '').trim().toLowerCase();
+          if (email.length > 254 || String(body.password ?? '').length > 1024) {
+            throw new TempoError(401, 'login_failed', "That email and password don't match an account. Check them and try again.");
+          }
           const now = Date.now();
           const tooMany = () => new TempoError(429, 'too_many_attempts', 'Too many sign-in attempts. Wait a few minutes and try again.');
           if (!loginPerIp.check(`ip:${req.ip}`, now).ok) throw tooMany();
@@ -341,10 +344,20 @@ export async function registerAppApi(app: FastifyInstance, ctx: AppContext, hook
       // ---------------------------------------------------------------- rooms
       api.get('/rooms', async (req, reply) => reply.send(personRooms(ctx.db, me(req).id).map((r) => roomSummary(ctx, r))));
 
+      // Only the fields people may set; sandbox rooms and sped-up clocks come from rehearsals alone.
+      const ROOM_FIELDS = ['name', 'goal', 'rules', 'limits_allowed', 'limits_ask_first', 'conductor_mode', 'timezone', 'work_days', 'work_start', 'work_end', 'brief_time', 'card_token_budget', 'max_open_instructions'] as const;
+      const roomInput = (raw: unknown): RoomInput => {
+        const body = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+        const out: Record<string, unknown> = {};
+        for (const f of ROOM_FIELDS) if (body[f] !== undefined) out[f] = body[f];
+        return out as RoomInput;
+      };
+
       api.post('/rooms', async (req, reply) => {
         try {
-          const body = (req.body ?? {}) as RoomInput & { name: string };
-          const room = createRoom(ctx, me(req), body);
+          const body = roomInput(req.body);
+          if (typeof body.name !== 'string') throw badRequest('Give the room a name.', [{ field: 'name', message: 'missing' }]);
+          const room = createRoom(ctx, me(req), body as RoomInput & { name: string });
           return reply.send(roomView(ctx, room));
         } catch (e) {
           return sendErr(reply, e, ctx);
@@ -357,9 +370,9 @@ export async function registerAppApi(app: FastifyInstance, ctx: AppContext, hook
           .prepare(`SELECT * FROM decisions WHERE room_id = ? AND (status = 'open' OR resolved_at >= ?) ORDER BY status = 'open' DESC, created_at DESC LIMIT 50`)
           .all(roomId, new Date(ctx.clock.now() - 7 * 86400_000).toISOString()) as DecisionRow[];
         const qs = ctx.db
-          .prepare(`SELECT * FROM questions WHERE room_id = ? AND target_kind IN ('people', 'conductor') AND status = 'open' ORDER BY created_at`)
+          .prepare(`SELECT * FROM questions WHERE room_id = ? AND target_kind IN ('people', 'conductor') AND status = 'open' ORDER BY created_at LIMIT 100`)
           .all(roomId) as QuestionRow[];
-        const proposals = ctx.db.prepare(`SELECT * FROM instructions WHERE room_id = ? AND status = 'proposed' ORDER BY created_at`).all(roomId) as InstructionRow[];
+        const proposals = ctx.db.prepare(`SELECT * FROM instructions WHERE room_id = ? AND status = 'proposed' ORDER BY created_at LIMIT 100`).all(roomId) as InstructionRow[];
         return {
           room: roomView(ctx, room),
           agents: roomAgents(ctx.db, roomId).map((a) => agentView(ctx, a, person)),
@@ -384,7 +397,7 @@ export async function registerAppApi(app: FastifyInstance, ctx: AppContext, hook
         try {
           const id = (req.params as { id: string }).id;
           assertPersonInRoom(ctx.db, me(req).id, id);
-          const body = (req.body ?? {}) as RoomInput;
+          const body = roomInput(req.body);
           const { room, goalChanged, modeChanged } = updateRoom(ctx, personRef(me(req)), id, body);
           if ((goalChanged || modeChanged) && !room.paused_at) {
             requestConductorRun(ctx.db, id, { kind: goalChanged ? 'goal_changed' : 'mode_changed', detail: `${me(req).name} changed the ${goalChanged ? 'goal' : 'mode'}` }, ctx.clock.now(), 10_000, room.clock_speed);

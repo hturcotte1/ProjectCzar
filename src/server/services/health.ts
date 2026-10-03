@@ -2,7 +2,7 @@ import type { AppContext } from '../context.js';
 import { iso, ms } from '../lib/time.js';
 import type { HealthView } from '../../shared/app-types.js';
 import { roomAgents } from './repo.js';
-import { firstSlotAfter, scaled, scheduleFromRow } from './schedule.js';
+import { scaled, scheduleFromRow, slotsBetween } from './schedule.js';
 
 /**
  * Room health over the last 7 days: the share of scheduled check-ins that arrived on time, the
@@ -31,13 +31,12 @@ export function roomHealth(ctx: AppContext, roomId: string, windowDays = 7): Hea
     let ok = 0;
     const half = scaled(s, s.intervalMinutes) / 2;
     const grace = scaled(s, s.graceMinutes);
-    let slot = firstSlotAfter(s, start);
-    let guard = 0;
-    while (slot !== null && slot + grace <= now && guard < 5000) {
+    // Slots and check-ins are both in time order, so one pointer walks the check-ins.
+    let ci = 0;
+    for (const slot of slotsBetween(s, start, now - grace)) {
       exp++;
-      if (checkins.some((c) => c >= slot! - half && c <= slot! + grace)) ok++;
-      slot = firstSlotAfter(s, slot);
-      guard++;
+      while (ci < checkins.length && checkins[ci] < slot - half) ci++;
+      if (ci < checkins.length && checkins[ci] <= slot + grace) ok++;
     }
     const incomplete = (
       ctx.db.prepare(`SELECT COUNT(*) AS n FROM cards WHERE agent_id = ? AND incomplete_at IS NOT NULL AND issued_at >= ?`).get(a.id, iso(from)) as { n: number }

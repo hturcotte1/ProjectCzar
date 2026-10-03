@@ -182,6 +182,9 @@ function jsonRpcError(err: TempoError): Record<string, unknown> {
   };
 }
 
+const TOOL_NAMES = new Set(['tempo_check_in', 'tempo_report', 'tempo_whoami', 'tempo_post', 'tempo_lookup']);
+
+/** A short, fixed label for the connection log; never copies arbitrary text from the request. */
 function methodOf(body: unknown): string {
   if (Array.isArray(body)) return 'batch';
   if (body && typeof body === 'object') {
@@ -189,9 +192,9 @@ function methodOf(body: unknown): string {
     const m = typeof b.method === 'string' ? b.method : 'response';
     if (m === 'tools/call') {
       const name = (b.params as Record<string, unknown> | undefined)?.name;
-      return `tools/call ${typeof name === 'string' ? name : '?'}`;
+      return typeof name === 'string' && TOOL_NAMES.has(name) ? `tools/call ${name}` : 'tools/call (unknown tool)';
     }
-    return m;
+    return /^[a-z][a-z/_]{0,40}$/i.test(m) ? m : 'other';
   }
   return 'unknown';
 }
@@ -263,6 +266,12 @@ export async function registerMcpDoor(app: FastifyInstance, ctx: AppContext, lim
           if (err.status === 401) reply.header('WWW-Authenticate', `Bearer realm="Tempo", error="invalid_token"`);
           if (err.retryAfterSeconds !== undefined) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.code(err.status).send(jsonRpcError(err));
+        }
+        if (Array.isArray(body)) {
+          // JSON-RPC batches would let one request run many tool calls past the per-key limit.
+          const err = new TempoError(400, 'batch_not_supported', 'Send one JSON-RPC message per POST. Batches (JSON arrays) are not supported.');
+          logConnection(ctx, { agentId: auth.agent.id, keyHint: auth.keyHint, door: 'mcp', action, result: 'rejected', httpStatus: 400, message: err.message, durationMs: Date.now() - started, client });
+          return reply.code(400).send({ jsonrpc: '2.0', id: null, error: { code: -32600, message: err.message } });
         }
         if (body && typeof body === 'object' && '__invalid_json' in (body as Record<string, unknown>)) {
           const err = new TempoError(400, 'invalid_json', 'The request body is not valid JSON. Send one JSON-RPC message per POST.');

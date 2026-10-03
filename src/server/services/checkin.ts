@@ -409,7 +409,7 @@ function applyReport(
     touchedRooms.add(q.room_id);
     const row = createQuestion(
       db,
-      { roomId: q.room_id, asker: actor, target: q.target, text: q.text, sourceKey: `${reportId}:q:${idx}`, at },
+      { roomId: q.room_id, asker: actor, target: q.target, text: q.text, sourceKey: `${reportId}:q:${q.room_id}:${idx}`, at },
       emit,
     );
     if (q.target.kind !== 'agent') raiseLimitDecisionForQuestion(ctx, row, agent, emit);
@@ -417,7 +417,7 @@ function applyReport(
 
   report.playbook_entries.forEach((p, idx) => {
     touchedRooms.add(p.room_id);
-    createPlaybookEntry(db, { roomId: p.room_id, title: p.title, body: p.text, author: actor, sourceKey: `${reportId}:pb:${idx}`, at }, emit);
+    createPlaybookEntry(db, { roomId: p.room_id, title: p.title, body: p.text, author: actor, sourceKey: `${reportId}:pb:${p.room_id}:${idx}`, at }, emit);
   });
 
   // The check-in is complete.

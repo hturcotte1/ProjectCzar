@@ -2,7 +2,7 @@ import type { AppContext } from '../context.js';
 import type { DB } from '../db/index.js';
 import { nextId, parseJson } from '../db/index.js';
 import type { BusEvent } from '../lib/bus.js';
-import { iso } from '../lib/time.js';
+import { iso, ms } from '../lib/time.js';
 import { getPerson } from './repo.js';
 
 /**
@@ -90,10 +90,23 @@ async function deliverOnce(ctx: AppContext): Promise<void> {
     const person = getPerson(ctx.db, alert.person_id);
     const results: Record<string, string> = { app: 'shown' };
     const sandbox = alert.room_id ? !!(ctx.db.prepare('SELECT is_sandbox FROM rooms WHERE id = ?').get(alert.room_id) as { is_sandbox: number } | undefined)?.is_sandbox : false;
+    // Decisions can arrive in bursts; email and push go out at most once per person per room per
+    // 30 minutes, and the app lists every one.
+    const grouped =
+      alert.kind === 'decision_waiting' &&
+      !!ctx.db
+        .prepare(
+          `SELECT 1 FROM alerts WHERE person_id = ? AND room_id = ? AND kind = 'decision_waiting' AND id != ? AND created_at >= ?
+           AND (deliveries LIKE '%"email":"sent"%' OR deliveries LIKE '%"push":"sent"%')`,
+        )
+        .get(alert.person_id, alert.room_id, alert.id, new Date(ms(alert.created_at) - 30 * 60_000).toISOString());
     if (sandbox) {
       // Rehearsal alerts stay in the app; nobody's phone should buzz for a stand-in.
       results.email = 'not sent for rehearsals';
       results.push = 'not sent for rehearsals';
+    } else if (grouped) {
+      results.email = 'grouped: an alert for this room went out in the last 30 minutes';
+      results.push = 'grouped: an alert for this room went out in the last 30 minutes';
     } else if (person && !person.disabled_at) {
       if (person.notify_email && ctx.integrations.sendEmail) {
         try {

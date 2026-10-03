@@ -80,6 +80,23 @@ export function authenticateForDoor(
     const err = isTempoError(e) ? e : internalError();
     if (err.status === 401 || err.status === 404) {
       const r = limits.failedAuthPerClient.check(args.clientAddress, Date.now());
+      if (!r.ok) {
+        // A flood of bad keys from one address: refuse each attempt, but log only one row a minute.
+        if (limits.floodLogged.check(args.clientAddress, Date.now()).ok) {
+          logConnection(ctx, {
+            agentId: agentForSecret(ctx, args.secret),
+            keyHint: presentedHint(args.secret),
+            door: args.door,
+            action: args.action,
+            result: 'rejected',
+            httpStatus: 429,
+            message: 'Too many attempts with a missing or wrong key from this address. Further attempts are refused and not logged for a minute.',
+            durationMs: Date.now() - started,
+            client: args.client,
+          });
+        }
+        throw rateLimited(r.retryAfterSeconds, 30);
+      }
       logConnection(ctx, {
         agentId: agentForSecret(ctx, args.secret),
         keyHint: presentedHint(args.secret),
@@ -91,7 +108,6 @@ export function authenticateForDoor(
         durationMs: Date.now() - started,
         client: args.client,
       });
-      if (!r.ok) throw rateLimited(r.retryAfterSeconds, 30);
       throw err;
     }
     logConnection(ctx, {

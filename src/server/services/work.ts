@@ -37,6 +37,52 @@ export interface NewQuestionArgs {
   at: string;
 }
 
+/** How many open questions one agent may have waiting on one recipient in a room. */
+export const MAX_OPEN_QUESTIONS_PER_RECIPIENT = 5;
+/** How many open questions from agents one agent may have waiting for it in a room. */
+export const MAX_OPEN_QUESTIONS_FOR_AN_AGENT = 20;
+
+/**
+ * Whether an agent may add `adding` more questions to a recipient in a room, given what is already
+ * open. Questions from the report being re-sent (`excludeSourcePrefix`) do not count, since a
+ * re-send updates them in place. Returns a plain-language reason, or null if it is fine.
+ */
+export function questionCapProblem(
+  db: DB,
+  roomId: string,
+  askerAgentId: string,
+  target: NewQuestionArgs['target'],
+  targetLabel: string,
+  adding: number,
+  excludeSourcePrefix: string | null = null,
+): string | null {
+  const notThis = excludeSourcePrefix ? ` AND (source_key IS NULL OR source_key NOT LIKE ?)` : '';
+  const ex = excludeSourcePrefix ? [`${excludeSourcePrefix}%`] : [];
+  const targetAgentId = target.kind === 'agent' ? target.agentId : null;
+  const mine = (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM questions WHERE room_id = ? AND status = 'open' AND asker_kind = 'agent' AND asker_id = ?
+         AND target_kind = ? AND COALESCE(target_agent_id, '') = ?${notThis}`,
+      )
+      .get(roomId, askerAgentId, target.kind, targetAgentId ?? '', ...ex) as { n: number }
+  ).n;
+  if (mine + adding > MAX_OPEN_QUESTIONS_PER_RECIPIENT) {
+    return `you already have ${mine} open question${mine === 1 ? '' : 's'} for ${targetLabel} in this room, and at most ${MAX_OPEN_QUESTIONS_PER_RECIPIENT} can wait at once. Wait for answers (they arrive on your card) before asking more.`;
+  }
+  if (targetAgentId) {
+    const forThem = (
+      db
+        .prepare(`SELECT COUNT(*) AS n FROM questions WHERE room_id = ? AND status = 'open' AND asker_kind = 'agent' AND target_agent_id = ?${notThis}`)
+        .get(roomId, targetAgentId, ...ex) as { n: number }
+    ).n;
+    if (forThem + adding > MAX_OPEN_QUESTIONS_FOR_AN_AGENT) {
+      return `${targetLabel} already has ${forThem} open questions from agents in this room, and at most ${MAX_OPEN_QUESTIONS_FOR_AN_AGENT} can wait at once. Ask later, or ask "people" instead.`;
+    }
+  }
+  return null;
+}
+
 export function createQuestion(db: DB, a: NewQuestionArgs, emit: Emit): QuestionRow {
   if (a.sourceKey) {
     const existing = db.prepare('SELECT * FROM questions WHERE source_key = ?').get(a.sourceKey) as
@@ -420,11 +466,12 @@ export function createPlaybookEntry(
   emit: Emit,
 ): string {
   if (a.sourceKey) {
-    const existing = db.prepare('SELECT id, title, body FROM playbook_entries WHERE source_key = ?').get(a.sourceKey) as
-      | { id: string; title: string; body: string }
+    const existing = db.prepare('SELECT id, title, body, updated_by FROM playbook_entries WHERE source_key = ?').get(a.sourceKey) as
+      | { id: string; title: string; body: string; updated_by: string | null }
       | undefined;
     if (existing) {
-      if (existing.title !== a.title || existing.body !== a.body) {
+      // A re-sent report may correct its own lesson, but never one a person has since edited.
+      if (!existing.updated_by && (existing.title !== a.title || existing.body !== a.body)) {
         db.prepare('UPDATE playbook_entries SET title = ?, body = ?, updated_at = ? WHERE id = ?').run(
           a.title,
           a.body,

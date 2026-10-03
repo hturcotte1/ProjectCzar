@@ -64,6 +64,16 @@ export interface StructuredRoom {
 }
 
 const MAX_FEED = 40;
+// Caps so no one (an agent posting a flood of questions, say) can make a run expensive.
+const MAX_QUESTIONS = 30;
+const MAX_INSTRUCTIONS = 40;
+const MAX_PROPOSALS = 15;
+const MAX_DECISIONS = 20;
+const ITEM_CHARS = 600;
+
+function clipItem(text: string, max = ITEM_CHARS): string {
+  return text.length > max ? `${text.slice(0, max - 20)}… (cut, ${text.length} chars)` : text;
+}
 
 /** One line: line breaks inside an item become " / ", so no text can start a fake line. */
 export function oneLine(text: string): string {
@@ -116,10 +126,14 @@ export function buildRunInput(ctx: AppContext, room: RoomRow, mode: string, sinc
   const shown = more ? events.slice(-MAX_FEED) : events;
   const olderCount = more ? (db.prepare('SELECT COUNT(*) AS n FROM feed_events WHERE room_id = ? AND seq > ?').get(room.id, sinceSeq) as { n: number }).n - MAX_FEED : 0;
 
-  const questions = db.prepare(`SELECT * FROM questions WHERE room_id = ? AND status = 'open' ORDER BY created_at`).all(room.id) as QuestionRow[];
-  const instructions = db.prepare(`SELECT * FROM instructions WHERE room_id = ? AND status IN (${ph}) ORDER BY created_at`).all(room.id, ...OPEN_INSTRUCTION_STATUSES) as InstructionRow[];
-  const proposed = db.prepare(`SELECT * FROM instructions WHERE room_id = ? AND status = 'proposed' ORDER BY created_at`).all(room.id) as InstructionRow[];
-  const decisions = db.prepare(`SELECT * FROM decisions WHERE room_id = ? AND status = 'open' ORDER BY created_at`).all(room.id) as DecisionRow[];
+  const countOf = (sql: string, ...args: unknown[]) => (db.prepare(sql).get(...args) as { n: number }).n;
+  const questions = db.prepare(`SELECT * FROM questions WHERE room_id = ? AND status = 'open' ORDER BY created_at LIMIT ?`).all(room.id, MAX_QUESTIONS) as QuestionRow[];
+  const questionsTotal = countOf(`SELECT COUNT(*) AS n FROM questions WHERE room_id = ? AND status = 'open'`, room.id);
+  const instructions = db.prepare(`SELECT * FROM instructions WHERE room_id = ? AND status IN (${ph}) ORDER BY created_at LIMIT ?`).all(room.id, ...OPEN_INSTRUCTION_STATUSES, MAX_INSTRUCTIONS) as InstructionRow[];
+  const instructionsTotal = countOf(`SELECT COUNT(*) AS n FROM instructions WHERE room_id = ? AND status IN (${ph})`, room.id, ...OPEN_INSTRUCTION_STATUSES);
+  const proposed = db.prepare(`SELECT * FROM instructions WHERE room_id = ? AND status = 'proposed' ORDER BY created_at LIMIT ?`).all(room.id, MAX_PROPOSALS) as InstructionRow[];
+  const decisions = db.prepare(`SELECT * FROM decisions WHERE room_id = ? AND status = 'open' ORDER BY created_at LIMIT ?`).all(room.id, MAX_DECISIONS) as DecisionRow[];
+  const decisionsTotal = countOf(`SELECT COUNT(*) AS n FROM decisions WHERE room_id = ? AND status = 'open'`, room.id);
   const playbookRows = db.prepare('SELECT title, author_kind FROM playbook_entries WHERE room_id = ? AND archived_at IS NULL ORDER BY updated_at DESC LIMIT 20').all(room.id) as { title: string; author_kind: string }[];
   const playbook = playbookRows.map((p) => p.title);
 
@@ -137,8 +151,8 @@ export function buildRunInput(ctx: AppContext, room: RoomRow, mode: string, sinc
   for (const a of roster) {
     L.push(
       `- ${a.name} (${a.type}, owner ${a.owner}) status ${a.status}${a.paused ? ' PAUSED' : ''}; open instructions ${a.open_instructions} of max ${a.max_open}.` +
-        (a.working_on ? ` Latest working_on (${a.working_on_at ? relative(now, ms(a.working_on_at)) : ''}): ${wrap(a.name, a.working_on)}` : ' No report yet.') +
-        (a.blocked ? ` BLOCKED: ${wrap(a.name, a.blocked)}` : ''),
+        (a.working_on ? ` Latest working_on (${a.working_on_at ? relative(now, ms(a.working_on_at)) : ''}): ${wrap(a.name, clipItem(a.working_on))}` : ' No report yet.') +
+        (a.blocked ? ` BLOCKED: ${wrap(a.name, clipItem(a.blocked))}` : ''),
     );
   }
   L.push('', `WHAT HAPPENED SINCE YOUR LAST RUN (oldest first${olderCount > 0 ? `; ${olderCount} older items not shown` : ''}):`);
@@ -146,33 +160,34 @@ export function buildRunInput(ctx: AppContext, room: RoomRow, mode: string, sinc
   for (const ev of shown) {
     // Only people's and the Conductor's own items are shown bare; everything else (agents, and
     // Tempo's system lines, which can quote agents) is wrapped as untrusted.
-    const body = ev.actor_kind === 'person' || ev.actor_kind === 'conductor' ? oneLine(feedFullText(ev)) : wrap(ev.actor_name, feedFullText(ev));
+    const full = clipItem(feedFullText(ev), 1200);
+    const body = ev.actor_kind === 'person' || ev.actor_kind === 'conductor' ? oneLine(full) : wrap(ev.actor_name, full);
     L.push(`- ${feedEventId(ev.seq)} [${shortTime(ms(ev.created_at), tz)}] ${ev.actor_kind === 'person' ? `${ev.actor_name} (person)` : ev.actor_name} — ${ev.kind}: ${body}`);
   }
-  L.push('', 'OPEN QUESTIONS');
+  L.push('', `OPEN QUESTIONS${questionsTotal > questions.length ? ` (oldest ${questions.length} of ${questionsTotal} shown)` : ''}`);
   if (!questions.length) L.push('- None.');
   for (const q of questions) {
     const to = q.target_kind === 'agent' ? (getAgent(db, q.target_agent_id ?? '')?.name ?? '?') : q.target_kind === 'people' ? 'people' : 'you (the Conductor)';
-    const t = q.asker_kind === 'person' || q.asker_kind === 'conductor' ? oneLine(q.text) : wrap(who(q.asker_kind, q.asker_id), q.text);
+    const t = q.asker_kind === 'person' || q.asker_kind === 'conductor' ? oneLine(clipItem(q.text)) : wrap(who(q.asker_kind, q.asker_id), clipItem(q.text));
     L.push(`- ${q.id} from ${who(q.asker_kind, q.asker_id)} to ${to}, asked ${relative(now, ms(q.created_at))}: ${t}`);
   }
-  L.push('', 'OPEN INSTRUCTIONS');
+  L.push('', `OPEN INSTRUCTIONS${instructionsTotal > instructions.length ? ` (oldest ${instructions.length} of ${instructionsTotal} shown)` : ''}`);
   if (!instructions.length) L.push('- None.');
   for (const i of instructions) {
     L.push(
-      `- ${i.id} for ${getAgent(db, i.agent_id)?.name ?? '?'} from ${i.issuer_kind === 'person' ? `${getPerson(db, i.issuer_person_id ?? '')?.name ?? 'a person'} (person)` : 'you'}; status ${i.status}, last movement ${relative(now, ms(i.last_movement_at))}: ${oneLine(i.text)} (done when: ${oneLine(i.done_when || '?')})`,
+      `- ${i.id} for ${getAgent(db, i.agent_id)?.name ?? '?'} from ${i.issuer_kind === 'person' ? `${getPerson(db, i.issuer_person_id ?? '')?.name ?? 'a person'} (person)` : 'you'}; status ${i.status}, last movement ${relative(now, ms(i.last_movement_at))}: ${oneLine(clipItem(i.text))} (done when: ${oneLine(clipItem(i.done_when || '?', 300))})`,
     );
   }
   if (proposed.length) {
     L.push('', 'YOUR PROPOSALS WAITING FOR APPROVAL');
-    for (const i of proposed) L.push(`- ${i.id} for ${getAgent(db, i.agent_id)?.name ?? '?'}: ${oneLine(i.text)}`);
+    for (const i of proposed) L.push(`- ${i.id} for ${getAgent(db, i.agent_id)?.name ?? '?'}: ${oneLine(clipItem(i.text))}`);
   }
-  L.push('', 'DECISIONS WAITING ON PEOPLE');
+  L.push('', `DECISIONS WAITING ON PEOPLE${decisionsTotal > decisions.length ? ` (oldest ${decisions.length} of ${decisionsTotal} shown)` : ''}`);
   if (!decisions.length) L.push('- None.');
   // Decisions raised by people or the Conductor are shown bare; the rest can quote agents.
-  for (const d of decisions) L.push(`- ${d.id}: ${d.source === 'person' || d.source === 'conductor' ? oneLine(d.title) : wrap('Tempo, quoting agents', d.title)}`);
+  for (const d of decisions) L.push(`- ${d.id}: ${d.source === 'person' || d.source === 'conductor' ? oneLine(clipItem(d.title, 300)) : wrap('Tempo, quoting agents', clipItem(d.title, 300))}`);
   if (playbookRows.length) {
-    L.push('', `PLAYBOOK TITLES: ${playbookRows.map((p) => (p.author_kind === 'agent' ? wrap('an agent', p.title) : oneLine(p.title))).join('; ')}`);
+    L.push('', `PLAYBOOK TITLES: ${playbookRows.map((p) => (p.author_kind === 'agent' ? wrap('an agent', clipItem(p.title, 200)) : oneLine(clipItem(p.title, 200)))).join('; ')}`);
   }
   L.push('', `WHY YOU ARE RUNNING: ${triggers.map((t) => `${t.kind} (${t.detail})`).join('; ') || 'scheduled check'}`);
   if (stale.length) {

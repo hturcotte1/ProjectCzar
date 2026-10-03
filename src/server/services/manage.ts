@@ -86,6 +86,15 @@ function cleanList(list: unknown, field: string, max = 30): string[] {
 }
 
 function validateRoomInput(r: RoomInput): void {
+  for (const f of ['name', 'goal', 'timezone', 'work_start', 'work_end', 'brief_time', 'conductor_mode'] as const) {
+    if (r[f] !== undefined && typeof r[f] !== 'string') throw badRequest(`${f} must be text.`, [{ field: f, message: 'invalid' }]);
+  }
+  if (r.card_token_budget !== undefined && r.card_token_budget !== null && (!Number.isInteger(r.card_token_budget) || r.card_token_budget < 300 || r.card_token_budget > 20_000)) {
+    throw badRequest('The card size limit must be a whole number from 300 to 20,000, or empty for the default.', [{ field: 'card_token_budget', message: 'invalid' }]);
+  }
+  if (r.max_open_instructions !== undefined && r.max_open_instructions !== null && (!Number.isInteger(r.max_open_instructions) || r.max_open_instructions < 1 || r.max_open_instructions > 20)) {
+    throw badRequest('The open-instruction limit must be a whole number from 1 to 20, or empty for the default.', [{ field: 'max_open_instructions', message: 'invalid' }]);
+  }
   if (r.name !== undefined && (!r.name.trim() || r.name.length > 80)) throw badRequest('Room name must be 1 to 80 characters.', [{ field: 'name', message: 'invalid' }]);
   if (r.goal !== undefined && r.goal.length > 4000) throw badRequest('The goal must be under 4,000 characters.', [{ field: 'goal', message: 'too long' }]);
   if (r.timezone !== undefined && !isValidTimezone(r.timezone)) throw badRequest(`"${r.timezone}" is not a time zone. Use a name like America/Boise.`, [{ field: 'timezone', message: 'invalid' }]);

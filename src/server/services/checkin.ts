@@ -9,7 +9,7 @@ import { CHECKIN_DELAY_MS, requestConductorRun } from '../conductor/queue.js';
 import { buildCard } from './card.js';
 import { appendFeed, feedEventId, updateFeed } from './feed.js';
 import { limitConcern } from './limits.js';
-import { agentRooms, getAgent, getRoom, roomLimits } from './repo.js';
+import { agentRooms, getAgent, getPerson, getRoom, roomLimits } from './repo.js';
 import type { AgentRow, CardRequirements, CardRow, InstructionRow, QuestionRow, ReportRow } from './rows.js';
 import { OPEN_INSTRUCTION_STATUSES } from './rows.js';
 import { nextDueAfterCheckin, scaled, scheduleFromRow } from './schedule.js';
@@ -461,14 +461,15 @@ function arrivedSinceCard(ctx: AppContext, agent: AgentRow, card: CardRow): Arri
       )
       .all(room.id, agent.id, card.issued_at) as QuestionRow[];
     for (const q of qs) {
-      out.push({ room_id: room.id, kind: 'question', id: q.id, from: q.asker_kind === 'conductor' ? 'the Conductor' : (q.asker_kind === 'agent' ? getAgent(db, q.asker_id ?? '')?.name : null) ?? 'a person', at: shortTime(ms(q.created_at), tz), text: quote(q.text, 300) });
+      const from = q.asker_kind === 'conductor' ? 'the Conductor' : q.asker_kind === 'agent' ? getAgent(db, q.asker_id ?? '')?.name : getPerson(db, q.asker_id ?? '')?.name;
+      out.push({ room_id: room.id, kind: 'question', id: q.id, from: from ?? 'someone', at: shortTime(ms(q.created_at), tz), text: quote(q.text, 300) });
     }
     const placeholders = OPEN_INSTRUCTION_STATUSES.map(() => '?').join(',');
     const ins = db
       .prepare(`SELECT * FROM instructions WHERE room_id = ? AND agent_id = ? AND status IN (${placeholders}) AND issued_at > ?`)
       .all(room.id, agent.id, ...OPEN_INSTRUCTION_STATUSES, card.issued_at) as InstructionRow[];
     for (const i of ins) {
-      out.push({ room_id: room.id, kind: 'instruction', id: i.id, from: i.issuer_kind === 'conductor' ? 'the Conductor' : 'a person', at: shortTime(ms(i.issued_at ?? i.created_at), tz), text: quote(i.text, 300) });
+      out.push({ room_id: room.id, kind: 'instruction', id: i.id, from: i.issuer_kind === 'conductor' ? 'the Conductor' : (getPerson(db, i.issuer_person_id ?? '')?.name ?? 'a person'), at: shortTime(ms(i.issued_at ?? i.created_at), tz), text: quote(i.text, 300) });
     }
     const msgs = db
       .prepare(

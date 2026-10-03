@@ -29,6 +29,11 @@ async function main() {
   scheduler.start();
   console.log(`Tempo dev server on http://localhost:${port}`);
   console.log(JSON.stringify(seeded, null, 2));
+  const keysOut = process.argv.indexOf('--keys-out');
+  if (keysOut > 0) {
+    fs.mkdirSync(path.dirname(path.resolve(process.argv[keysOut + 1])), { recursive: true });
+    fs.writeFileSync(process.argv[keysOut + 1], JSON.stringify(seeded, null, 2));
+  }
 }
 
 void main();

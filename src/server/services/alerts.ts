@@ -89,7 +89,12 @@ async function deliverOnce(ctx: AppContext): Promise<void> {
   for (const alert of pending) {
     const person = getPerson(ctx.db, alert.person_id);
     const results: Record<string, string> = { app: 'shown' };
-    if (person && !person.disabled_at) {
+    const sandbox = alert.room_id ? !!(ctx.db.prepare('SELECT is_sandbox FROM rooms WHERE id = ?').get(alert.room_id) as { is_sandbox: number } | undefined)?.is_sandbox : false;
+    if (sandbox) {
+      // Rehearsal alerts stay in the app; nobody's phone should buzz for a stand-in.
+      results.email = 'not sent for rehearsals';
+      results.push = 'not sent for rehearsals';
+    } else if (person && !person.disabled_at) {
       if (person.notify_email && ctx.integrations.sendEmail) {
         try {
           await ctx.integrations.sendEmail(person.email, alert.title, `${alert.body}\n\nOpen Tempo: ${ctx.config.baseUrl}/`);

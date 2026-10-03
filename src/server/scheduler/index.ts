@@ -70,7 +70,10 @@ export class Scheduler {
 
   private nextDelayMs(): number {
     const fast = this.ctx.db
-      .prepare(`SELECT 1 FROM rooms r JOIN room_agents ra ON ra.room_id = r.id WHERE r.clock_speed > 1 AND r.archived_at IS NULL LIMIT 1`)
+      .prepare(
+        `SELECT 1 FROM rooms r JOIN room_agents ra ON ra.room_id = r.id JOIN agents a ON a.id = ra.agent_id
+         WHERE r.clock_speed > 1 AND r.archived_at IS NULL AND a.paused_at IS NULL AND a.archived_at IS NULL LIMIT 1`,
+      )
       .get();
     return fast ? 2000 : Math.max(1, this.ctx.config.schedulerTickSeconds) * 1000;
   }

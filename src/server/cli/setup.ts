@@ -1,6 +1,7 @@
 import readline from 'node:readline';
 import { Writable } from 'node:stream';
 import { createContext } from '../app.js';
+import { loadDotEnvIfPresent } from '../config.js';
 import { createPerson, MIN_PASSWORD } from '../services/auth.js';
 import { audit } from '../services/audit.js';
 import { isTempoError } from '../lib/errors.js';
@@ -37,6 +38,7 @@ async function readStdin(): Promise<string> {
 }
 
 async function main(): Promise<void> {
+  loadDotEnvIfPresent();
   const ctx = createContext();
   const admins = (ctx.db.prepare("SELECT COUNT(*) AS n FROM people WHERE role = 'admin' AND disabled_at IS NULL").get() as { n: number }).n;
   if (admins > 0 && !process.argv.includes('--another-admin')) {

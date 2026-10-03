@@ -38,6 +38,6 @@ export async function registerStatic(app: FastifyInstance, webDir: string): Prom
     if (req.method === 'GET' && SPA_ROUTES.test(url)) {
       return reply.header('Content-Security-Policy', CSP).header('Cache-Control', 'no-store').type('text/html; charset=utf-8').send(html);
     }
-    return reply.code(404).type('application/json; charset=utf-8').send({ ok: false, error: { code: 'not_found', message: `There is nothing at ${req.method} ${url}.` } });
+    return reply.code(404).type('application/json; charset=utf-8').send({ ok: false, error: { code: 'not_found', message: `There is nothing at ${req.method} ${url.replace(/\/a\/[^/]+/, '/a/[link]')}.` } });
   });
 }

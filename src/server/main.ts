@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildApp, createContext } from './app.js';
+import { loadDotEnvIfPresent } from './config.js';
 import { makeEmailSender, makePushSender } from './alerts/channels.js';
 import { Scheduler } from './scheduler/index.js';
 import { nightlyBackupJob } from './services/backup.js';
@@ -10,18 +11,22 @@ import { wireRuntime } from './runtime.js';
  * Tempo's single process: web server, MCP endpoint, scheduler and Conductor together.
  */
 async function main(): Promise<void> {
+  loadDotEnvIfPresent();
   const ctx = createContext();
   ctx.integrations.sendEmail = makeEmailSender(ctx.config);
   ctx.integrations.sendPush = makePushSender(ctx.config);
   const scheduler = new Scheduler(ctx);
   scheduler.addJob(nightlyBackupJob);
-  const hooks = wireRuntime(ctx, scheduler);
+  let internal = `http://127.0.0.1:${ctx.config.port}`;
+  const hooks = wireRuntime(ctx, scheduler, () => internal);
 
   const here = path.dirname(fileURLToPath(import.meta.url));
   const webDir = path.resolve(here, '../web');
   const { app } = await buildApp({ logger: true, webDir, hooks }, ctx);
 
   await app.listen({ port: ctx.config.port, host: ctx.config.host });
+  const addr = app.server.address();
+  if (addr && typeof addr === 'object') internal = `http://127.0.0.1:${addr.port}`;
   scheduler.start();
   ctx.log.info(
     {

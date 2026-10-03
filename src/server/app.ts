@@ -20,6 +20,8 @@ export interface BuildOptions {
   db?: DB;
   integrations?: Partial<Integrations>;
   logger?: boolean;
+  /** Where log lines go (default: standard output). Tests capture them here. */
+  logStream?: NodeJS.WritableStream;
   hooks?: AppApiHooks;
   /** Folder with the built control room (dist/web). Omit to skip serving it. */
   webDir?: string;
@@ -33,7 +35,11 @@ export interface BuiltApp {
 
 /** Hides secrets that travel in URL paths (agent page tokens, invite tokens) from logs. */
 export function redactUrl(url: string): string {
-  return url.replace(/\/a\/[^/?#]+/g, '/a/[redacted]').replace(/\/invite\/[^/?#]+/g, '/invite/[redacted]').replace(/token=[^&]+/g, 'token=[redacted]');
+  return url
+    .replace(/\/a\/[^/?#]+/g, '/a/[redacted]')
+    .replace(/\/invite\/[^/?#]+/g, '/invite/[redacted]')
+    .replace(/\/invites\/(?!inv_\d+(?:[/?#]|$))(?!accept(?:[/?#]|$))[^/?#]+/g, '/invites/[redacted]')
+    .replace(/token=[^&]+/g, 'token=[redacted]');
 }
 
 export function createContext(opts: BuildOptions = {}): AppContext {
@@ -64,6 +70,7 @@ export async function buildApp(opts: BuildOptions = {}, ctxIn?: AppContext): Pro
             req: (req) => ({ method: req.method, url: redactUrl(req.url) }),
             res: (res) => ({ statusCode: res.statusCode }),
           },
+          ...(opts.logStream ? { stream: opts.logStream } : {}),
         }
       : false,
     trustProxy: ctx.config.trustProxy,
@@ -102,6 +109,12 @@ export async function buildApp(opts: BuildOptions = {}, ctxIn?: AppContext): Pro
   await registerPublicDocs(app, ctx);
   await registerAppApi(app, ctx, opts.hooks ?? {});
   if (opts.webDir) await registerStatic(app, opts.webDir);
+  else {
+    // A plain 404 that doesn't repeat the URL (which may hold a secret) into the logs.
+    app.setNotFoundHandler((req, reply) =>
+      reply.code(404).type('application/json; charset=utf-8').send({ ok: false, error: { code: 'not_found', message: `There is nothing at ${req.method} ${redactUrl(req.url.split('?')[0])}.` } }),
+    );
+  }
 
   return { app, ctx, limits };
 }

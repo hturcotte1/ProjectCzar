@@ -122,3 +122,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
   };
   return { ...config, ...overrides };
 }
+
+/** Loads a .env file from the working folder if there is one (real environment variables win). */
+export function loadDotEnvIfPresent(file = '.env'): void {
+  try {
+    const fs = process.getBuiltinModule('node:fs');
+    if (fs.existsSync(file)) process.loadEnvFile(file);
+  } catch {
+    /* an unreadable .env is ignored; settings then come from the environment */
+  }
+}

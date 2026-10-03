@@ -5,12 +5,15 @@ import { AnthropicConductorModel } from './conductor/anthropic.js';
 import { ScriptedConductorModel } from './conductor/scripted.js';
 import { conductorJob, runConductor, sweepJob } from './conductor/runner.js';
 import { briefJob } from './services/brief.js';
+import { latestRehearsalFor, rehearsalRunning, runRehearsal } from './rehearsal/driver.js';
+import { TempoError } from './lib/errors.js';
 
 /**
  * Wires the long-running parts (Conductor, daily brief, rehearsal) into the scheduler and the app
- * API. Kept separate from main.ts so the rehearsal and demo commands can reuse it.
+ * API. Shared by the server, the rehearsal command and the demo.
+ * `internalUrl` returns the address this process listens on (known only after listen).
  */
-export function wireRuntime(ctx: AppContext, scheduler: Scheduler): AppApiHooks {
+export function wireRuntime(ctx: AppContext, scheduler: Scheduler, internalUrl: () => string): AppApiHooks {
   if (ctx.config.anthropicApiKey && !ctx.integrations.conductorModel) {
     ctx.integrations.conductorModel = new AnthropicConductorModel(ctx.config.anthropicApiKey, ctx.config.conductorModel, ctx.config.conductorEffort);
   }
@@ -22,5 +25,19 @@ export function wireRuntime(ctx: AppContext, scheduler: Scheduler): AppApiHooks 
     runConductorNow: (roomId: string) => {
       void scheduler.track(runConductor(ctx, roomId));
     },
+    startRehearsal: (person, maxRounds) => {
+      if (rehearsalRunning()) throw new TempoError(409, 'rehearsal_running', 'A rehearsal is already running. Wait for it to finish (a few minutes).');
+      return new Promise<string>((resolve, reject) => {
+        const p = runRehearsal(ctx, {
+          baseUrl: internalUrl(),
+          startedBy: person,
+          maxRounds,
+          onStarted: (id) => resolve(id),
+          onLog: (line) => ctx.log.info({ rehearsal: true }, line),
+        });
+        void scheduler.track(p).catch((e) => reject(e));
+      });
+    },
+    latestRehearsal: (person) => latestRehearsalFor(ctx, person.id),
   };
 }

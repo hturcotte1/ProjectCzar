@@ -105,6 +105,7 @@ ul { padding-left: 1.25rem; }
 li { margin-bottom: 0.6rem; }
 a { color: #0b4fb3; overflow-wrap: anywhere; }
 .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.quote { display: block; border-left: 4px solid #777777; padding: 2px 0 2px 10px; margin: 4px 0; }
 .room { border-top: 4px solid #111111; margin-top: 2rem; }
 .box { border: 4px solid #555555; background: #f3f3f3; padding: 12px 16px; margin: 0 0 1.5rem; }
 .box h2 { margin-top: 0; }
@@ -149,6 +150,11 @@ ${body}
 /** Free text written by someone else: escaped, line breaks kept, http(s) addresses made clickable. */
 function textOf(text: string | null | undefined): SafeHtml {
   return html`<span class="text">${linkify(text)}</span>`;
+}
+
+/** Text another agent wrote: set off in a bordered block so it can never pass for part of the card. */
+function quotedOf(text: string | null | undefined): SafeHtml {
+  return html`<span class="text quote">${linkify(text)}</span>`;
 }
 
 function pagePath(token: string): string {
@@ -209,7 +215,7 @@ function confirmationPage(r: ReportResultT): string {
 ${r.arrived_since_card.length
     ? html`<h2>Arrived for you after your card was issued</h2>
 <p>These will also be on your next card.</p>
-<ul>${r.arrived_since_card.map((a) => html`<li>${a.kind} ${a.id} from ${a.from} (${a.at}): ${textOf(a.text)}</li>`)}</ul>`
+<ul>${r.arrived_since_card.map((a) => html`<li>${a.kind} ${a.id} from ${a.from} (${a.at}): ${quotedOf(a.text)}</li>`)}</ul>`
     : ''}
 <p><strong>You are done until your next check-in.</strong></p>`,
   );
@@ -231,10 +237,10 @@ ${r.others_here.length ? html`<p><strong>Also in this room:</strong> ${r.others_
   if (r.paused) return html`<section class="room">${head}</section>`;
 
   const since = r.since_last_check_in.length
-    ? r.since_last_check_in.map((i) => html`<li>[${i.at}] ${i.from} (${i.kind}, ${i.id}): ${textOf(i.text)}</li>`)
+    ? r.since_last_check_in.map((i) => html`<li>[${i.at}] ${i.from} (${i.kind}, ${i.id}): ${quotedOf(i.text)}</li>`)
     : html`<li>Nothing new.</li>`;
   const questions = r.questions_for_you.length
-    ? r.questions_for_you.map((q) => html`<li><strong>${q.id}</strong> from ${q.from} (${q.asked_at}): ${textOf(q.text)}</li>`)
+    ? r.questions_for_you.map((q) => html`<li><strong>${q.id}</strong> from ${q.from} (${q.asked_at}): ${quotedOf(q.text)}</li>`)
     : html`<li>None.</li>`;
   const instructions = r.instructions_for_you.length
     ? r.instructions_for_you.map(
@@ -252,7 +258,7 @@ ${r.others_here.length ? html`<p><strong>Also in this room:</strong> ${r.others_
 <ul>${instructions}</ul>
 ${r.playbook.length
     ? html`<h3>Playbook (lessons saved by the team)</h3>
-<ul>${r.playbook.map((p) => html`<li>${p.id} ${p.title}: ${textOf(p.text)}</li>`)}</ul>`
+<ul>${r.playbook.map((p) => html`<li>${p.id} ${shorten(p.title, 200)}: ${quotedOf(p.text)}</li>`)}</ul>`
     : ''}
 </section>`;
 }
@@ -358,7 +364,7 @@ ${textarea(FIELD.workingOn(rid), `What are you working on right now in "${r.room
   })}
 ${r.questions_for_you.map((q) =>
     textarea(FIELD.answer(q.id), `Your answer to question ${q.id} (required)`, v(FIELD.answer(q.id)), {
-      hint: html`Question from ${q.from}: ${textOf(q.text)} "I can't answer this because..." is a fine answer. Leaving it empty is not.`,
+      hint: html`Question from ${q.from}: ${quotedOf(q.text)} "I can't answer this because..." is a fine answer. Leaving it empty is not.`,
     }),
   )}
 ${r.instructions_for_you.map((i) => instructionFieldset(i, v))}

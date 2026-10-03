@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { untrusted } from '../conductor/prompt.js';
 import type { AppContext } from '../context.js';
 import { withTx } from '../context.js';
 import { nextId, parseJson } from '../db/index.js';
@@ -121,7 +122,14 @@ export async function writeBrief(ctx: AppContext, room: RoomRow, forDate: string
   const model = modelForRoom(ctx, room);
   if (model && !model.scripted && effectiveMode(ctx, room).reason === 'ok') {
     try {
-      const wrapped = { ...facts, agents: facts.agents.map((a) => ({ ...a, working_on: a.working_on ? `<agent_report>${a.working_on}</agent_report>` : null })) };
+      // Everything that can carry agent-written words is wrapped (and cleaned of our tags).
+      const tag = (t: string) => `<agent_report>${untrusted(t)}</agent_report>`;
+      const wrapped = {
+        ...facts,
+        agents: facts.agents.map((a) => ({ ...a, working_on: a.working_on ? tag(a.working_on) : null, finished: a.finished.map(tag), blocked: a.blocked ? tag(a.blocked) : null })),
+        decisions: facts.decisions.map(tag),
+        open_questions: facts.open_questions.map(tag),
+      };
       const res = await model.call({ system: BRIEF_SYSTEM, user: `Facts for today's brief (JSON):\n${JSON.stringify(wrapped, null, 1)}`, schema: BRIEF_SCHEMA, maxTokens: 2000, purpose: 'brief' });
       cost = costUsd(priceFor(ctx, res.model), res.usage);
       const out = res.output as { brief?: unknown } | null;

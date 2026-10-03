@@ -180,3 +180,94 @@ in the research notes; the conclusions that changed the build are below.
     duration (interval, grace, the 20-minute card window) is divided by it and working hours are
     ignored. This lets the in-app "Run rehearsal" button use a fast clock in one sandbox room
     while every real room keeps real time. Tests use the injectable fake clock instead.
+
+15. **The Conductor's cost control has a cheap pre-check.** The brief says the Conductor runs about
+    45 seconds after every completed check-in. At hourly check-ins for four agents that is ~40
+    runs a day, which at Sonnet 5.5 prices would blow the $15 budget. So every run happens and is
+    logged, but when the only triggers are routine check-ins that bring no news (same `working_on`,
+    nothing finished, no notes, questions, blockers or status changes) the model is **not called**
+    and the log says "nothing new". People's messages, instructions, goal changes, decisions and
+    stale items always reach the model. Identical consecutive skips within an hour are merged into
+    one log line so the log stays readable.
+
+16. **The 15-minute sweep** looks for stale items (a question unanswered for two intervals, an
+    instruction with no movement for a day, a blocked or red agent). It calls the model only when
+    something is stale, and not again for the same stale picture for two hours, to bound cost.
+
+17. **Approval-needed instructions.** In every mode, an instruction the Conductor flags as needing
+    approval, or that the limits check flags, becomes a decision carrying the proposed instruction.
+    Choosing the first option ("Approve and send it") creates the instruction. In propose mode,
+    ordinary Conductor instructions wait as proposals (approve, edit-then-approve, or reject).
+
+18. **What relay mode may do.** Relay originates no work: the Conductor's own instructions and
+    instruction changes are dropped (and the log says so). It may still route a person's request
+    (an instruction whose `routed_from` points at a person's message or question that it saw),
+    answer questions addressed to it from facts in front of it, ask clarifying questions, raise
+    decisions and post room notes.
+
+19. **The Conductor never cancels or rewords a person's instruction**, only its own.
+
+20. **Budget scope.** One monthly budget covers all rooms, including model-written daily briefs.
+    When it runs out, every room shows the relay banner and no model calls are made.
+
+21. **Scripted Conductor for sandbox rooms.** With no API key, real rooms run in relay mode (as
+    the brief requires). Sandbox rooms instead use a small, clearly labeled rules-based stand-in
+    ("scripted rehearsal Conductor", $0) so a rehearsal or demo still shows the whole loop:
+    instructions on cards, overlap redirected, outside-limits requests turned into decisions.
+    With a key, sandbox rooms use the real model.
+
+22. **Refusals and failures.** A model refusal, a cut-off reply or schema-invalid output gets one
+    retry with the problem explained; a second failure is logged as a failed run and nothing is
+    applied. The API's server-side refusal fallback (a beta feature) is not used, because failing
+    safe is acceptable here and it could not be tested without a key.
+
+23. **Rehearsal timing.** Stand-ins check in every 30 sped-up minutes at 60× speed, i.e. every 30
+    seconds, with a 15-second grace period and a 20-second card window. The whole script, including
+    waiting for an agent to go amber and then red, takes about five minutes. Stand-in A uses the
+    MCP door and alternates the official v1 and v2 SDK clients (both protocol versions); stand-in B
+    alternates REST and the agent page. `npm run rehearsal` uses a throwaway database by default
+    (`--use-data` runs it against the real one); `npm run demo` and the in-app button use the real
+    database and leave the sandbox room behind for review, with the stand-ins paused and their keys
+    revoked. Only the two most recent sandbox rooms stay visible.
+
+24. **Link previews don't open cards.** Messaging apps fetch links to draw previews (iMessage,
+    WhatsApp…). If that opened a card, the preview would start a check-in that then times out. The
+    agent page recognizes preview bots and HEAD requests and serves a tiny page without opening a
+    card. A real browser is unaffected.
+
+25. **Health and status use the same rule.** A check-in counts for the slot half an interval before
+    it, including an agent's very first check-in.
+
+26. **Daily brief.** On the room's working days at its brief time (default 7:30 am room time); a
+    brief missed because the server was down is written as soon as it is back, the same day. Never
+    for sandbox rooms. Written by the Conductor's model when available and within budget (from the
+    same facts as the rules-based version, with agent text marked untrusted), otherwise the
+    rules-based version. Emailed to the room's people if email is set up. Note: unlike alerts, the
+    brief necessarily contains project content, so it goes only by email, never by push.
+
+27. **Backups.** Nightly at 3:00 am (default time zone) to `DATA_DIR/backups`, keeping 7, using
+    SQLite's online backup (safe while running). The "download a backup" button is admin-only and
+    audited. Tension: a full backup contains every room, while "being admin does not grant access to
+    a room's content". Resolution: the backup is a disaster-recovery file for the operator, who
+    already has the same data on the server's disk; it is never shown in the app, only downloaded,
+    and each download is in the audit log.
+
+28. **Security finding fixed during the build.** The no-secrets-in-logs test found that invite
+    tokens could appear in request logs (the invite-check API path, and the framework's default
+    "route not found" message). Both are now redacted. Agent page tokens were already redacted.
+
+29. **Container user.** The container runs as root because Railway (and Fly) mount volumes as root.
+    It is a single-purpose container with no other services.
+
+## Part 4: Delegation record
+
+| Piece | Delegated to | Checked how |
+|---|---|---|
+| Section 2 fact checks (5 topics) + skeptical re-check of MCP SDK and hosting | Sonnet researchers; verifier on the inherited model | Read every finding; build decisions above |
+| Door C, the agent page (`doors/page.ts`, `page-form.ts`, `lib/html.ts`) | Sonnet | Ran its 35 tests; read the page as an agent sees it; changed how skipped answers are worded; three-doors test |
+| OpenAPI document, `/agents.md` guide, test that runs every example | Sonnet | Ran its tests (Redocly lint inside) |
+| Email and ntfy alert channels | Sonnet | Ran its 25 tests (fake SMTP server, fake ntfy server) |
+| Control-room screens (4 builders: feed+composer; strip+lanes+decisions; Conductor+room tabs; agents+settings+auth) | Sonnet | See milestone 5 notes |
+| Rehearsal stand-in agents | Sonnet | Its tests plus the full rehearsal |
+| Dockerfile, Railway and Fly config, container smoke script | Sonnet | Ran the smoke script (build, restart, data survives) |
+| Kept by the lead | — | Database, check-in service and validation, sign-in/keys/isolation, MCP door, scheduler, Conductor, brief, rehearsal driver, integration, this file |

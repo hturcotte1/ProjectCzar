@@ -442,7 +442,8 @@ function alertText(doc: El): string {
 function pageCardText(html: string): string {
   const doc = parse(html);
   for (const n of doc.querySelectorAll('form, style, head')) n.remove();
-  return collapse((doc.querySelector('main') ?? doc).text).slice(0, CARD_TEXT_MAX);
+  const text = (doc.querySelector('main') ?? doc).structuredText;
+  return text.replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim().slice(0, CARD_TEXT_MAX);
 }
 
 interface PageView {

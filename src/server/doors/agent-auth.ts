@@ -78,6 +78,18 @@ export class RateLimiter {
     }
     return { ok: true };
   }
+  /** True if the key is at its limit right now. Records nothing. */
+  isBlocked(key: string, nowMs: number): { blocked: false } | { blocked: true; retryAfterSeconds: number } {
+    const arr = (this.hits.get(key) ?? []).filter((t) => t > nowMs - this.windowMs);
+    if (arr.length < this.limit) return { blocked: false };
+    return { blocked: true, retryAfterSeconds: Math.max(1, Math.ceil((arr[0] + this.windowMs - nowMs) / 1000)) };
+  }
+  /** Records one hit without checking (for counting failures after the fact). */
+  record(key: string, nowMs: number): void {
+    const arr = (this.hits.get(key) ?? []).filter((t) => t > nowMs - this.windowMs);
+    arr.push(nowMs);
+    this.hits.set(key, arr);
+  }
   reset(): void {
     this.hits.clear();
   }

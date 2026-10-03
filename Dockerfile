@@ -55,7 +55,7 @@ WORKDIR /app
 ENV NODE_ENV=production \
     DATA_DIR=/data \
     PORT=3000 \
-    TRUST_PROXY=true
+    TRUST_PROXY=1
 
 # Only what is needed to run: package.json (it says "type": "module"), the production
 # node_modules (native modules already built for this Node version and platform) and the compiled

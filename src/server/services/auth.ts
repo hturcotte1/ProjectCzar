@@ -7,7 +7,7 @@ import { randomSecret, sha256 } from '../lib/crypto.js';
 import { iso } from '../lib/time.js';
 import { audit } from './audit.js';
 import { addPersonToRoom, createPersonRecord } from './manage.js';
-import { getPerson, getRoom } from './repo.js';
+import { getPerson, getRoom, isPersonInRoom } from './repo.js';
 import type { PersonRow } from './rows.js';
 
 /**
@@ -118,13 +118,15 @@ function dummyHash(): Promise<string> {
   return dummy;
 }
 
-export async function changePassword(ctx: AppContext, person: PersonRow, current: string, next: string): Promise<void> {
+/** Changes the password and signs the person out everywhere except the session making the change. */
+export async function changePassword(ctx: AppContext, person: PersonRow, current: string, next: string, keepSessionHash?: string): Promise<void> {
   if (!(await verifyPassword(person.password_hash, current))) {
     throw new TempoError(403, 'wrong_password', 'Your current password is not right.');
   }
   checkPasswordStrength(next);
   const h = await hashPassword(next);
   ctx.db.prepare('UPDATE people SET password_hash = ? WHERE id = ?').run(h, person.id);
+  ctx.db.prepare('DELETE FROM sessions WHERE person_id = ? AND token_hash != ?').run(person.id, keepSessionHash ?? '');
   audit(ctx, { kind: 'person', id: person.id, name: person.name }, 'person.password_change', 'person', person.id, null, {});
 }
 
@@ -169,6 +171,9 @@ export function createInvite(
 export function findInvite(ctx: AppContext, token: string): InviteRow | null {
   const row = ctx.db.prepare('SELECT * FROM invites WHERE token_hash = ?').get(sha256(String(token ?? ''))) as InviteRow | undefined;
   if (!row || row.used_at || row.revoked_at || new Date(row.expires_at).getTime() <= ctx.clock.now()) return null;
+  // An invite is only as good as the admin who wrote it.
+  const creator = getPerson(ctx.db, row.created_by);
+  if (!creator || creator.disabled_at || creator.role !== 'admin') return null;
   return row;
 }
 
@@ -185,12 +190,15 @@ export async function acceptInvite(
   checkPasswordStrength(input.password);
   const passwordHash = await hashPassword(input.password);
   return withTx(ctx, () => {
-    // Re-check inside the transaction so a link can only be used once.
-    const fresh = ctx.db.prepare('SELECT used_at FROM invites WHERE id = ?').get(invite.id) as { used_at: string | null };
-    if (fresh.used_at) throw new TempoError(410, 'invite_invalid', 'This invite link has already been used.');
+    // Re-check inside the transaction (hashing the password took a moment): the link may have been
+    // used, withdrawn or expired meanwhile, or its admin turned off.
+    if (!findInvite(ctx, token)) throw new TempoError(410, 'invite_invalid', 'This invite link has already been used, has expired, or was withdrawn.');
     const person = createPersonRecord(ctx, { name: input.name, email, passwordHash, role: invite.role });
     ctx.db.prepare('UPDATE invites SET used_at = ?, used_by = ? WHERE id = ?').run(iso(ctx.clock.now()), person.id, invite.id);
     for (const roomId of parseJson<string[]>(invite.room_ids, [])) {
+      // Only rooms that still exist and that the inviter still belongs to.
+      const room = getRoom(ctx.db, roomId);
+      if (!room || room.archived_at || !isPersonInRoom(ctx.db, invite.created_by, roomId)) continue;
       addPersonToRoom(ctx, { kind: 'system', id: null, name: 'Tempo' }, roomId, person.id);
     }
     audit(ctx, { kind: 'person', id: person.id, name: person.name }, 'invite.accept', 'invite', invite.id, null, {});

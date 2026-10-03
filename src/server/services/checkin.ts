@@ -93,7 +93,14 @@ export function openCard(ctx: AppContext, agentIn: AgentRow, door: Door): CardT 
       )
       .run(nowIso, nowIso, nowIso, agent.id);
 
-    if (latest && latest.status === 'open' && now < ms(latest.expires_at)) {
+    // The open card is handed out again only if the agent's rooms and their pause state are
+    // unchanged; otherwise it is replaced, so a card never shows a room the agent has left.
+    const roomsUnchanged = (content: CardT): boolean => {
+      const current = agentRooms(ctx.db, agent.id).map((r) => `${r.id}:${!!agent.paused_at || !!r.paused_at}`).sort();
+      const onCard = (content.rooms ?? []).map((r) => `${r.room_id}:${!!r.paused}`).sort();
+      return current.join(',') === onCard.join(',');
+    };
+    if (latest && latest.status === 'open' && now < ms(latest.expires_at) && roomsUnchanged(parseJson<CardT>(latest.content, {} as CardT))) {
       ctx.db.prepare('UPDATE cards SET opened_count = opened_count + 1 WHERE id = ?').run(latest.id);
       const card = parseJson<CardT>(latest.content, {} as CardT);
       const nextDue = nextDueAfterCheckin(schedule, now);
@@ -106,7 +113,10 @@ export function openCard(ctx: AppContext, agentIn: AgentRow, door: Door): CardT 
         next_check_in_due_text: nextDue !== null ? `${plainTime(nextDue, agent.timezone)} (${relative(now, nextDue)})` : 'not scheduled',
       };
     }
-    if (latest && latest.status === 'open') markCardIncomplete(ctx, latest, emit);
+    if (latest && latest.status === 'open') {
+      if (now < ms(latest.expires_at)) ctx.db.prepare("UPDATE cards SET status = 'superseded' WHERE id = ?").run(latest.id);
+      else markCardIncomplete(ctx, latest, emit);
+    }
 
     const cardId = nextId(ctx.db, 'card');
     const built = buildCard(ctx, agent, cardId);
@@ -192,6 +202,15 @@ export function submitReport(ctx: AppContext, agentIn: AgentRow, rawIn: unknown,
       410,
       'card_expired',
       `card_id "${cardId}" ran out of time (cards stay open for ${ctx.config.cardTimeoutMinutes} minutes, and late reports are accepted for ${LATE_REPORT_WINDOW_MINUTES / 60} hours after that). Call tempo_check_in for a fresh card and report on that one.`,
+      { nextStep: 'Call tempo_check_in for a fresh card.' },
+    );
+  }
+
+  if (card.status === 'completed' && now > ms(card.expires_at) + scaled(schedule, LATE_REPORT_WINDOW_MINUTES)) {
+    throw new TempoError(
+      410,
+      'card_closed',
+      `card_id "${cardId}" was already reported on, and a report can only be corrected for ${LATE_REPORT_WINDOW_MINUTES / 60} hours. Call tempo_check_in for a fresh card and report on that one.`,
       { nextStep: 'Call tempo_check_in for a fresh card.' },
     );
   }

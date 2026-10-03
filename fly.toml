@@ -31,7 +31,7 @@ kill_timeout = 30
   PORT = "8080"
   NODE_ENV = "production"
   DATA_DIR = "/data"
-  TRUST_PROXY = "true"
+  TRUST_PROXY = "1"
 
 [mounts]
   source = "data"

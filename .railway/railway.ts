@@ -63,7 +63,7 @@ export default defineRailway(() => {
     env: {
       NODE_ENV: "production",
       DATA_DIR: "/data",
-      TRUST_PROXY: "true",
+      TRUST_PROXY: "1",
     },
     volumeMounts: { "/data": data },
   });

@@ -136,7 +136,12 @@ function str(v: unknown): string | undefined {
 
 export async function registerAppApi(app: FastifyInstance, ctx: AppContext, hooks: AppApiHooks = {}): Promise<void> {
   await app.register(cookie);
-  const loginLimiter = new RateLimiter(10, 10 * 60_000);
+  // Sign-in limits. Every attempt counts against the visitor's address. Only failed attempts count
+  // against an account, and mostly per account and address, so a stranger cannot lock the real
+  // owner out; the per-account total across all addresses is a high backstop against spraying.
+  const loginPerIp = new RateLimiter(20, 10 * 60_000);
+  const failedPerEmailIp = new RateLimiter(10, 10 * 60_000);
+  const failedPerEmail = new RateLimiter(100, 60 * 60_000);
 
   await app.register(
     async (api) => {
@@ -198,12 +203,18 @@ export async function registerAppApi(app: FastifyInstance, ctx: AppContext, hook
         try {
           const body = (req.body ?? {}) as Record<string, unknown>;
           const email = String(body.email ?? '').trim().toLowerCase();
-          const limit = loginLimiter.check(`ip:${req.ip}`, Date.now());
-          const limit2 = loginLimiter.check(`email:${email}`, Date.now());
-          if (!limit.ok || !limit2.ok) {
-            throw new TempoError(429, 'too_many_attempts', 'Too many sign-in attempts. Wait a few minutes and try again.');
+          const now = Date.now();
+          const tooMany = () => new TempoError(429, 'too_many_attempts', 'Too many sign-in attempts. Wait a few minutes and try again.');
+          if (!loginPerIp.check(`ip:${req.ip}`, now).ok) throw tooMany();
+          if (failedPerEmailIp.isBlocked(`${email}|${req.ip}`, now).blocked || failedPerEmail.isBlocked(email, now).blocked) throw tooMany();
+          let person: PersonRow;
+          try {
+            person = await login(ctx, email, String(body.password ?? ''));
+          } catch (err) {
+            failedPerEmailIp.record(`${email}|${req.ip}`, now);
+            failedPerEmail.record(email, now);
+            throw err;
           }
-          const person = await login(ctx, email, String(body.password ?? ''));
           const s = createSession(ctx, person.id);
           setCookie(reply, s.token);
           audit(ctx, personRef(person), 'person.login', 'person', person.id, null, {});
@@ -239,7 +250,7 @@ export async function registerAppApi(app: FastifyInstance, ctx: AppContext, hook
             ctx.db.prepare('UPDATE people SET ntfy_topic = ? WHERE id = ?').run(topic, p.id);
           }
           if (body.new_password !== undefined) {
-            await changePassword(ctx, p, String(body.current_password ?? ''), String(body.new_password));
+            await changePassword(ctx, p, String(body.current_password ?? ''), String(body.new_password), req.session!.tokenHash);
           }
           audit(ctx, personRef(p), 'person.update', 'person', p.id, null, { fields: Object.keys(body).filter((k) => !k.includes('password')) });
           return reply.send(meResponse(getPerson(ctx.db, p.id)!, req.session!.csrfToken));
@@ -314,6 +325,7 @@ export async function registerAppApi(app: FastifyInstance, ctx: AppContext, hook
           withTx(ctx, () => {
             ctx.db.prepare('UPDATE people SET disabled_at = ? WHERE id = ?').run(new Date(ctx.clock.now()).toISOString(), id);
             deleteSessionsFor(ctx, id);
+            ctx.db.prepare('UPDATE invites SET revoked_at = ? WHERE created_by = ? AND used_at IS NULL AND revoked_at IS NULL').run(new Date(ctx.clock.now()).toISOString(), id);
             for (const a of ctx.db.prepare('SELECT id FROM agents WHERE owner_id = ?').all(id) as { id: string }[]) {
               revokeKeys(ctx, personRef(admin), a.id, 'api');
               revokeKeys(ctx, personRef(admin), a.id, 'page');

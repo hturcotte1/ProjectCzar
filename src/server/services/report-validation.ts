@@ -179,7 +179,8 @@ export function validateReport(i: ValidationInput): { report: NormalizedReport; 
 
   const myRooms = agentRooms(db, agent.id);
   const myRoomIds = new Set(myRooms.map((r) => r.id));
-  const activeRoomIds = req.rooms;
+  // Rooms on the card that the agent has since left are ignored, like paused ones.
+  const activeRoomIds = req.rooms.filter((id) => myRoomIds.has(id));
   const roomName = (id: string) => getRoom(db, id)?.name ?? id;
   const defaultRoom = activeRoomIds.length === 1 ? activeRoomIds[0] : null;
   const roomChoices = () =>
@@ -201,6 +202,7 @@ export function validateReport(i: ValidationInput): { report: NormalizedReport; 
       return;
     }
     if (req.paused_rooms.includes(roomId)) return; // paused rooms need nothing; ignore what was sent
+    if (req.rooms.includes(roomId) && !myRoomIds.has(roomId)) return; // left the room since the card; ignore
     if (!activeRoomIds.includes(roomId)) {
       invalid(
         `${f}.room_id`,

@@ -62,6 +62,7 @@ export function createContext(opts: BuildOptions = {}): AppContext {
 
 export async function buildApp(opts: BuildOptions = {}, ctxIn?: AppContext): Promise<BuiltApp> {
   const ctx = ctxIn ?? createContext(opts);
+  const hops = ctx.config.trustProxy;
   const app = Fastify({
     logger: opts.logger
       ? {
@@ -73,7 +74,8 @@ export async function buildApp(opts: BuildOptions = {}, ctxIn?: AppContext): Pro
           ...(opts.logStream ? { stream: opts.logStream } : {}),
         }
       : false,
-    trustProxy: ctx.config.trustProxy,
+    // Believe only the last N hops of X-Forwarded-For (the proxies we know are there).
+    trustProxy: hops === false ? false : (_address: string, hop: number) => hop < hops,
     bodyLimit: 256 * 1024,
   });
   if (opts.logger) {

@@ -4,7 +4,7 @@ import { parseJson } from '../db/index.js';
 import { TempoError, tooLarge } from '../lib/errors.js';
 import { html, linkify, raw, type SafeHtml } from '../lib/html.js';
 import type { CardRoomT, CardT, ReportResultT } from '../schemas/agent.js';
-import { roomAgents } from '../services/repo.js';
+import { isAgentInRoom, roomAgents } from '../services/repo.js';
 import { internalError, pageNotFound, type AgentAuth, type DoorLimits } from './agent-auth.js';
 import {
   FIELD,
@@ -473,7 +473,7 @@ function loadCard(ctx: AppContext, agentId: string, cardId: string): CardT | nul
 function otherAgentNames(ctx: AppContext, card: CardT, selfId: string): string[] {
   const names: string[] = [];
   for (const r of card.rooms) {
-    if (r.paused) continue;
+    if (r.paused || !isAgentInRoom(ctx.db, selfId, r.room_id)) continue;
     for (const a of roomAgents(ctx.db, r.room_id)) if (a.id !== selfId && !names.includes(a.name)) names.push(a.name);
   }
   return names;

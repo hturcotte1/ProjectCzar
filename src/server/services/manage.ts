@@ -248,12 +248,27 @@ export function addPersonToRoom(ctx: AppContext, actor: ActorRef, roomId: string
   });
 }
 
+/**
+ * Removes a person from a room, and their agents with them: an agent never stays in a room its
+ * owner has left (otherwise the owner could read the room through their agent's cards).
+ */
 export function removePersonFromRoom(ctx: AppContext, actor: ActorRef, roomId: string, personId: string): void {
   withTx(ctx, (emit) => {
-    ctx.db.prepare('DELETE FROM room_people WHERE room_id = ? AND person_id = ?').run(roomId, personId);
+    const removed = ctx.db.prepare('DELETE FROM room_people WHERE room_id = ? AND person_id = ?').run(roomId, personId);
+    if (removed.changes === 0) return;
     audit(ctx, actor, 'room.remove_person', 'person', personId, roomId, {});
+    const agents = ctx.db
+      .prepare('SELECT a.id, a.name FROM agents a JOIN room_agents ra ON ra.agent_id = a.id WHERE ra.room_id = ? AND a.owner_id = ?')
+      .all(roomId, personId) as { id: string; name: string }[];
+    for (const a of agents) {
+      ctx.db.prepare('DELETE FROM room_agents WHERE room_id = ? AND agent_id = ?').run(roomId, a.id);
+      appendFeed(ctx.db, { roomId, kind: 'system', actorKind: 'system', actorName: 'Tempo', refId: a.id, text: `${a.name} left the room with its owner.`, data: { event: 'agent_left', agent_id: a.id }, at: iso(ctx.clock.now()) }, emit);
+      audit(ctx, actor, 'room.remove_agent', 'agent', a.id, roomId, { reason: 'owner_left' });
+      refreshAgentStatus(ctx, a.id, emit);
+    }
     emit({ type: 'membership', personId });
     emit({ type: 'room', roomId, what: 'members' });
+    if (agents.length) emit({ type: 'room', roomId, what: 'agents' });
   });
 }
 
@@ -308,7 +323,7 @@ export function createAgent(
   const roomIds = input.room_ids ?? [];
   for (const rid of roomIds) {
     const room = getRoom(ctx.db, rid);
-    if (!room || (!room.is_sandbox && !isPersonInRoom(ctx.db, owner.id, rid))) throw new TempoError(403, 'room_forbidden', `You can only add your agents to rooms you belong to (${rid}).`);
+    if (!room || room.archived_at || !isPersonInRoom(ctx.db, owner.id, rid)) throw new TempoError(403, 'room_forbidden', `You can only add your agents to rooms you belong to (${rid}).`);
   }
   validateSchedule(input.schedule ?? {});
   const firstRoom = roomIds.length ? getRoom(ctx.db, roomIds[0])! : null;
@@ -447,7 +462,8 @@ export function addAgentToRoom(ctx: AppContext, actor: ActorRef, agentId: string
 export function removeAgentFromRoom(ctx: AppContext, actor: ActorRef, agentId: string, roomId: string): void {
   withTx(ctx, (emit) => {
     const agent = getAgent(ctx.db, agentId);
-    ctx.db.prepare('DELETE FROM room_agents WHERE room_id = ? AND agent_id = ?').run(roomId, agentId);
+    const removed = ctx.db.prepare('DELETE FROM room_agents WHERE room_id = ? AND agent_id = ?').run(roomId, agentId);
+    if (removed.changes === 0) throw new TempoError(404, 'not_found', 'That agent is not in this room.');
     if (agent) {
       appendFeed(ctx.db, { roomId, kind: 'system', actorKind: 'system', actorName: 'Tempo', refId: agentId, text: `${agent.name} left the room.`, data: { event: 'agent_left', agent_id: agentId }, at: iso(ctx.clock.now()) }, emit);
     }

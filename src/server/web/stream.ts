@@ -11,7 +11,9 @@ import { feedEventView } from './views.js';
  * Live updates for the control room over server-sent events. The browser's EventSource reconnects
  * by itself and sends Last-Event-ID; missed feed events are replayed from the database. A comment
  * line every 15 seconds keeps proxies from closing the stream. Every event is checked against the
- * person's current room memberships before it is sent.
+ * person's current room memberships before it is sent, and the session itself is checked again
+ * before every event and every heartbeat: signing out, changing the password, an expired session
+ * or a disabled account ends the stream before anything else is sent.
  */
 const HEARTBEAT_MS = 15_000;
 
@@ -23,6 +25,16 @@ export async function registerStream(api: FastifyInstance, ctx: AppContext): Pro
   });
   api.get('/stream', async (req, reply) => {
     const person = req.session!.person;
+    const tokenHash = req.session!.tokenHash;
+    const sessionAlive = (): boolean => {
+      const row = ctx.db
+        .prepare(
+          `SELECT 1 FROM sessions s JOIN people p ON p.id = s.person_id
+           WHERE s.token_hash = ? AND s.person_id = ? AND s.expires_at > ? AND p.disabled_at IS NULL`,
+        )
+        .get(tokenHash, person.id, new Date(ctx.clock.now()).toISOString());
+      return !!row;
+    };
     let rooms = new Set<string>();
     const loadRooms = () => {
       rooms = new Set((ctx.db.prepare('SELECT room_id FROM room_people WHERE person_id = ?').all(person.id) as { room_id: string }[]).map((r) => r.room_id));
@@ -58,6 +70,11 @@ export async function registerStream(api: FastifyInstance, ctx: AppContext): Pro
 
     const onEvent = (e: BusEvent) => {
       try {
+        if (closed) return;
+        if (!sessionAlive()) {
+          end();
+          return;
+        }
         switch (e.type) {
           case 'feed': {
             if (!rooms.has(e.roomId)) return;
@@ -98,7 +115,12 @@ export async function registerStream(api: FastifyInstance, ctx: AppContext): Pro
     };
     const unsubscribe = ctx.bus.subscribe(onEvent);
     const heartbeat = setInterval(() => {
-      if (!closed) res.write(`: ping ${Date.now()}\n\n`);
+      if (closed) return;
+      if (!sessionAlive()) {
+        end();
+        return;
+      }
+      res.write(`: ping ${Date.now()}\n\n`);
     }, HEARTBEAT_MS);
     heartbeat.unref?.();
     const close = () => {

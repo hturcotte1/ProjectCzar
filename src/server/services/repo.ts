@@ -37,7 +37,8 @@ export function getPerson(db: DB, personId: string): PersonRow | undefined {
 export function agentRooms(db: DB, agentId: string): RoomRow[] {
   return db
     .prepare(
-      `SELECT r.* FROM rooms r JOIN room_agents ra ON ra.room_id = r.id
+      `SELECT r.* FROM rooms r JOIN room_agents ra ON ra.room_id = r.id JOIN agents a ON a.id = ra.agent_id
+       JOIN room_people rp ON rp.room_id = r.id AND rp.person_id = a.owner_id
        WHERE ra.agent_id = ? AND r.archived_at IS NULL ORDER BY r.created_at, r.id`,
     )
     .all(agentId) as RoomRow[];
@@ -73,7 +74,8 @@ export function roomPeople(db: DB, roomId: string): PersonRow[] {
 export function isAgentInRoom(db: DB, agentId: string, roomId: string): boolean {
   return !!db
     .prepare(
-      `SELECT 1 FROM room_agents ra JOIN rooms r ON r.id = ra.room_id
+      `SELECT 1 FROM room_agents ra JOIN rooms r ON r.id = ra.room_id JOIN agents a ON a.id = ra.agent_id
+       JOIN room_people rp ON rp.room_id = r.id AND rp.person_id = a.owner_id
        WHERE ra.agent_id = ? AND ra.room_id = ? AND r.archived_at IS NULL`,
     )
     .get(agentId, roomId);

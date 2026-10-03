@@ -12,7 +12,8 @@ export interface Config {
   dataDir: string;
   databasePath: string;
   backupDir: string;
-  trustProxy: boolean;
+  /** How many proxy hops in front of Tempo to trust for the client address (false = none). */
+  trustProxy: false | number;
   secureCookies: boolean;
 
   anthropicApiKey: string | null;
@@ -60,6 +61,19 @@ function bool(v: string | undefined, d: boolean): boolean {
   return ['1', 'true', 'yes', 'on'].includes(v.trim().toLowerCase());
 }
 
+/**
+ * TRUST_PROXY: how many proxies sit in front of Tempo. Only that many entries at the end of
+ * X-Forwarded-For are believed, so a client cannot pick its own address by sending the header.
+ * "true" means one proxy (Railway and Fly each add exactly one); "false" or "0" means none.
+ */
+function proxyHops(v: string | undefined, d: false | number): false | number {
+  if (v === undefined || v.trim() === '') return d;
+  const t = v.trim().toLowerCase();
+  if (['true', 'yes', 'on'].includes(t)) return 1;
+  const n = Number(t);
+  return Number.isInteger(n) && n > 0 ? Math.min(n, 5) : false;
+}
+
 function str(v: string | undefined): string | null {
   if (v === undefined) return null;
   const t = v.trim();
@@ -82,7 +96,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     dataDir,
     databasePath: path.resolve(str(env.DATABASE_PATH) ?? path.join(dataDir, 'tempo.db')),
     backupDir: path.resolve(str(env.BACKUP_DIR) ?? path.join(dataDir, 'backups')),
-    trustProxy: bool(env.TRUST_PROXY, nodeEnv === 'production'),
+    trustProxy: proxyHops(env.TRUST_PROXY, nodeEnv === 'production' ? 1 : false),
     secureCookies: bool(env.SECURE_COOKIES, baseUrl.startsWith('https://')),
 
     anthropicApiKey: str(env.ANTHROPIC_API_KEY),

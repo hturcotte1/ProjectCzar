@@ -57,6 +57,11 @@ export interface RoomSummary {
   is_sandbox: boolean;
   decisions_waiting: number;
   agent_count: number;
+  /** The room's clock: the defaults for a new agent's schedule. */
+  timezone: string;
+  work_days: number[];
+  work_start: string;
+  work_end: string;
 }
 
 export interface RoomView {

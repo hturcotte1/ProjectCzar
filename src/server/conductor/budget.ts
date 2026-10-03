@@ -102,14 +102,14 @@ export function effectiveMode(ctx: AppContext, room: RoomRow): EffectiveMode {
       banner:
         room.conductor_mode === 'relay'
           ? null
-          : 'The Conductor has no Anthropic API key, so this room runs in relay mode: instructions come only from people, and Tempo still routes questions, answers and decisions. Add ANTHROPIC_API_KEY to turn the Conductor on.',
+          : 'Relay mode: the Conductor is off because there is no Anthropic API key. Only people give instructions; questions, answers and decisions still flow. Add ANTHROPIC_API_KEY to turn it on.',
     };
   }
   if (!model.scripted && budgetExhausted(ctx)) {
     return {
       mode: 'relay',
       reason: 'budget',
-      banner: `This month's Conductor budget ($${ctx.config.conductorMonthlyBudgetUsd.toFixed(2)}) is used up, so every room runs in relay mode until next month. Raise CONDUCTOR_MONTHLY_BUDGET_USD to continue.`,
+      banner: `Relay mode: this month's Conductor budget ($${ctx.config.conductorMonthlyBudgetUsd.toFixed(2)}) is used up, so only people give instructions until next month. Raise CONDUCTOR_MONTHLY_BUDGET_USD to continue.`,
     };
   }
   return { mode: room.conductor_mode, reason: 'ok', banner: null };

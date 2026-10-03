@@ -125,3 +125,32 @@ test('falls back to polling when live updates are blocked, and still shows new e
   await agentReport(baseURL!, s.agents.find((a) => a.name === 'Muse Sam')!.api_key, unique);
   await expect(page.getByText(unique).first()).toBeVisible({ timeout: 6000 });
 });
+
+test('signs in through the form, and refuses a wrong password with a plain message', async ({ page }) => {
+  const s = seed();
+  await page.goto('/');
+  await page.getByLabel('Email').fill('sam@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('not the password');
+  await page.getByRole('button', { name: /Sign in/ }).click();
+  await expect(page.getByText(/don't match an account/)).toBeVisible();
+  await page.getByLabel('Password', { exact: true }).fill('tempo demo password');
+  await page.getByRole('button', { name: /Sign in/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/rooms/${s.room_id}`));
+  await expect(page.getByRole('heading', { name: /Launch/ })).toBeVisible();
+  // Signing out ends the session: the sign-in form comes back, and the API refuses the old cookie.
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByRole('button', { name: /Sign in/ })).toBeVisible();
+  expect((await page.request.get('/api/app/me')).status()).toBe(401);
+});
+
+test('the Run rehearsal button starts a rehearsal in a labeled sandbox room', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/rehearsal');
+  await page.getByRole('button', { name: 'Run rehearsal' }).click();
+  await expect(page.getByText('running', { exact: true })).toBeVisible({ timeout: 10_000 });
+  // The sandbox room shows up in the room list, clearly labeled.
+  await expect(page.locator('.sidebar .nav-item', { hasText: 'Sandbox rehearsal' }).first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.sidebar .nav-item', { hasText: 'Sandbox rehearsal' }).first().getByText('sandbox', { exact: true })).toBeVisible();
+  // The step-by-step log fills in as it runs.
+  await expect(page.getByText(/Step-by-step log/)).toBeVisible({ timeout: 20_000 });
+});

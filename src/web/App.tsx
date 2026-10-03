@@ -148,6 +148,21 @@ function Shell({ me, path, reload }: { me: MeResponse; path: string; reload: () 
             <span className="truncate">{me.person.name}</span>
             <ThemeToggle />
           </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            style={{ marginTop: 6, width: '100%', justifyContent: 'flex-start' }}
+            onClick={async () => {
+              try {
+                await api.post('/logout', {});
+              } finally {
+                live.stop();
+                window.location.assign('/');
+              }
+            }}
+          >
+            Sign out
+          </button>
         </div>
       </nav>
       <div className="main">{content}</div>

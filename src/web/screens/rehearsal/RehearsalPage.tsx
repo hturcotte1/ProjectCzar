@@ -47,7 +47,7 @@ export function RehearsalPage() {
         <p className="muted">
           A rehearsal creates a clearly labeled sandbox room with two stand-in agents that check in every 30 seconds (a sped-up clock). One connects the way a Muse
           would (MCP); the other alternates between the plain web API and the agent page an Instinct would use. On purpose, they skip a required answer, disagree,
-          ask to spend money, and go quiet for a while. Tempo checks that each of those is handled correctly. It takes about five minutes, touches no real room,
+          ask to spend money, and go quiet for a while. Tempo checks that each of those is handled correctly. It takes about three minutes, touches no real room,
           and the stand-ins are paused afterwards.
         </p>
         <div className="row">
@@ -61,7 +61,12 @@ export function RehearsalPage() {
             disabled={busy || running}
             onClick={() =>
               run(async () => {
-                await api.post('/rehearsals', { max_rounds: rounds });
+                try {
+                  await api.post('/rehearsals', { max_rounds: rounds });
+                } catch (e) {
+                  setError(e);
+                  throw e;
+                }
                 await load();
                 await refresh();
               }, 'Rehearsal started')

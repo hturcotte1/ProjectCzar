@@ -1,0 +1,54 @@
+/* Sign-in and invite screens. Tokens only. Class names start with "au-". */
+
+.au-card {
+  padding: 22px 22px 20px;
+}
+.au-brand {
+  margin-bottom: 14px;
+}
+.au-title {
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+.au-intro {
+  margin: 0 0 16px;
+}
+.au-expiry {
+  display: block;
+  margin-top: 4px;
+}
+.au-password {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.au-password .input {
+  flex: 1;
+  min-width: 0;
+}
+.au-password .btn {
+  min-height: 36px;
+  flex: none;
+}
+.au-submit {
+  width: 100%;
+  min-height: 42px;
+}
+.au-footer {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.au-footer p {
+  margin: 0 0 8px;
+}
+.au-footer p:last-child {
+  margin-bottom: 0;
+}
+.au-footer code {
+  background: var(--bg-sunken);
+  padding: 1px 5px;
+  border-radius: 4px;
+}

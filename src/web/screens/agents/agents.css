@@ -1,0 +1,458 @@
+/*
+ * Styles for the Agents pages: the list, "Add an agent", the one-time secrets panel, the join
+ * messages, keys, schedule and the connection log. Tokens only (var(--...)), so light and dark
+ * themes both work. All class names start with "ag-".
+ */
+
+.ag-page {
+  min-width: 0;
+}
+.ag-head {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.ag-head a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  width: max-content;
+}
+.ag-title {
+  font-size: 1.35rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Cards in a list or stack: the grid already spaces them. */
+.ag-list {
+  display: grid;
+  gap: 12px;
+}
+.ag-list > .card,
+.ag-page > .card {
+  margin: 0;
+}
+.ag-page > .card + .card {
+  margin-top: 0;
+}
+
+/* ---------------------------------------------------------------- agent card */
+.ag-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.ag-name {
+  font-weight: 650;
+  font-size: 1.02rem;
+  color: var(--text);
+  min-width: 0;
+  max-width: 100%;
+}
+.ag-name:hover {
+  color: var(--accent);
+}
+.ag-reason {
+  margin: 6px 0 8px;
+  color: var(--text-muted);
+}
+.ag-kv {
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 14px;
+}
+
+/* ---------------------------------------------------------------- forms */
+.ag-form fieldset,
+.ag-fieldset,
+.ag-days {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.ag-form .ag-days,
+.ag-days {
+  margin-bottom: 12px;
+}
+.ag-fieldset > legend,
+.ag-days > legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.ag-types {
+  display: grid;
+  gap: 8px;
+}
+.ag-type {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-height: 44px;
+  background: var(--bg-elev);
+}
+.ag-type:hover {
+  background: var(--bg-hover);
+}
+.ag-type.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.ag-type input {
+  grid-row: 1 / span 2;
+  margin: 3px 0 0;
+  width: 16px;
+  height: 16px;
+}
+.ag-type-name {
+  font-weight: 650;
+}
+.ag-type:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.ag-rooms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+.ag-rooms .check {
+  min-height: 36px;
+}
+.ag-sched {
+  display: grid;
+  gap: 0;
+}
+@media (min-width: 700px) {
+  .ag-sched {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'interval zone'
+      'days days'
+      'time offset';
+    column-gap: 18px;
+  }
+  .ag-f-interval {
+    grid-area: interval;
+  }
+  .ag-f-zone {
+    grid-area: zone;
+  }
+  .ag-f-days {
+    grid-area: days;
+  }
+  .ag-f-time {
+    grid-area: time;
+  }
+  .ag-f-offset {
+    grid-area: offset;
+  }
+}
+.ag-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.ag-day-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ag-day {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  font-size: 0.88rem;
+  font-weight: 550;
+  cursor: pointer;
+  user-select: none;
+}
+.ag-day input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.ag-day:hover {
+  background: var(--bg-hover);
+}
+.ag-day.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ag-day:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.ag-error {
+  color: var(--red);
+  font-size: 0.82rem;
+}
+
+/* ---------------------------------------------------------------- one-time secrets */
+.ag-save {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow);
+  scroll-margin-top: 12px;
+}
+.ag-save:focus {
+  outline: none;
+}
+.ag-secret {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--amber-soft);
+  border: 1px solid color-mix(in srgb, var(--amber) 40%, var(--border));
+  border-radius: var(--radius-sm);
+}
+.ag-secret-value {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  user-select: all;
+}
+
+/* ---------------------------------------------------------------- join messages */
+.ag-block {
+  display: grid;
+  gap: 6px;
+}
+.ag-help {
+  margin: 0;
+}
+.ag-notes {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+}
+.ag-checklist {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ag-checklist .check {
+  align-items: flex-start;
+  line-height: 1.45;
+}
+.ag-checklist input {
+  margin: 3px 0 0;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.ag-done span {
+  color: var(--text-muted);
+}
+.ag-tip {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ag-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+.ag-address {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.ag-address-text {
+  display: grid;
+  min-width: 0;
+}
+.ag-address-url {
+  word-break: break-all;
+}
+
+/* ---------------------------------------------------------------- page sections */
+.ag-section {
+  scroll-margin-top: 12px;
+}
+.ag-status-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ag-status-head .light {
+  margin-top: 6px;
+}
+.ag-status-text {
+  min-width: 0;
+}
+.ag-status-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.ag-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+.ag-jump a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+.ag-key {
+  display: grid;
+  gap: 10px;
+}
+.ag-key h3 {
+  font-size: 0.98rem;
+}
+.ag-off {
+  margin: 0;
+  color: var(--amber);
+  font-weight: 600;
+}
+.ag-manage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+.ag-manage-row > div {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- connection log */
+.ag-seg {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.ag-seg .btn {
+  min-height: 34px;
+}
+.ag-seg .ag-seg-on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ag-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ag-log-row {
+  display: grid;
+  gap: 4px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  min-width: 0;
+}
+.ag-log-ok {
+  border-left-color: var(--green);
+}
+.ag-log-rejected {
+  background: var(--amber-soft);
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+  border-left-color: var(--amber);
+}
+.ag-log-error {
+  background: var(--red-soft);
+  border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+  border-left-color: var(--red);
+}
+.ag-log-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.85rem;
+}
+.ag-log-time {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.ag-log-door {
+  color: var(--text-muted);
+}
+.ag-log-action {
+  font-size: 0.82rem;
+  background: var(--bg-sunken);
+  border-radius: 4px;
+  padding: 1px 6px;
+  word-break: break-all;
+}
+.ag-log-msg {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.ag-log-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .ag-pair:not(.ag-pair-time) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+/* The messages are the point of the page: show more of them before the box scrolls. */
+.ag-block pre.copyable {
+  max-height: 560px;
+}

@@ -1,0 +1,93 @@
+/* The Alerts page. Tokens only. Class names start with "al-". */
+
+.al-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.al-list > .card {
+  margin: 0;
+}
+.al-card {
+  display: grid;
+  gap: 10px;
+  border-left-width: 4px;
+}
+.al-unread {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--bg-elev));
+}
+.al-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.al-title {
+  font-size: 1rem;
+  font-weight: 500;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+.al-unread .al-title {
+  font-weight: 700;
+}
+.al-time {
+  margin-left: auto;
+}
+.al-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  border: 2px solid var(--border-strong);
+}
+.al-dot.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.al-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+.al-copy {
+  gap: 10px;
+}
+.al-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.al-links {
+  gap: 4px 14px;
+}
+.al-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+.al-deliveries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-size: 0.78rem;
+}
+.al-d-green {
+  color: var(--green);
+}
+.al-d-red {
+  color: var(--red);
+}
+.al-read {
+  margin-left: auto;
+  min-height: 36px;
+}

@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildApp, createContext } from './app.js';
@@ -21,7 +22,10 @@ async function main(): Promise<void> {
   const hooks = wireRuntime(ctx, scheduler, () => internal);
 
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const webDir = path.resolve(here, '../web');
+  // The built control room sits next to the compiled server (dist/web). When the server runs from
+  // source (npm run dev), use the last build in dist/web instead of the unbuilt src/web.
+  const besideServer = path.resolve(here, '../web');
+  const webDir = fs.existsSync(path.join(besideServer, 'assets')) ? besideServer : path.resolve('dist/web');
   const { app } = await buildApp({ logger: true, webDir, hooks }, ctx);
 
   await app.listen({ port: ctx.config.port, host: ctx.config.host });

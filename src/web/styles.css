@@ -947,3 +947,12 @@ pre.copyable {
   border-radius: 50%;
   display: inline-block;
 }
+
+/* On phones, room banners stay readable but take less of the screen. */
+@media (max-width: 600px) {
+  .banner {
+    font-size: 0.82rem;
+    padding: 7px 10px;
+    line-height: 1.35;
+  }
+}

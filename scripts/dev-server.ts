@@ -11,6 +11,7 @@ import { buildApp, createContext } from '../src/server/app.js';
 import { openDatabase } from '../src/server/db/index.js';
 import { Scheduler } from '../src/server/scheduler/index.js';
 import { seedDemo } from '../src/server/demo-seed.js';
+import { wireRuntime } from '../src/server/runtime.js';
 
 async function main() {
   const portArg = process.argv.indexOf('--port');
@@ -23,8 +24,10 @@ async function main() {
   const seeded = await seedDemo(ctx);
   const webArg = process.argv.indexOf('--web');
   const webDir = path.resolve(webArg > 0 ? process.argv[webArg + 1] : 'dist/web');
-  const { app } = await buildApp({ webDir }, ctx);
+  // Wired like the real server (Conductor, sweeps, briefs, the rehearsal button).
   const scheduler = new Scheduler(ctx);
+  const hooks = wireRuntime(ctx, scheduler, () => `http://127.0.0.1:${port}`);
+  const { app } = await buildApp({ webDir, hooks }, ctx);
   await app.listen({ port, host: '127.0.0.1' });
   scheduler.start();
   console.log(`Tempo dev server on http://localhost:${port}`);

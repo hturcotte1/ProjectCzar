@@ -1,0 +1,643 @@
+/*
+ * Styles for the Conductor panel and log, the playbook, daily briefs, room health and room settings.
+ * Tokens only (var(--...)), so light and dark themes both work. All class names start with "c-".
+ */
+
+/* ------------------------------------------------------------ shared bits */
+.c-page {
+  max-width: 820px;
+}
+.c-page > h2,
+.c-head h2 {
+  font-size: 1.2rem;
+}
+.c-intro {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  max-width: 62ch;
+}
+.c-label {
+  display: block;
+  margin: 0 0 3px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.c-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.c-clamp-2 {
+  -webkit-line-clamp: 2;
+}
+.c-clamp-3 {
+  -webkit-line-clamp: 3;
+}
+.c-clamp-6 {
+  -webkit-line-clamp: 6;
+}
+.c-touch {
+  min-height: 36px;
+}
+.c-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.c-counter {
+  text-align: right;
+}
+.c-counter-warn {
+  color: var(--amber);
+}
+
+/* Thin spend bar */
+.c-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.c-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+.c-bar[data-level='warn'] > span {
+  background: var(--amber);
+}
+.c-bar[data-level='over'] > span {
+  background: var(--red);
+}
+.c-bar-lg {
+  height: 10px;
+}
+
+/* ------------------------------------------------------------ compact panel */
+.c-compact .kv {
+  margin: 0;
+}
+.c-compact-goal {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.c-compact-last {
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.88rem;
+}
+.c-spend-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 5px;
+  font-size: 0.88rem;
+}
+
+/* ------------------------------------------------------------ full Conductor tab */
+.c-modes {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.c-modes legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.c-choice {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 11px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  cursor: pointer;
+  min-height: 36px;
+}
+.c-choice:hover {
+  background: var(--bg-hover);
+}
+.c-choice[data-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.c-choice:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.c-choice[data-busy='true'] {
+  cursor: default;
+  opacity: 0.75;
+}
+.c-choice input {
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+.c-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.c-history {
+  margin-top: 6px;
+}
+.c-history summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+.c-history-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.c-history-item {
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.88rem;
+}
+
+.c-usage {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px 18px;
+}
+.c-usage-big {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+/* ------------------------------------------------------------ Conductor log */
+.c-runs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.c-run {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.c-run > details > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 44px;
+  border-radius: var(--radius);
+}
+.c-run > details > summary::-webkit-details-marker {
+  display: none;
+}
+.c-run > details > summary:hover {
+  background: var(--bg-hover);
+}
+.c-run > details > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.c-run-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.c-run-top .c-run-cost {
+  margin-left: auto;
+}
+.c-run-gist {
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+.c-run-more {
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+.c-run > details[open] .c-run-more-closed,
+.c-run > details:not([open]) .c-run-more-open {
+  display: none;
+}
+.c-run-body {
+  padding: 4px 13px 13px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.92rem;
+}
+.c-run-body > div {
+  min-width: 0;
+}
+.c-run-body p {
+  margin: 0;
+}
+.c-run-body > div:first-child {
+  margin-top: 10px;
+}
+.c-triggers,
+.c-actions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.c-actions li {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+.c-run-error {
+  background: var(--red-soft);
+  border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+}
+
+/* ------------------------------------------------------------ playbook */
+.c-lessons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.c-lessons > .card {
+  margin-top: 0;
+}
+.c-lesson {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.c-lesson h3 {
+  font-size: 1.02rem;
+  overflow-wrap: anywhere;
+}
+.c-lesson-body {
+  line-height: 1.55;
+  max-width: 70ch;
+}
+.c-lesson-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.c-lesson-actions {
+  display: flex;
+  gap: 6px;
+}
+.c-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ------------------------------------------------------------ daily brief */
+.c-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.c-brief-text {
+  font-size: 0.97rem;
+  line-height: 1.65;
+  max-width: 72ch;
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  overflow-wrap: anywhere;
+}
+.c-older {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.c-older details {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.c-older summary {
+  cursor: pointer;
+  padding: 10px 13px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-radius: var(--radius);
+}
+.c-older summary:hover {
+  background: var(--bg-hover);
+}
+.c-older details[open] > summary {
+  border-bottom: 1px solid var(--border);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.c-older .c-brief-text {
+  margin: 12px 13px 13px;
+}
+
+/* ------------------------------------------------------------ health */
+.c-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.c-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.c-stat + .c-stat {
+  margin-top: 0;
+}
+.c-stat-number {
+  font-size: 2.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.c-stat-text {
+  font-size: 1.9rem;
+  padding: 0.2rem 0;
+}
+.table th.c-rowhead {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: inherit;
+  color: var(--text);
+  font-weight: 600;
+}
+.c-stat-number[data-tone='green'] {
+  color: var(--green);
+}
+.c-stat-number[data-tone='amber'] {
+  color: var(--amber);
+}
+.c-stat-number[data-tone='red'] {
+  color: var(--red);
+}
+.c-stat-number[data-tone='none'] {
+  color: var(--text-faint);
+}
+.c-agent-table th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.8rem;
+}
+.table th.c-rowhead {
+  min-width: 5.5em;
+}
+.table .c-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.c-rate-bar {
+  display: inline-block;
+  width: 56px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.c-rate-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+.c-rate-bar[data-tone='amber'] > span {
+  background: var(--amber);
+}
+.c-rate-bar[data-tone='red'] > span {
+  background: var(--red);
+}
+.c-blockers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.c-blocker {
+  background: var(--red-soft);
+  border: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ settings */
+.c-settings {
+  max-width: 760px;
+}
+.c-settings .field {
+  margin-bottom: 14px;
+}
+.c-settings .field:last-child {
+  margin-bottom: 0;
+}
+.c-settings h2 {
+  font-size: 1.05rem;
+}
+.c-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.c-days legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.c-day {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  cursor: pointer;
+  min-height: 36px;
+  font-size: 0.9rem;
+  user-select: none;
+}
+.c-day:hover {
+  background: var(--bg-hover);
+}
+.c-day[data-checked='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.c-day:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.c-day input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+.c-times {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+.c-times .field {
+  margin-bottom: 0;
+}
+.c-field-error {
+  color: var(--red);
+  font-size: 0.82rem;
+}
+.c-savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 0 -2px;
+  padding: 10px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.c-members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.c-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  min-height: 48px;
+}
+.c-member:last-child {
+  border-bottom: none;
+}
+.c-member-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.c-member-main .truncate {
+  max-width: 100%;
+}
+.c-add {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.c-add .field {
+  flex: 1 1 200px;
+  margin: 0;
+}
+.c-danger-zone {
+  border-color: color-mix(in srgb, var(--amber) 40%, var(--border));
+}
+
+@media (max-width: 520px) {
+  .c-agent-wrap {
+    padding: 4px 6px;
+  }
+  .c-agent-table th,
+  .c-agent-table td {
+    padding: 7px 4px;
+  }
+  .c-agent-table th {
+    font-size: 0.74rem;
+  }
+  .table th.c-rowhead {
+    min-width: 0;
+  }
+  .c-rate-bar {
+    display: none;
+  }
+  .c-stat-number {
+    font-size: 2rem;
+  }
+  .c-savebar .row {
+    width: 100%;
+  }
+  .c-savebar .row .btn {
+    flex: 1;
+  }
+}

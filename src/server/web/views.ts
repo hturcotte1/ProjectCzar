@@ -70,6 +70,10 @@ export function roomSummary(ctx: AppContext, r: RoomRow): RoomSummary {
     is_sandbox: !!r.is_sandbox,
     decisions_waiting: waiting + proposals,
     agent_count: agents.length,
+    timezone: r.timezone,
+    work_days: parseDays(r.work_days),
+    work_start: r.work_start,
+    work_end: r.work_end,
   };
 }
 

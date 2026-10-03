@@ -219,7 +219,7 @@ export async function runRehearsal(ctx: AppContext, opts: RehearsalOptions): Pro
     check(
       'Missed check-ins turn amber, then red, and alert the owner once',
       amberAfter !== null && redAfter !== null && alert !== null && (ctx.db.prepare(`SELECT COUNT(*) AS n FROM alerts WHERE agent_id = ? AND kind = 'agent_red'`).get(b.agent.id) as { n: number }).n === 1,
-      `Amber after ${amberAfter === null ? '—' : `${Math.round(amberAfter / 1000)} s`}, red after ${redAfter === null ? '—' : `${Math.round(redAfter / 1000)} s`} of silence; red alerts: ${(ctx.db.prepare(`SELECT COUNT(*) AS n FROM alerts WHERE agent_id = ? AND kind = 'agent_red'`).get(b.agent.id) as { n: number }).n}.`,
+      `Amber after ${amberAfter === null ? '—' : `${Math.round(amberAfter / 1000)} s`} of silence, red after ${redAfter === null || amberAfter === null ? '—' : `${Math.round((amberAfter + redAfter) / 1000)} s`}; red alerts: ${(ctx.db.prepare(`SELECT COUNT(*) AS n FROM alerts WHERE agent_id = ? AND kind = 'agent_red'`).get(b.agent.id) as { n: number }).n}.`,
     );
 
     // ---------------------------------------------------------------- recovery

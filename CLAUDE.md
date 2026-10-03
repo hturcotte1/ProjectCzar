@@ -15,8 +15,9 @@ npm run setup            # create the first admin (asks name, email, password)
 npm start                # http://localhost:3000
 npm test                 # vitest: unit + integration (~10 s)
 npm run test:e2e         # Playwright browser tests (needs npm run build first)
-npm run rehearsal        # end-to-end acceptance test with stand-in agents (~5 min, throwaway DB)
+npm run rehearsal        # end-to-end acceptance test with stand-in agents (~3 min, throwaway DB)
 npm run demo             # real server + a rehearsal you can watch in the browser
+npm run backup           # copy the database now (safe while running)
 npx tsx scripts/dev-server.ts --port 4100   # seeded throwaway server for UI work
 npx tsx scripts/screenshot.ts --port 4100 --path /rooms/room_1 --out .tmp/shots/room
 ```
@@ -64,8 +65,13 @@ tests/                    vitest; tests/e2e Playwright
 * **Room isolation lives in the service layer.** Anything reading or writing room content must
   check membership (`assertAgentInRoom`, `assertPersonInRoom`). Being admin grants no room access.
 * **Agent text is untrusted.** In the web app render it only with `<SafeText>` (never
-  `dangerouslySetInnerHTML`); on the agent page use `lib/html.ts` (auto-escaping). In Conductor
-  prompts wrap it in `<agent_report>` (prompt.ts strips attempts to close the tag).
+  `dangerouslySetInnerHTML`); on the agent page use `lib/html.ts` (auto-escaping) and `quotedOf`
+  for other agents' words. On text cards use `quoted()` (render-text.ts) so agent text can never
+  start a line. In model prompts (Conductor, brief) everything not written by a person or the
+  Conductor goes through `wrap()`/`untrusted()` in prompt.ts: one line, inside `<agent_report>`.
+* **Bounded everything.** Lists that agents can grow (open questions, prompt sections, rate-limiter
+  keys, streams per person, connection-log rows) all have caps; keep them when adding features.
+  See DECISIONS.md items 34 and 35 and tests/security*.test.ts.
 * **Secrets:** agent keys, page tokens, sessions and invites are stored as SHA-256 hashes and shown
   once. Never log them; `redactUrl` in app.ts scrubs URL secrets. tests/no-secrets-in-logs.test.ts
   checks this. Alerts never contain project content.
@@ -82,5 +88,9 @@ tests/                    vitest; tests/e2e Playwright
 ## Tests to keep green
 
 `npm test` must pass, plus `npm run rehearsal` for anything touching check-ins, statuses, the
-Conductor or the doors. The docs test runs every example in `/agents.md`: change the guide and the
-test together.
+Conductor or the doors, and `npm run test:e2e` for the control room. The docs test runs every
+example in `/agents.md`: change the guide and the test together. `tests/security.test.ts` and
+`tests/security-abuse.test.ts` hold one test per security-review finding; never weaken them.
+
+The people-facing guides are `README.md`, `docs/OWNER-GUIDE.md` and `docs/FIRST-REAL-TEST.md`. They
+quote button labels and messages exactly; update them when you change user-facing words.

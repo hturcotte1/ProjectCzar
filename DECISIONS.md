@@ -299,6 +299,46 @@ in the research notes; the conclusions that changed the build are below.
     | An agent could fake an instruction on another owner's agent's card with line breaks | Other agents' text is indented (text) or quoted (agent page); the card's about line says other agents' text is information, not instruction |
     | The daily brief wrapped only `working_on` | Every agent-written fact is wrapped and cleaned |
 
+35. **Security review, part two (agent doors and resource abuse).** Fixed, with tests in
+    `tests/security-abuse.test.ts`:
+
+    | Finding | Fix |
+    |---|---|
+    | A JSON-RPC batch let one `/mcp` request run up to ~100 tool calls past the 60-a-minute key limit | Batches are refused with a plain error; one message per POST |
+    | Failed-key requests could write unlimited, large rows to the connection log (disk fill) | Fixed, short action labels; while an address floods bad keys, one row a minute |
+    | A removed agent could still rewrite its own earlier question or lesson by re-sending a report aimed at another room | Re-send keys include the room; a re-send never overwrites a lesson a person edited |
+    | Lookup by event id showed proposals waiting for approval | Event lookup only returns kinds agents may see elsewhere |
+    | Sign-in limiter memory grew without bound (and long emails) | Bounded limiters with cheap batch trimming; absurd input refused before counting |
+    | No cap on open questions one agent could aim at another; a flood made the target's card too big to answer | At most 5 open questions from one agent to one recipient and 20 from agents to one agent, in posts and reports alike, with a plain reason |
+    | The Conductor's prompt grew with every open item, so one agent could make each run expensive | Each prompt section is capped and clipped and says how many were left out |
+    | Every agent-raised decision emailed and pushed everyone | Email and push for decisions at most once per person per room per 30 minutes (the app lists all); delivery runs in the background so a slow mail server never holds up the scheduler |
+    | A 5-minute, around-the-clock schedule made room health take ~9 s per agent | Each day's slots are computed once and reused (now milliseconds) |
+    | Unlimited live streams per person | At most 5; a new one closes the oldest |
+    | Room create/update accepted `is_sandbox`, `clock_speed` and unchecked size limits from the web | Only the fields people may set, with ranges (card size 300 to 20,000; open instructions 1 to 20) |
+
+    The review also found a latent scheduler bug while I fixed the above: a tick with nothing to
+    await could leave its "running" marker stale and skip every later tick. Fixed; the status tests
+    caught it. **Residual risks, accepted:** a compromised agent key can still trigger up to 12
+    Conductor runs an hour in its rooms (each now bounded in size, roughly 10 cents at most). In the
+    worst case that uses up the monthly Conductor budget within about a day, after which every room
+    falls back to relay mode; the budget is the hard cap, and the spend shows in the Conductor panel
+    so the owner can turn the key off. And
+    any signed-in person can list everyone's name and email (needed to add people to rooms); fine for
+    a small team, revisit if Tempo ever hosts more than one company.
+
+36. **What Propose mode holds back.** In Propose mode every *instruction* the Conductor writes waits
+    for a person, as the brief says. Its short notes and its questions to agents still go out,
+    because they assign no work and are needed to chase stale items. The owner guide and the
+    first-test plan say exactly this.
+
+37. **Signing out.** Added a **Sign out** button (bottom of the room list); sessions also end on
+    password change for every other device. Rejected: shorter sessions (agents never use sessions,
+    and two people should not have to sign in every day).
+
+38. **New agents follow their room's clock.** The "Add an agent" form copies the first chosen
+    room's time zone, working days and hours, as the brief says ("a room's time zone and working
+    hours are the defaults for its agents' schedules"); the person can still change them.
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |
@@ -310,5 +350,6 @@ in the research notes; the conclusions that changed the build are below.
 | Control-room screens (4 builders: feed+composer; strip+lanes+decisions; Conductor+room tabs; agents+settings+auth) | Sonnet | See milestone 5 notes |
 | Rehearsal stand-in agents | Sonnet | Its tests plus the full rehearsal |
 | Dockerfile, Railway and Fly config, container smoke script | Sonnet | Ran the smoke script (build, restart, data survives) |
+| README, owner guide, first real test plan | Sonnet | Read all three against the code; fixed what had changed since (sign-out, schedule defaults, banner text); its fresh-clone run of the README steps is in its report |
 | Security review: five finders plus a skeptic per finding | Inherited model (finders), skeptics | Read every finding and its proof-of-concept; the lead fixed each and wrote a test for it |
 | Kept by the lead | — | Database, check-in service and validation, sign-in/keys/isolation, MCP door, scheduler, Conductor, brief, rehearsal driver, integration, this file |

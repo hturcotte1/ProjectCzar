@@ -4,6 +4,7 @@ import type { AppApiHooks } from './web/app-api.js';
 import { AnthropicConductorModel } from './conductor/anthropic.js';
 import { ScriptedConductorModel } from './conductor/scripted.js';
 import { conductorJob, runConductor, sweepJob } from './conductor/runner.js';
+import { briefJob } from './services/brief.js';
 
 /**
  * Wires the long-running parts (Conductor, daily brief, rehearsal) into the scheduler and the app
@@ -16,6 +17,7 @@ export function wireRuntime(ctx: AppContext, scheduler: Scheduler): AppApiHooks 
   ctx.integrations.scriptedConductor ??= new ScriptedConductorModel();
   scheduler.addJob(conductorJob(scheduler));
   scheduler.addJob(sweepJob);
+  scheduler.addJob(briefJob(scheduler));
   return {
     runConductorNow: (roomId: string) => {
       void scheduler.track(runConductor(ctx, roomId));

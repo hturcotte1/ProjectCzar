@@ -20,7 +20,8 @@ export function roomHealth(ctx: AppContext, roomId: string, windowDays = 7): Hea
 
   for (const a of roomAgents(ctx.db, roomId)) {
     const s = scheduleFromRow(a);
-    const start = Math.max(from, a.first_seen_at ? ms(a.first_seen_at) : now);
+    // Slots count from first contact; a first check-in covers the slot half an interval before it.
+    const start = Math.max(from, a.first_seen_at ? ms(a.first_seen_at) - scaled(s, s.intervalMinutes) / 2 : now);
     const checkins = (
       ctx.db
         .prepare(`SELECT completed_at FROM cards WHERE agent_id = ? AND status = 'completed' AND completed_at >= ? ORDER BY completed_at`)

@@ -82,7 +82,22 @@ export function oneLine(text: string): string {
 
 /** Agent-written text: one line, with anything that looks like our tags taken out. */
 export function untrusted(text: string): string {
-  return oneLine(text).replace(/<\s*\/?\s*agent_report/gi, '[tag removed]');
+  return oneLine(text).replace(/<[\s/]*agent_report/gi, '[tag removed]');
+}
+
+/**
+ * Some lines written in a person's name quote agent words for people's convenience (an answer
+ * quotes the question, a decision line quotes its title). Shown bare to the Conductor, that quote
+ * would pass for the person's own words, so these lines are rebuilt without it; the question or
+ * decision itself appears elsewhere in the prompt, wrapped.
+ */
+function personLineWithoutQuotes(ev: FeedRow): string | null {
+  if (ev.actor_kind !== 'person') return null;
+  const d = parseJson<Record<string, any>>(ev.data, {});
+  if (ev.kind === 'answer' && d.question_id) return `Answer to ${d.question_id}: ${d.answer ?? ''}`;
+  if (ev.kind === 'decision_resolved' && d.decision_id) return `${ev.actor_name} decided ${d.decision_id}: ${d.resolution ?? ''}`;
+  if (d.event === 'decision_dismissed' && d.decision_id) return `${ev.actor_name} dismissed decision ${d.decision_id}.`;
+  return null;
 }
 
 /** Wraps agent-written (or agent-quoting) text so the Conductor can tell it apart. */
@@ -160,7 +175,7 @@ export function buildRunInput(ctx: AppContext, room: RoomRow, mode: string, sinc
   for (const ev of shown) {
     // Only people's and the Conductor's own items are shown bare; everything else (agents, and
     // Tempo's system lines, which can quote agents) is wrapped as untrusted.
-    const full = clipItem(feedFullText(ev), 1200);
+    const full = clipItem(personLineWithoutQuotes(ev) ?? feedFullText(ev), 1200);
     const body = ev.actor_kind === 'person' || ev.actor_kind === 'conductor' ? oneLine(full) : wrap(ev.actor_name, full);
     L.push(`- ${feedEventId(ev.seq)} [${shortTime(ms(ev.created_at), tz)}] ${ev.actor_kind === 'person' ? `${ev.actor_name} (person)` : ev.actor_name} — ${ev.kind}: ${body}`);
   }

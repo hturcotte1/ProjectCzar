@@ -219,6 +219,8 @@ export function lookup(ctx: AppContext, agentIn: AgentRow, raw: unknown, _door: 
       const ev = ctx.db.prepare('SELECT * FROM feed_events WHERE seq = ?').get(Number(id.slice(4))) as FeedRow | undefined;
       // Only the kinds agents may see anywhere else (never proposals waiting for approval).
       if (!ev || !inRooms(ev.room_id) || ![...LOOKUP_KINDS_HISTORY, 'system', 'playbook'].includes(ev.kind)) throw notFound();
+      // Nor status lines about proposals (they quote what people have not approved).
+      if (ev.kind === 'instruction_status' && parseJson<Record<string, unknown>>(ev.data, {}).previous_status === 'proposed') throw notFound();
       return {
         ok: true,
         message: `Found ${id}.`,
@@ -272,7 +274,8 @@ export function lookup(ctx: AppContext, agentIn: AgentRow, raw: unknown, _door: 
     const rows = ctx.db
       .prepare(
         `SELECT * FROM feed_events WHERE room_id IN (${placeholders}) AND kind IN (${kindPh}) ${where ? `AND ${where}` : ''}
-         AND kind != 'proposal' ORDER BY seq DESC LIMIT ?`,
+         AND kind != 'proposal' AND NOT (kind = 'instruction_status' AND json_extract(data, '$.previous_status') = 'proposed')
+         ORDER BY seq DESC LIMIT ?`,
       )
       .all(...roomIds, ...LOOKUP_KINDS_HISTORY, ...terms.map((t) => `%${t}%`), limit + 1) as FeedRow[];
     if (rows.length > limit) more = true;

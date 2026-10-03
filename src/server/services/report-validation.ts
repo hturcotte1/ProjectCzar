@@ -445,17 +445,31 @@ export function validateReport(i: ValidationInput): { report: NormalizedReport; 
       invalid(`${f}.to`, `${f} is addressed to you. Ask another agent, "conductor", or "people".`);
       return;
     }
-    // At most a few open questions per recipient, so no agent can flood another's card.
-    const key = `${roomId}|${target.kind}|${target.kind === 'agent' ? target.agentId : ''}`;
-    const adding = (pendingQuestions.get(key) ?? 0) + 1;
+    // At most a few open questions per recipient, so no agent can flood another's card. A
+    // re-sent report updates its earlier questions in place (same room and position): those may
+    // change wording but not recipient, and only genuinely new questions count against the cap.
     const label = target.kind === 'agent' ? target.name : target.kind === 'people' ? 'people' : 'the Conductor';
     const existingReport = db.prepare('SELECT id FROM reports WHERE card_id = ?').get(i.cardId) as { id: string } | undefined;
-    const cap = questionCapProblem(db, roomId, agent.id, target, label, adding, existingReport ? `${existingReport.id}:q:` : null);
-    if (cap) {
-      invalid(`${f}`, `${f} cannot be sent: ${cap}`);
-      return;
+    const reused = existingReport
+      ? (db.prepare('SELECT target_kind, target_agent_id FROM questions WHERE source_key = ?').get(`${existingReport.id}:q:${roomId}:${report.questions.length}`) as
+          | { target_kind: string; target_agent_id: string | null }
+          | undefined)
+      : undefined;
+    if (reused) {
+      if (reused.target_kind !== target.kind || (reused.target_agent_id ?? null) !== (target.kind === 'agent' ? target.agentId : null)) {
+        invalid(`${f}.to`, `${f} was sent to someone else in the first version of this report. A corrected report can change a question's wording but not who it is for; keep the questions in the same order, and ask anyone new with tempo_post.`);
+        return;
+      }
+    } else {
+      const key = `${roomId}|${target.kind}|${target.kind === 'agent' ? target.agentId : ''}`;
+      const adding = (pendingQuestions.get(key) ?? 0) + 1;
+      const cap = questionCapProblem(db, roomId, agent.id, target, label, adding);
+      if (cap) {
+        invalid(`${f}`, `${f} cannot be sent: ${cap}`);
+        return;
+      }
+      pendingQuestions.set(key, adding);
     }
-    pendingQuestions.set(key, adding);
     report.questions.push({ room_id: roomId, target, text });
   });
 

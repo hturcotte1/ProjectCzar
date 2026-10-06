@@ -552,6 +552,24 @@ below has a test that fails on the code before the fix and passes after it.
     table. Rejected: a model call per sentence (it costs money on every check-in, and the safety net
     must work with no API key), and growing the old word lists (it is how both earlier bugs happened).
 
+46. **A second, blind review of the limits check, and what it found.** Seven new reviewers
+    (launch marketing, customer operations, development and data, finance and admin, content and
+    docs, agents' questions, multi-line instructions with done-when lines) each wrote about 80
+    ordinary sentences without seeing the code, and a separate judge checked every claimed mistake.
+    On these 559 sentences the item 45 rules decided correctly (flag or not) on 92.1%: 13 false
+    alarms out of 281 harmless sentences, 31 misses out of 278 risky ones, and 5 flagged under the
+    wrong limit. That is the honest figure for sentences the rules had never seen. The misses were
+    mostly sharing: uploading a customer list or other data about people to an outside tool (an ad
+    platform, Canva, a CRM on trial, an online AI tool), "make the dashboard public so anyone with the
+    link can see it"; plus credits and refunds on invoices, "spin up a bigger GPU instance", "hire a
+    freelance database admin", overwriting data, and goals like "it's in her inbox" or "you've
+    accepted the agency's quote". The false alarms were mostly done-when lines saying the result is
+    "posted here" (Tempo, not public) and past figures in reports ("the AWS bill was $312 last
+    month"). All were fixed, the 559 sentences joined the test (1,764 in all), and every earlier
+    sentence still passes. A test also checks that hostile text of the largest allowed size (2,000
+    characters built to make patterns slow) is answered in well under a second; the slowest takes
+    about 0.1 s, and ordinary texts about 1 ms.
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

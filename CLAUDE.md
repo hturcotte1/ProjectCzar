@@ -13,7 +13,7 @@ npm install
 npm run build            # server (tsc → dist/server) + control room (vite → dist/web)
 npm run setup            # create the first admin (asks name, email, password)
 npm start                # http://localhost:3000
-npm test                 # vitest: unit + integration (~10 s)
+npm test                 # vitest: unit + integration (~15 s)
 npm run test:e2e         # Playwright browser tests (needs npm run build first)
 npm run rehearsal        # end-to-end acceptance test with stand-in agents (~3 min, throwaway DB)
 npm run demo             # real server + a rehearsal you can watch in the browser

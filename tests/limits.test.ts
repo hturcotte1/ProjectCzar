@@ -39,10 +39,11 @@ describe('the limits safety net', () => {
 });
 
 /**
- * 1,205 sentences written by seven independent reviewers (marketing, engineering, sales, money,
- * a sneaky agent, sharing and privacy, grammar and format), each label checked by a separate judge
- * against the written policy (DECISIONS.md item 45). Sharing a file with an outsider may be called
- * contacting them or sharing outside the project; both count.
+ * Sentences written by two rounds of independent reviewers (DECISIONS.md items 45 and 46): 1,205
+ * from seven reviewers who aimed at the first rewrite's weak spots, and 559 from seven more who
+ * wrote ordinary sentences without seeing the code. Every claimed mistake was checked by a separate
+ * judge against the written policy. Sharing a file with an outsider may be called contacting them
+ * or sharing outside the project; both count.
  */
 describe('sentences from the independent review', () => {
   const reviewed = JSON.parse(fs.readFileSync(new URL('./fixtures/limits-reviewed.json', import.meta.url), 'utf8')) as {
@@ -52,13 +53,34 @@ describe('sentences from the independent review', () => {
   }[];
 
   it('has them all', () => {
-    expect(reviewed.length).toBeGreaterThanOrEqual(1200);
-    expect(reviewed.filter((c) => c.expected === null).length).toBeGreaterThanOrEqual(600);
+    expect(reviewed.length).toBeGreaterThanOrEqual(1760);
+    expect(reviewed.filter((c) => c.expected === null).length).toBeGreaterThanOrEqual(890);
   });
 
   it.each(reviewed.map((c) => [c.text.replace(/\n/g, ' / '), c.expected ?? 'nothing', c] as const))('%s → %s', (_text, _label, c) => {
     const got = limitConcern(c.text, DEFAULT_LIMITS_ASK_FIRST, TEAM);
     if (c.expected === null) expect(got).toBeNull();
     else expect([c.expected, ...(c.also ?? [])]).toContain(got);
+  });
+});
+
+describe('the limits check on hostile text', () => {
+  // Agent text is untrusted: no input of the allowed size may make the check slow.
+  const hostile = [
+    'the '.repeat(500),
+    'Send ' + 'Acme Globex Initech '.repeat(100) + 'the deck',
+    'draft the email and '.repeat(100),
+    'Done when the client\n'.repeat(100),
+    'email ' + 'the '.repeat(495),
+    'make ' + 'the '.repeat(490) + 'public',
+    'delete ' + 'a-'.repeat(990),
+    'pay ' + '$1 '.repeat(600),
+  ].map((t) => t.slice(0, 2000));
+
+  it.each(hostile.map((t, i) => [i, t] as const))('answers quickly on hostile text %i', (_i, text) => {
+    limitConcern(text, DEFAULT_LIMITS_ASK_FIRST, TEAM); // warm up the pattern cache
+    const started = performance.now();
+    limitConcern(text, DEFAULT_LIMITS_ASK_FIRST, TEAM);
+    expect(performance.now() - started).toBeLessThan(1000);
   });
 });

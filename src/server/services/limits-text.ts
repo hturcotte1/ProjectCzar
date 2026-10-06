@@ -23,6 +23,8 @@ export interface Clause {
   frame: Frame;
   /** Everything written before this clause, lower case: what "it" or "them" can point back to. */
   before: string;
+  /** The same, in the original case (for names). */
+  beforeRaw: string;
   /** Labels on buttons the text says to press: 'Click "Buy"' gives "buy". */
   pressed: string[];
   /** Every quoted text in the sentence, lower case ("anyone with the link"). */
@@ -62,7 +64,7 @@ const WRAPPERS: RegExp[] = [
   /^(?:please|pls|plz|kindly|ok(?!\s+(?:to|if|for)\b)|okay(?!\s+(?:to|if|for)\b)|alright(?!\s+(?:to|if)\b)|all\s+right|great|good|perfect|thanks|thank\s+you|cheers|sure|yes|yep|right|so|now|next|then|also|and|first|firstly|second|secondly|finally|lastly|quickly|today|tonight|tomorrow|asap|just|hey|hi|meanwhile|afterwards|later|again|instead|separately|in\s+the\s+meantime|this\s+(?:morning|afternoon|week)|by\s+(?:friday|monday|tomorrow|eod|end\s+of\s+day))\b[,:!]?\s*/,
   /^(?:looks\s+good|sounds\s+good|all\s+good|approved|confirmed|done|signed\s+off|good\s+to\s+go|ready)\b[,:!]?\s*/,
   /^(?:can|could|may|might|should|shall|must)\s+(?:i|we)\s+(?:also\s+|maybe\s+|perhaps\s+|actually\s+|still\s+|just\s+|now\s+|quickly\s+|simply\s+|quietly\s+|please\s+)*/,
-  /^(?:can|could|would|will)\s+you\s+(?:please\s+)?/,
+  /^(?:can|could|would|will)\s+you\s+(?!like\b)(?:please\s+)?/,
   /^(?:would|will|is|was)\s+it\s+be\s+(?:ok|okay|alright|all\s+right|fine|possible|acceptable|a\s+problem|an\s+issue)\s+(?:for\s+me\s+|for\s+us\s+)?(?:to|if\s+(?:i|we))\s+/,
   /^(?:would|will)\s+it\s+be\s+(?:ok|okay|alright|all\s+right|fine)\s+(?:to|if\s+(?:i|we))\s+/,
   /^(?:is|are)\s+(?:it|that)\s+(?:ok|okay|alright|all\s+right|fine|cool|acceptable)\s+(?:for\s+me\s+|for\s+us\s+)?(?:to|if\s+(?:i|we))\s+/,
@@ -73,6 +75,8 @@ const WRAPPERS: RegExp[] = [
   /^(?:i'd|i\s+would|we'd|we\s+would)\s+like\s+to\s+/,
   /^(?:i|we)\s+(?:want|need|plan|intend|hope|mean|ought|have|got)\s+to\s+/,
   /^(?:i'm|i\s+am|we're|we\s+are)\s+(?:going\s+to|about\s+to|planning\s+to|planning\s+on|thinking\s+of|thinking\s+about|ready\s+to|happy\s+to|keen\s+to)\s+/,
+  /^(?:planning|going|hoping|intending|about|ready|happy|keen|aiming)\s+to\s+/,
+  /^(?:in|on|for|from|at|within|inside|under)\s+(?:the|our|this|that|a|an|each|every|last|next|tomorrow's|today's)\s+[^,]{1,40},\s*/,
   /^(?:i'm\s+|i\s+am\s+|we're\s+|we\s+are\s+)?thinking\s+(?:we\s+should|i\s+should|of|about|i'll|we'll|i\s+could|we\s+could)\s+/,
   /^(?:i|we)\s+think\s+(?:we|i)\s+should\s+/,
   /^(?:i'll|i\s+will|we'll|we\s+will|i'd|we'd|let\s+me|let's|lets|let\s+us)\s+(?:go\s+ahead\s+and\s+)?/,
@@ -142,7 +146,7 @@ function quotes(sentence: string): { text: string; pressed: string[] } {
 const VERBISH =
   String.raw`(?:email|e-mail|mail|send|resend|forward|reply|respond|answer|call|phone|text|message|dm|ping|contact|reach|tell|let|ask|invite|pay|buy|purchase|order|get|grab|book|hire|renew|upgrade|subscribe|sign|delete|remove|wipe|drop|clear|purge|destroy|erase|empty|publish|post|tweet|share|upload|launch|deploy|ship|push|release|make|put|go|take|turn|open|give|add|start|run|set|switch|move|cancel|close|confirm|accept|approve|charge|bill|invoice|refund|transfer|wire|spend|place|loop|cc|follow|check|draft|write|review|edit|fix|finish|polish|prepare|update|use|create|keep|announce|present|show|demo|pitch|meet|schedule|book|notify|inform|introduce|intro|forward|top|expense|tip|donate|pledge|back|bid|register|enroll|enrol|onboard|offboard|archive|restore|merge|kick|trigger|flip|roll|promote|list|submit|stream|livestream|reveal|unveil|paste|commit|expose|leak|disclose|announce|queue|drop|shoot|circle|touch|sync|loop|line|do|hop|jump|lock|settle|cover|treat|bring|commission|rent|reserve|lease|order|pre-order|preorder|re-order|reorder|venmo|paypal|zelle|recharge|reload|bump|raise|increase|up|double|allocate|throw|boost|promote|sponsor|fund|invest|bin|trash|scrap|nuke|prune|flush|truncate|tear|shut|terminate|deactivate|overwrite|replace|force-push|unpublish|unlist|take|negotiate|reschedule|cancel|decline|reply|deploying|bin)`;
 const CLAUSE_SPLIT = new RegExp(
-  String.raw`\s*(?:,\s*(?:and\s+)?then\s+|\s+and\s+then\s+|\s+then\s+(?=${VERBISH}\b)|,?\s+but\s+(?:also\s+)?|,\s+so\s+|\s+so\s+(?!that\b|far\b|much\b|many\b|long\b|we\s+can\b)(?=(?:we|i|you|they|it|henry|sam|${VERBISH})\b)|,?\s+and\s+(?:also\s+)?(?=${VERBISH}\b(?!\s+(?:list|copy|page|form|button|link|draft|template|address|tracking|events?|flow)\b))|,?\s+and\s+(?=(?:no|nothing|none|never)\b)|,\s+(?=(?:${VERBISH}|can|could|should|shall|may|is\s+it|would|ok|okay|go\s+ahead|please|don't|do\s+not|never)\b))`,
+  String.raw`\s*(?:,\s*(?:and\s+)?then\s+|\s+and\s+then\s+|\s+then\s+(?=${VERBISH}\b)|,?\s+but\s+(?:also\s+)?|,\s+so\s+|\s+so\s+(?!that\b|far\b|much\b|many\b|long\b|we\s+can\b)(?=(?:we|i|you|they|it|henry|sam|${VERBISH})\b)|,?\s+and\s+(?:also\s+)?(?=${VERBISH}\b(?!\s+(?:list|copy|page|form|button|link|draft|template|address|tracking|events?|flow)\b))|,?\s+and\s+(?=(?:no|nothing|none|never)\b)|,\s+(?!(?:up|down)\s+(?:from|to|by)\b)(?=(?:${VERBISH}|can|could|should|shall|may|is\s+it|would|ok|okay|go\s+ahead|please|don't|do\s+not|never)\b))`,
   'i',
 );
 
@@ -277,6 +281,7 @@ function colonFrame(sentence: string): { read: string; copyFollows: boolean } | 
 export function clausesOf(input: string, team: Set<string> = new Set()): Clause[] {
   const out: Clause[] = [];
   let before = '';
+  let beforeRaw = '';
   let copyBlock = false;
   const lines = normalise(input).split(/\r?\n/);
   lines.forEach((rawLine, lineNo) => {
@@ -313,6 +318,9 @@ export function clausesOf(input: string, team: Set<string> = new Set()): Clause[
         const head = stripWrapping(sentence.toLowerCase()).text.split(/\s+/)[0] ?? '';
         if (CONTENT_HEADS.has(head)) copyBlock = true;
       }
+      body = body
+        .replace(/\b((?:how|what|when|where|why|which|whether)\s+(?:to|[\w']+\s+(?:can|could|should|will|would|may|might|must|do|does|did))\s+\w+)\s+and\s+/gi, '$1 \u0026 ')
+        .replace(/\b((?:he|she|they|[A-Z][\w'-]*)\s+(?:will|can|could|should|would|may|might|must|'ll|is\s+going\s+to|are\s+going\s+to)\s+\w+)\s+and\s+/g, '$1 \u0026 ');
       for (const part of body.split(CLAUSE_SPLIT)) {
         const raw = part.trim().replace(/[.!?;:,]+$/, '');
         if (!raw) continue;
@@ -328,8 +336,10 @@ export function clausesOf(input: string, team: Set<string> = new Set()): Clause[
         if (proceed) text = 'proceed ' + text.slice(proceed[0].length);
         let frame = frameOf(text);
         if (goal && (frame === 'report' || frame === 'content') && !FACT_QUESTION.test(text) && !CONTENT_HEADS.has(text.split(/\s+/)[0] ?? '')) frame = 'state';
-        out.push({ text, raw, frame, before: before.trim(), pressed, quoted: quotedTexts });
+        if (!text) continue;
+        out.push({ text, raw, frame, before: before.trim(), beforeRaw: beforeRaw.trim(), pressed, quoted: quotedTexts });
         before += ' ' + raw.toLowerCase();
+        beforeRaw += ' ' + raw;
       }
     }
   });

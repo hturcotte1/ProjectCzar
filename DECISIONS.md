@@ -159,7 +159,7 @@ in the research notes; the conclusions that changed the build are below.
 9. **Limits safety net.** Besides telling the Conductor the limits, Tempo runs a plain keyword
    check (money, outside contact, deleting, sharing outside) on Conductor instructions and on
    agents' questions to people/the Conductor. Anything it flags becomes a decision, never an
-   instruction. It errs toward asking a person.
+   instruction. It errs toward asking a person. (Rewritten after the outside review: see item 39.)
 
 10. **Agent names are unique** (case-insensitive), because agents address each other by name.
 
@@ -344,6 +344,45 @@ in the research notes; the conclusions that changed the build are below.
 38. **New agents follow their room's clock.** The "Add an agent" form copies the first chosen
     room's time zone, working days and hours, as the brief says ("a room's time zone and working
     hours are the defaults for its agents' schedules"); the person can still change them.
+
+## Part 5: Fixes from the outside review (before the first deploy)
+
+An outside review ran every test and the rehearsal, then probed a running copy by hand. Each fix
+below has a test that fails on the code before the fix and passes after it.
+
+39. **The limits safety net needs a real signal, not a common word.** The old check matched single
+    words, so "in order to", "in charge of", "pay attention", "subscription tiers" and "the invoice
+    template" all became "spending money" decisions; in autonomous mode every such Conductor
+    instruction waited for a person. Now every rule needs evidence of the act itself:
+    * **Money:** a currency amount, or a buying verb used as a verb with something to buy ("buy the
+      stock photo", "pay for the plan", "place an order", "order 50 business cards", "subscribe to",
+      "upgrade to the paid plan", "charge the client", "run paid ads", "hire a freelancer", "renew
+      the domain", "start a free trial"). Bare "order", "charge", "pay", "subscription" and
+      "invoice" are not enough. One deliberate exception: price-list rates written as copy ("Basic
+      $9/month, Pro $29/month") are not spending when nothing in the sentence buys.
+    * **Contacting outsiders:** a contact verb used as a verb (an instruction, a question or a plan,
+      not "the email" or "draft three emails") aimed at someone outside the team: customers,
+      clients, vendors, press, investors, prospects, users and so on. Writing a message for review
+      is not contacting; sending it is. Talking to teammates never counts.
+    * **Deleting:** deleting, removing, wiping or emptying files, folders, records, accounts,
+      posts or data. Editing text inside a draft (a word, a paragraph, a typo, a photo on a page
+      draft) is not deleting anything.
+    * **Sharing outside the project:** publishing, posting on a public place (social media, the
+      blog, the website), going live, making something public, giving outsiders access, sharing
+      with other companies. Posting in Tempo or sharing with the team never counts.
+    * Each sentence is checked on its own (an instruction and its "done when" line are separate
+      sentences); "don't", "never" and "without" right before the verb mean the act is forbidden;
+      a short quoted button label ("Buy now") is copy, not an action.
+    * A room's own extra limits still match when all their key words appear as whole words;
+      the four default limits are now matched only by their rules, never by loose words ("keep
+      sharing updates" no longer counts as "sharing anything outside the project").
+    * When a case is truly unclear the rules still lean toward asking a person: "remove the
+      duplicate rows", "launch the landing page" and "survey users" are flagged on purpose.
+
+    `tests/limits.test.ts` holds the table: 64 harmless sentences that must pass and 45 risky ones
+    that must be flagged with the right limit, including every sentence from the review. Rejected:
+    a model call per sentence (costs money on every check-in, and the safety net must work with no
+    API key), and a single list of "risky words" with exceptions (it is how the old bug happened).
 
 ## Part 4: Delegation record
 

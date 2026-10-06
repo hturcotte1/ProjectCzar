@@ -380,7 +380,7 @@ export function applyOutput(
       skip(`"${quote(ins.text, 60)}" is already open for ${agent.name} as ${dup.id}.`);
       continue;
     }
-    const concern = limitConcern(`${ins.text} ${ins.done_when}`, askFirst);
+    const concern = limitConcern(`${ins.text}\n${ins.done_when}`, askFirst);
     const due = ins.due && !Number.isNaN(Date.parse(ins.due)) ? new Date(ins.due).toISOString() : null;
     if (ins.needs_approval || concern) {
       const reason = ins.approval_reason ?? (concern ? `it involves ${concern}` : 'it needs a person to approve it');

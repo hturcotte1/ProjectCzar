@@ -147,7 +147,7 @@ These are estimates until Tempo has run with a real API key; nobody has measured
 | `npm run demo` | Starts Tempo with a rehearsal in a sandbox room you can watch. |
 | `npm run rehearsal` | Runs the end-to-end acceptance test with stand-in agents (about 3 minutes). |
 | `npm run backup` | Writes a copy of the database right now, safe while Tempo is running. Prints where it put it. |
-| `npm test` | Runs the automatic tests (about 10 seconds). |
+| `npm test` | Runs the automatic tests (about 15 seconds). |
 | `npm run test:watch` | Runs the automatic tests again each time a file changes. |
 | `npm run test:e2e` | Runs the browser tests (run `npm run build` first). |
 | `npm run typecheck` | Checks the code for type mistakes without building. |

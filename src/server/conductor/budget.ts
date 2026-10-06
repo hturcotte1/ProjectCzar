@@ -97,13 +97,12 @@ export function spendOutlook(ctx: AppContext): SpendOutlook {
     .get(since) as { n: number; s: number };
   const avgPerRun = runs.n > 0 ? runs.s / runs.n : null;
   if (spent <= 0) return { spent, paidRuns: runs.n, avgPerRun, projected: null, runsOutOn: null };
-  const first = ctx.db
-    .prepare(
-      `SELECT MIN(t) AS t FROM (SELECT MIN(started_at) AS t FROM conductor_runs WHERE cost_usd > 0
-       UNION ALL SELECT MIN(created_at) AS t FROM briefs WHERE cost_usd > 0)`,
-    )
-    .get() as { t: string | null };
-  const paceStart = Math.max(monthStart.toMillis(), first.t ? ms(first.t) : monthStart.toMillis());
+  // The first paid call ever. Walks the started_at index and stops at the first paid run, so it
+  // stays quick as the run history grows (briefs are one a day per room).
+  const firstRun = ctx.db.prepare('SELECT started_at AS t FROM conductor_runs WHERE cost_usd > 0 ORDER BY started_at LIMIT 1').get() as { t: string } | undefined;
+  const firstBrief = ctx.db.prepare('SELECT MIN(created_at) AS t FROM briefs WHERE cost_usd > 0').get() as { t: string | null };
+  const firsts = [firstRun?.t, firstBrief.t].filter((t): t is string => !!t).map(ms);
+  const paceStart = Math.max(monthStart.toMillis(), firsts.length ? Math.min(...firsts) : monthStart.toMillis());
   const perMs = spent / Math.max(now - paceStart, DAY_MS);
   const projected = spent + perMs * Math.max(0, monthEnd - now);
   const budget = ctx.config.conductorMonthlyBudgetUsd;

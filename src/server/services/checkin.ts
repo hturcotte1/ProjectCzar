@@ -9,7 +9,7 @@ import { CHECKIN_DELAY_MS, requestConductorRun } from '../conductor/queue.js';
 import { buildCard } from './card.js';
 import { appendFeed, feedEventId, updateFeed } from './feed.js';
 import { limitConcern } from './limits.js';
-import { agentRooms, getAgent, getPerson, getRoom, roomLimits } from './repo.js';
+import { agentRooms, getAgent, getPerson, getRoom, roomLimits, roomTeamNames } from './repo.js';
 import type { AgentRow, CardRequirements, CardRow, InstructionRow, QuestionRow, ReportRow } from './rows.js';
 import { OPEN_INSTRUCTION_STATUSES } from './rows.js';
 import { nextDueAfterCheckin, scaled, scheduleFromRow } from './schedule.js';
@@ -445,7 +445,7 @@ function applyReport(
 export function raiseLimitDecisionForQuestion(ctx: AppContext, q: QuestionRow, asker: AgentRow, emit: Emit): void {
   const room = getRoom(ctx.db, q.room_id);
   if (!room) return;
-  const concern = limitConcern(q.text, roomLimits(room).ask_a_person_first);
+  const concern = limitConcern(q.text, roomLimits(room).ask_a_person_first, roomTeamNames(ctx.db, room.id));
   if (!concern) return;
   createDecision(
     ctx.db,

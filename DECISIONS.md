@@ -380,7 +380,8 @@ below has a test that fails on the code before the fix and passes after it.
       duplicate rows", "launch the landing page" and "survey users" are flagged on purpose.
 
     `tests/limits.test.ts` holds the table: 64 harmless sentences that must pass and 45 risky ones
-    that must be flagged with the right limit, including every sentence from the review. Rejected:
+    that must be flagged with the right limit, including every sentence from the review. (An
+    independent review then showed these rules were still too narrow; item 45 replaced them.) Rejected:
     a model call per sentence (costs money on every check-in, and the safety net must work with no
     API key), and a single list of "risky words" with exceptions (it is how the old bug happened).
 
@@ -505,6 +506,51 @@ below has a test that fails on the code before the fix and passes after it.
     away (the whole banner, To and Type, the agent details and the link to the agent's page) is one
     tap away. Rejected: hiding the strip or the filter bar behind a toggle (the lights are the
     point of the room page), and a smaller font (harder to read for the people this is for).
+
+45. **The limits safety net reads sentences, not words (second pass on item 39).** Item 39's rules
+    passed my own 109-sentence table but failed an independent review: seven reviewers (marketing,
+    engineering, sales and customers, money, a sneaky agent, sharing and privacy, grammar and format)
+    wrote 1,243 realistic sentences, a separate judge checked every claimed mistake against the
+    written policy, and 1,046 claims were upheld (22 sentences were thrown out as unrealistic). The
+    rules missed "Grab the Pro plan", "Add 3 seats", "Expense the Zoom subscription", "fifty dollars",
+    "₹500", "Let the client know", "Loop the vendor in", "The client has been emailed", "Take down the
+    old blog post", "Deploy the hotfix to prod"; and still flagged "Order the images by date", "Spend
+    2 hours on the tests", "Headline idea: Pay for what you use", "Write the receipt email customers get
+    after they pay", "Don't bother emailing the client", "Call the users endpoint". Adding words could
+    not fix this, so the check now reads the shape of each sentence:
+    * `limits-text.ts` splits text into clauses ("Draft the reply **and** send it to the client"),
+      strips the wrapping around a request ("Would it be OK if I...", "Ada, ...", "Once Henry approves
+      ...", "go ahead with"), and gives each clause a frame: a request or plan; work about something
+      (drafting, research, sorting, fixing, a question about what happened); forbidden ("don't",
+      "hold off on", "no need to", "delete nothing"); a statement about someone else ("Customers
+      bought 40 licences"); or a finished act given as the goal, mostly done-when lines ("The deposit
+      is paid", "The post is live on LinkedIn", "Only main and release branches remain").
+    * Copy after a colon is copy ("Headline idea:", "Write the CTA:", "Pricing table:"); a topic label
+      is not ("Holiday email to customers: draft it by Friday" reads "draft it by Friday"). Quoted text
+      is set aside, except a button the text says to press ('Click "Buy"' is buying).
+    * `limits-rules.ts` holds the four rules. Most patterns start at the clause's verb, so a word in
+      the middle of a sentence ("the purchase flow", "our email list") never counts on its own. Money
+      also counts any currency amount (symbols, codes and words: "$29", "29 USD", "50€", "₹500", "a
+      grand", "fifty dollars"), except price-list rates, amounts inside copy or research, and time
+      ("Spend 2 hours"). Contact needs someone outside the team as the one being reached; deleting
+      needs something that holds data (a part of a draft, a slide or a line of code is editing);
+      sharing needs a public place, production, or an outsider getting access.
+    * Tempo now passes the names of the room's people and agents into the check, so anyone else named
+      is outside the team: "Email Dana at Acme" and "Pitch the story to TechCrunch" are flagged, "Email
+      Henry the outline" is not. Without names, only roles and companies count as outsiders.
+    * Sharing a file with an outsider ("Share the deck with Acme") is labelled contacting them (most
+      reviewers read it that way); giving access, making public and posting stay "sharing".
+
+    Measured on the 1,205 judged sentences, with a quarter set aside and not looked at until the
+    design was done: the first-version rules (item 39) were right about whether to flag on 14% of the
+    working three quarters and 17% of the set-aside quarter (the reviewers had aimed at that code; the
+    original pre-review rules score 43% on the same sentences). The new design: 91.7% on the working
+    set on its first run, 100% after fixing what it showed; then 96.5% on the set-aside quarter the first
+    time it was scored, and 100% after fixing those 11. A second round with fresh reviewers who were not
+    shown the code is recorded below this item. All 1,205 sentences are now a test
+    (`tests/fixtures/limits-reviewed.json`, run by `tests/limits.test.ts`) next to the 109-sentence
+    table. Rejected: a model call per sentence (it costs money on every check-in, and the safety net
+    must work with no API key), and growing the old word lists (it is how both earlier bugs happened).
 
 ## Part 4: Delegation record
 

@@ -7,7 +7,7 @@ import { iso, ms } from '../lib/time.js';
 import type { Job, Scheduler } from '../scheduler/index.js';
 import { appendFeed, maxFeedSeq } from '../services/feed.js';
 import { limitConcern } from '../services/limits.js';
-import { getAgent, getRoom, roomAgents, roomLimits, roomMaxOpenInstructions } from '../services/repo.js';
+import { getAgent, getRoom, roomAgents, roomLimits, roomMaxOpenInstructions, roomTeamNames } from '../services/repo.js';
 import type { FeedRow, InstructionRow, QuestionRow, RoomRow } from '../services/rows.js';
 import { OPEN_INSTRUCTION_STATUSES } from '../services/rows.js';
 import { scaled, scheduleFromRow } from '../services/schedule.js';
@@ -374,6 +374,7 @@ export function applyOutput(
   const byName = (name: string) => agents.find((a) => a.name.toLowerCase() === name.trim().replace(/^@/, '').toLowerCase());
   const maxOpen = roomMaxOpenInstructions(room, ctx.config.maxOpenInstructionsPerAgent);
   const askFirst = roomLimits(room).ask_a_person_first;
+  const team = roomTeamNames(db, room.id);
   const ph = OPEN_INSTRUCTION_STATUSES.map(() => '?').join(',');
   const openOf = (agentId: string) =>
     db.prepare(`SELECT * FROM instructions WHERE room_id = ? AND agent_id = ? AND (status IN (${ph}) OR status = 'proposed')`).all(room.id, agentId, ...OPEN_INSTRUCTION_STATUSES) as InstructionRow[];
@@ -401,7 +402,7 @@ export function applyOutput(
       skip(`"${quote(ins.text, 60)}" is already open for ${agent.name} as ${dup.id}.`);
       continue;
     }
-    const concern = limitConcern(`${ins.text}\n${ins.done_when}`, askFirst);
+    const concern = limitConcern(`${ins.text}\n${ins.done_when}`, askFirst, team);
     const due = ins.due && !Number.isNaN(Date.parse(ins.due)) ? new Date(ins.due).toISOString() : null;
     if (ins.needs_approval || concern) {
       const reason = ins.approval_reason ?? (concern ? `it involves ${concern}` : 'it needs a person to approve it');

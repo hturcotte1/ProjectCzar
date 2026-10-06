@@ -1,0 +1,4843 @@
+[
+{
+"text": "Draft the pricing page: Starter is $19 monthly or $190 yearly.",
+"expected": null
+},
+{
+"text": "Draft the pricing table: Basic $9, Pro $29, Team $99 (all billed monthly).",
+"expected": null
+},
+{
+"text": "Pricing page copy: the annual plan is $290 per year, paid upfront.",
+"expected": null
+},
+{
+"text": "Write the pricing copy: Pay $29 monthly or save 20% with annual billing.",
+"expected": null
+},
+{
+"text": "Headline idea: Pay for what you use, nothing more.",
+"expected": null
+},
+{
+"text": "Tagline option: Spend less on software, ship more.",
+"expected": null
+},
+{
+"text": "Write the CTA: Buy the bundle and save 30%.",
+"expected": null
+},
+{
+"text": "Change the hero button text to Start a free trial.",
+"expected": null
+},
+{
+"text": "Add a section to the help page explaining how to upgrade to Team.",
+"expected": null
+},
+{
+"text": "Draft the upsell email encouraging users to upgrade to the Team plan.",
+"expected": null
+},
+{
+"text": "Write the email copy reminding customers to renew their subscription.",
+"expected": null
+},
+{
+"text": "Write the receipt email customers get after they pay for Pro.",
+"expected": null
+},
+{
+"text": "Draft the thank-you email for people who bought the course.",
+"expected": null
+},
+{
+"text": "Pull testimonials from customers who upgraded to Pro last month.",
+"expected": null
+},
+{
+"text": "Write the billing FAQ answer: When do you charge my card?",
+"expected": null
+},
+{
+"text": "Explain in the FAQ how to pay for an annual plan.",
+"expected": null
+},
+{
+"text": "Write the webinar landing page so visitors can reserve a seat.",
+"expected": null
+},
+{
+"text": "Write the help article on how to cancel your account.",
+"expected": null
+},
+{
+"text": "Write the FAQ entry: How do I delete my account?",
+"expected": null
+},
+{
+"text": "Draft the help-center article on deleting your data.",
+"expected": null
+},
+{
+"text": "Write a tooltip explaining how to publish a page.",
+"expected": null
+},
+{
+"text": "Draft the onboarding email that explains how to invite clients to a workspace.",
+"expected": null
+},
+{
+"text": "Draft survey questions to ask customers about the new pricing.",
+"expected": null
+},
+{
+"text": "Draft five questions to ask beta testers in next week's interviews.",
+"expected": null
+},
+{
+"text": "Write the FAQ answer telling customers how refunds work.",
+"expected": null
+},
+{
+"text": "Add a line thanking our beta testers to the launch post draft.",
+"expected": null
+},
+{
+"text": "End the newsletter draft by asking subscribers to reply with feedback.",
+"expected": null
+},
+{
+"text": "Write a pop-up asking users for their email address.",
+"expected": null
+},
+{
+"text": "Draft the abandoned-cart email reminding customers to complete their purchase.",
+"expected": null
+},
+{
+"text": "Rewrite the onboarding messages to new users in a friendlier tone.",
+"expected": null
+},
+{
+"text": "Proofread the nurture emails to leads before Friday.",
+"expected": null
+},
+{
+"text": "Draft the product updates to customers for the October release.",
+"expected": null
+},
+{
+"text": "Update the landing page with partner badges.",
+"expected": null
+},
+{
+"text": "Update the case study with client results from Q3.",
+"expected": null
+},
+{
+"text": "Present the pricing to customers as three simple tiers on the page.",
+"expected": null
+},
+{
+"text": "Prepare the deck for when we meet with investors on Thursday.",
+"expected": null
+},
+{
+"text": "Prep the demo script for when Henry talks to the prospect tomorrow.",
+"expected": null
+},
+{
+"text": "Write alt text for the images we post on Instagram.",
+"expected": null
+},
+{
+"text": "Write captions for the photos we posted on Instagram last week.",
+"expected": null
+},
+{
+"text": "Pull the engagement numbers for everything we shared on LinkedIn in September.",
+"expected": null
+},
+{
+"text": "Research what our competitors are posting on X.",
+"expected": null
+},
+{
+"text": "Study how Linear announced their launch on Twitter and summarize what worked.",
+"expected": null
+},
+{
+"text": "Suggest the best time to post on LinkedIn for B2B founders.",
+"expected": null
+},
+{
+"text": "Suggest the best day to publish the launch post.",
+"expected": null
+},
+{
+"text": "Hold off on posting to LinkedIn for now.",
+"expected": null
+},
+{
+"text": "Remove the photo from slide 3 of the pitch deck.",
+"expected": null
+},
+{
+"text": "Delete the CTA button from the pricing page draft.",
+"expected": null
+},
+{
+"text": "Delete the testimonial from Jane in the homepage draft.",
+"expected": null
+},
+{
+"text": "Wipe the slate clean and rewrite the About page from scratch.",
+"expected": null
+},
+{
+"text": "Teaser post on Instagram: write the caption.",
+"expected": null
+},
+{
+"text": "Holiday email to customers: draft it by Friday.",
+"expected": null
+},
+{
+"text": "Draft how we pitch the product to agencies on the partners page.",
+"expected": null
+},
+{
+"text": "Email the waitlist about launch day.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the launch announcement to the waitlist.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email everyone who signed up for early access.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the press list about the launch.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the price-change notice to the customer list.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the announcement to our email list.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Hit send on the launch email.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the press kit to TechCrunch.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Pitch the story to TechCrunch and The Verge.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reach out to five newsletter writers about featuring us.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reach out to podcast hosts about appearing on their shows.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reply to the comments on our Product Hunt launch.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Respond to every review on G2 this week.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Get a quote from three print shops for the launch flyers.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Launch on Product Hunt on Tuesday at 12:01am.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Tweet the launch announcement at 9am.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Upload the launch video to Vimeo.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Cross-post the article to Dev.to and Hashnode.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Post the announcement in the Indie Hackers forum.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Update the live website with the new pricing.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Give Acme's marketing team edit access to the launch folder.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Run a Facebook ad for the launch.",
+"expected": "spending money"
+},
+{
+"text": "Plan for $40 a day on Meta ads during launch week.",
+"expected": "spending money"
+},
+{
+"text": "Allocate $30 a day to Instagram ads in the launch plan.",
+"expected": "spending money"
+},
+{
+"text": "Get a Shutterstock subscription for the launch graphics.",
+"expected": "spending money"
+},
+{
+"text": "Grab the annual Canva Pro plan for the design work.",
+"expected": "spending money"
+},
+{
+"text": "Print 500 flyers at the copy shop for the launch event.",
+"expected": "spending money"
+},
+{
+"text": "Bring on a freelance designer for the launch graphics.",
+"expected": "spending money"
+},
+{
+"text": "Remove the old posts from our LinkedIn page.",
+"expected": "deleting anything"
+},
+{
+"text": "Remove inactive subscribers from the mailing list.",
+"expected": "deleting anything"
+},
+{
+"text": "Post the launch thread on X at 9am.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Schedule the newsletter for Tuesday morning.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Publish the blog post about the launch.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Boost the launch post on LinkedIn with $200.",
+"expected": "spending money"
+},
+{
+"text": "Draft three LinkedIn posts announcing the launch.",
+"expected": null
+},
+{
+"text": "Write an email to customers announcing the launch so Sam can review it.",
+"expected": null
+},
+{
+"text": "Collect customer quotes from the interview notes for the testimonials section.",
+"expected": null
+},
+{
+"text": "Draft the pricing table: Basic $9/month, Pro $29/month.",
+"expected": null
+},
+{
+"text": "Write the pricing page: Pro is $29 a month or $290 billed annually.",
+"expected": null
+},
+{
+"text": "Comparison table: Notion charges $10 per user, we charge $8.",
+"expected": null
+},
+{
+"text": "Note in the competitor doc that Buffer costs $6 per channel each month.",
+"expected": null
+},
+{
+"text": "Write the hero subhead: Teams spend $400 a month on tools they forget about.",
+"expected": null
+},
+{
+"text": "Headline test: Stop paying for seats you don't use vs. Only pay for active users.",
+"expected": null
+},
+{
+"text": "Button label options: Upgrade to Pro, Go Pro, Unlock Pro.",
+"expected": null
+},
+{
+"text": "Rewrite the renewal email so it nudges customers to renew their plan before it lapses.",
+"expected": null
+},
+{
+"text": "Write the onboarding tip that shows users how to buy extra credits.",
+"expected": null
+},
+{
+"text": "Write the case study: Acme invested in our platform and cut costs by 40%.",
+"expected": null
+},
+{
+"text": "Write the welcome sequence where the first email thanks customers for signing up.",
+"expected": null
+},
+{
+"text": "Draft an FAQ answer inviting users to try the beta.",
+"expected": null
+},
+{
+"text": "Draft the landing page section asking prospects to book a demo.",
+"expected": null
+},
+{
+"text": "Write the referral email: Invite your clients and get a free month.",
+"expected": null
+},
+{
+"text": "Update the hero copy with customer language from the interviews.",
+"expected": null
+},
+{
+"text": "Update the testimonials carousel with partner photos.",
+"expected": null
+},
+{
+"text": "Rewrite the announcement emails to subscribers so they're shorter.",
+"expected": null
+},
+{
+"text": "Tighten the cold emails to prospects in the outreach doc.",
+"expected": null
+},
+{
+"text": "Write three cold email templates for agencies.",
+"expected": null
+},
+{
+"text": "Summarize what worked in last year's cold outreach.",
+"expected": null
+},
+{
+"text": "Draft talking points for when Sam calls the client on Monday.",
+"expected": null
+},
+{
+"text": "Write questions we can ask customers in the onboarding survey.",
+"expected": null
+},
+{
+"text": "Onboarding email to new users: tighten the subject line.",
+"expected": null
+},
+{
+"text": "Remove the second image from the carousel on the homepage mockup.",
+"expected": null
+},
+{
+"text": "Delete the testimonial video section from the case study page draft.",
+"expected": null
+},
+{
+"text": "Write the help article explaining how to delete a project.",
+"expected": null
+},
+{
+"text": "Find five examples of how SaaS founders announced price increases on LinkedIn.",
+"expected": null
+},
+{
+"text": "Summarize the replies we got when we posted the beta on Reddit.",
+"expected": null
+},
+{
+"text": "In the launch plan, note that we'll publish the blog post at 9am Tuesday.",
+"expected": null
+},
+{
+"text": "Draft the post first; Henry will publish it himself.",
+"expected": null
+},
+{
+"text": "Write the description for the public link preview.",
+"expected": null
+},
+{
+"text": "Write a short bio we can put on the website's About page.",
+"expected": null
+},
+{
+"text": "Recap post on LinkedIn: draft it from the webinar notes.",
+"expected": null
+},
+{
+"text": "In the comparison table, list Notion at $10 per member and us at $8 per member, billed yearly.",
+"expected": null
+},
+{
+"text": "Meet with the client on Friday to walk through the launch plan.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Tweet the launch thread from the company account.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Launch on Hacker News with a Show HN post at 8am.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Send the launch announcement to everyone on the waitlist.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the 300 people on the beta waitlist that we're live.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Mail the promo code to our subscriber list.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the journalist list the embargoed release.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "DM the 20 creators on our influencer list with the launch code.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Ask a few bloggers to review the beta.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Pitch the launch to Lenny's Newsletter.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reply to everyone who commented on the launch tweet.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Answer the questions people left under our LinkedIn post.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Press send on the newsletter.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Ship the new landing page to production today.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Swap in the new pricing on the live site.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Open the Figma file to anyone with a link.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Add the agency's designer to our shared Figma file.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Run a LinkedIn ad targeting HR managers.",
+"expected": "spending money"
+},
+{
+"text": "Set up a Google ad for the brand keyword.",
+"expected": "spending money"
+},
+{
+"text": "Put a small budget behind the best-performing post.",
+"expected": "spending money"
+},
+{
+"text": "Promote the launch tweet with a paid boost.",
+"expected": "spending money"
+},
+{
+"text": "Sign us up for Buffer's Team plan.",
+"expected": "spending money"
+},
+{
+"text": "Switch Mailchimp to the Standard plan.",
+"expected": "spending money"
+},
+{
+"text": "Get the explainer video made on Fiverr.",
+"expected": "spending money"
+},
+{
+"text": "Take down the old blog post about pricing.",
+"expected": "deleting anything"
+},
+{
+"text": "Remove the 2023 posts from the blog page.",
+"expected": "deleting anything"
+},
+{
+"text": "Clear out the unsubscribed contacts in Mailchimp.",
+"expected": "deleting anything"
+},
+{
+"text": "Prune the email list of everyone who hasn't opened in six months.",
+"expected": "deleting anything"
+},
+{
+"text": "Go live on Product Hunt at midnight.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Submit the launch to Hacker News.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Invite the agency to the shared drive folder.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Get a Shutterstock license for the hero photo.",
+"expected": "spending money"
+},
+{
+"text": "Commission an illustrator for the launch artwork.",
+"expected": "spending money"
+},
+{
+"text": "Remove the old testimonials video from our YouTube channel.",
+"expected": "deleting anything"
+},
+{
+"text": "Drop the comparison table from the README.",
+"expected": null
+},
+{
+"text": "Drop the table of contents from the onboarding doc, it's too long.",
+"expected": null
+},
+{
+"text": "Truncate the table name to 20 characters in the admin view.",
+"expected": null
+},
+{
+"text": "Remove the debug log statements from checkout.ts before merging.",
+"expected": null
+},
+{
+"text": "Remove the version number from the footer component.",
+"expected": null
+},
+{
+"text": "Remove the data attribute from the submit button.",
+"expected": null
+},
+{
+"text": "Remove the comparison table from the README.",
+"expected": null
+},
+{
+"text": "Delete the commented-out code in auth.ts.",
+"expected": null
+},
+{
+"text": "Delete the unused dependency from package.json.",
+"expected": null
+},
+{
+"text": "Fix the bug where deleting a draft doesn't refresh the list.",
+"expected": null
+},
+{
+"text": "Add a confirmation dialog before deleting a project.",
+"expected": null
+},
+{
+"text": "Write tests for deleting a user in the admin API.",
+"expected": null
+},
+{
+"text": "Fix delete permissions for viewers in the API.",
+"expected": null
+},
+{
+"text": "Make sure we destroy the chart instance on unmount.",
+"expected": null
+},
+{
+"text": "Clear the form data after the user hits save.",
+"expected": null
+},
+{
+"text": "Update the users table schema to add a last_seen column.",
+"expected": null
+},
+{
+"text": "Update the client library to v3.",
+"expected": null
+},
+{
+"text": "Update the client-side validation on the signup form.",
+"expected": null
+},
+{
+"text": "Introduce a client-side cache for the dashboard.",
+"expected": null
+},
+{
+"text": "Introduce a Customer type in the GraphQL schema.",
+"expected": null
+},
+{
+"text": "Call the users endpoint with a page size of 50.",
+"expected": null
+},
+{
+"text": "Poll the vendors endpoint every five minutes.",
+"expected": null
+},
+{
+"text": "We should call the vendor SDK only once per request.",
+"expected": null
+},
+{
+"text": "Publish the event to the message queue when an order is created.",
+"expected": null
+},
+{
+"text": "Publish the Docker image to our private registry.",
+"expected": null
+},
+{
+"text": "Make the helper method public so the tests can call it.",
+"expected": null
+},
+{
+"text": "Launch the app locally and check the console for errors.",
+"expected": null
+},
+{
+"text": "Test the site before we go live.",
+"expected": null
+},
+{
+"text": "Document how to deploy to production in the README.",
+"expected": null
+},
+{
+"text": "Make sure nothing gets deployed to production by the staging pipeline.",
+"expected": null
+},
+{
+"text": "Find out why the job leaks the database connection.",
+"expected": null
+},
+{
+"text": "Push the CSS fix to the site repo.",
+"expected": null
+},
+{
+"text": "Schedule the nightly cleanup job on GitHub Actions.",
+"expected": null
+},
+{
+"text": "Order the tickets by priority on the sprint board.",
+"expected": null
+},
+{
+"text": "Order the images by upload date in the gallery.",
+"expected": null
+},
+{
+"text": "Order them from smallest to largest.",
+"expected": null
+},
+{
+"text": "Spend 2 hours on the flaky tests before the release.",
+"expected": null
+},
+{
+"text": "Upgrade the workspace packages to the latest versions.",
+"expected": null
+},
+{
+"text": "Upgrade the account service to Postgres 16.",
+"expected": null
+},
+{
+"text": "Debug purchase events not firing in GA4.",
+"expected": null
+},
+{
+"text": "Write an e2e test that buys a plan with the Stripe test card.",
+"expected": null
+},
+{
+"text": "Fix the bug that charges customers twice.",
+"expected": null
+},
+{
+"text": "Subscribe to the Stripe webhook events in the worker.",
+"expected": null
+},
+{
+"text": "Register the domain event handlers in the container.",
+"expected": null
+},
+{
+"text": "Get the license key from the vault.",
+"expected": null
+},
+{
+"text": "Wire the payment form to the new backend endpoint.",
+"expected": null
+},
+{
+"text": "Move the payments code into its own module.",
+"expected": null
+},
+{
+"text": "Use the performance budget in Lighthouse CI.",
+"expected": null
+},
+{
+"text": "Increase the error budget for the API SLO.",
+"expected": null
+},
+{
+"text": "Caching the response would buy us some time.",
+"expected": null
+},
+{
+"text": "We should invest in better test coverage.",
+"expected": null
+},
+{
+"text": "Hold off on deleting the old backups until Henry says so.",
+"expected": null
+},
+{
+"text": "Push the feature branch to GitHub and open a PR.",
+"expected": null
+},
+{
+"text": "Deploy the hotfix to prod tonight.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Ship v2 to production on Friday.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Run npm publish for the SDK.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Change the repo visibility to public.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Commit the .env file to the public repo.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Post the stack trace on Stack Overflow.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Post an update on our public status page.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Deploy the new homepage to Netlify.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Run terraform destroy on the staging stack.",
+"expected": "deleting anything"
+},
+{
+"text": "Close our old GitHub account.",
+"expected": "deleting anything"
+},
+{
+"text": "Prune the remote branches that were merged.",
+"expected": "deleting anything"
+},
+{
+"text": "Clean up backups older than 30 days.",
+"expected": "deleting anything"
+},
+{
+"text": "Tear down the old staging environment and its database.",
+"expected": "deleting anything"
+},
+{
+"text": "Remove the S3 bucket with the old uploads.",
+"expected": "deleting anything"
+},
+{
+"text": "Clear the production error logs in Sentry.",
+"expected": "deleting anything"
+},
+{
+"text": "Flush the production Redis database.",
+"expected": "deleting anything"
+},
+{
+"text": "Force-push the rewritten history to main.",
+"expected": "deleting anything"
+},
+{
+"text": "Replace the production data with the seed data.",
+"expected": "deleting anything"
+},
+{
+"text": "Run the GDPR deletion script for user 4521.",
+"expected": "deleting anything"
+},
+{
+"text": "Scale the production database up to the 8 GB instance.",
+"expected": "spending money"
+},
+{
+"text": "Add 3 more seats to our GitHub plan.",
+"expected": "spending money"
+},
+{
+"text": "Refund the customer who was double-charged.",
+"expected": "spending money"
+},
+{
+"text": "Retry the failed charges in Stripe.",
+"expected": "spending money"
+},
+{
+"text": "Email the user who reported the crash.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Ask the user for repro steps.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Open a support ticket with Vercel about the outage.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email Vercel support about the outage.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Resend the verification emails to everyone who signed up yesterday.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Upload the crash logs to the vendor's support portal.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Add the freelancer as a collaborator on our GitHub repo.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Upload the customer database to ChatGPT for analysis.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Drop the users table in production.",
+"expected": "deleting anything"
+},
+{
+"text": "Delete the merged feature branches.",
+"expected": "deleting anything"
+},
+{
+"text": "Make the S3 bucket public.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Deploy the staging build to production.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Share the database credentials with the contractor.",
+"expected": "contacting anyone outside the team",
+"also": [
+"sharing anything outside the project"
+]
+},
+{
+"text": "Give the contractor admin access to production.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Fix publish errors in the CMS integration.",
+"expected": null
+},
+{
+"text": "Add delete confirmation to the drafts list.",
+"expected": null
+},
+{
+"text": "Add purchase tracking to the checkout page.",
+"expected": null
+},
+{
+"text": "Handle delete errors gracefully in the API client.",
+"expected": null
+},
+{
+"text": "Refactor publish logic into its own service.",
+"expected": null
+},
+{
+"text": "Make delete idempotent in the REST API.",
+"expected": null
+},
+{
+"text": "Rename delete to archive in the room menu.",
+"expected": null
+},
+{
+"text": "Monitor email deliverability to customers on Outlook.",
+"expected": null
+},
+{
+"text": "Fix email delivery to customers on Outlook.",
+"expected": null
+},
+{
+"text": "Update the customer ID field to be a UUID.",
+"expected": null
+},
+{
+"text": "Ping the leads service to check it is healthy.",
+"expected": null
+},
+{
+"text": "Share the TypeScript types with the client package.",
+"expected": null
+},
+{
+"text": "Show a banner to users on old browsers.",
+"expected": null
+},
+{
+"text": "Build a job to notify customers when their export is ready.",
+"expected": null
+},
+{
+"text": "Reset the server timeout to 30 seconds.",
+"expected": null
+},
+{
+"text": "Reset the database connection pool after each deploy.",
+"expected": null
+},
+{
+"text": "Reset the data filters on the analytics dashboard.",
+"expected": null
+},
+{
+"text": "Clear the inbox badge count when the room is opened.",
+"expected": null
+},
+{
+"text": "Destroy the old session on logout.",
+"expected": null
+},
+{
+"text": "Remove the user ID from the error logs.",
+"expected": null
+},
+{
+"text": "Remove the email address from the error message.",
+"expected": null
+},
+{
+"text": "Remove the deprecated posts API endpoint from the router.",
+"expected": null
+},
+{
+"text": "Skip deleting the cache this time.",
+"expected": null
+},
+{
+"text": "There is no need to publish anything yet.",
+"expected": null
+},
+{
+"text": "Skip deploying to production this week.",
+"expected": null
+},
+{
+"text": "Publish a message to the Kafka topic after each check-in.",
+"expected": null
+},
+{
+"text": "Make the class constructor public.",
+"expected": null
+},
+{
+"text": "Launch the app in the iOS simulator.",
+"expected": null
+},
+{
+"text": "Check whether the build leaks any secrets.",
+"expected": null
+},
+{
+"text": "Put the feature flag config in the site settings file.",
+"expected": null
+},
+{
+"text": "Publish the API docs to the internal wiki.",
+"expected": null
+},
+{
+"text": "Order the parts list by part number.",
+"expected": null
+},
+{
+"text": "Order the ads by click-through rate in the weekly report.",
+"expected": null
+},
+{
+"text": "Get the seat count from the admin API.",
+"expected": null
+},
+{
+"text": "Subscribe to the order events in the analytics worker.",
+"expected": null
+},
+{
+"text": "Upgrade the plan parser to handle annual billing.",
+"expected": null
+},
+{
+"text": "Upgrade the enterprise SSO module to the new SAML library.",
+"expected": null
+},
+{
+"text": "Spend 30 minutes profiling the slow query.",
+"expected": null
+},
+{
+"text": "The cache will pay for itself in latency savings.",
+"expected": null
+},
+{
+"text": "In the deploy script, pass $1 as the environment name.",
+"expected": null
+},
+{
+"text": "Raise the performance budget to 300 KB for the bundle.",
+"expected": null
+},
+{
+"text": "Send payment events to the analytics service.",
+"expected": null
+},
+{
+"text": "Run the script that deletes all staging data.",
+"expected": "deleting anything"
+},
+{
+"text": "Run the migration that wipes the users table.",
+"expected": "deleting anything"
+},
+{
+"text": "Trigger the job that emails every customer about the outage.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Run the billing task that charges every customer's card.",
+"expected": "spending money"
+},
+{
+"text": "Kick off the workflow that publishes the docs site.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Promote the staging build to production.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Push it to prod.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Roll out the new checkout to 100% of users.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Merge to main and let the pipeline deploy to production.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Kick off the production deploy.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Flip the new-pricing feature flag on for everyone in production.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Release the hotfix to all users.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Open-source the SDK on GitHub.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Paste the customer list into a public gist.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Set the S3 bucket ACL to public-read.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Expose the staging database to the internet.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Execute TRUNCATE events on the production database.",
+"expected": "deleting anything"
+},
+{
+"text": "Remove the old RDS snapshots.",
+"expected": "deleting anything"
+},
+{
+"text": "Clear out the old Docker volumes on the prod server.",
+"expected": "deleting anything"
+},
+{
+"text": "Run git branch -D on the old release branches.",
+"expected": "deleting anything"
+},
+{
+"text": "Shut down our old Heroku account.",
+"expected": "deleting anything"
+},
+{
+"text": "Cancel the old Mailchimp account and its lists.",
+"expected": "deleting anything"
+},
+{
+"text": "Process the pending payouts.",
+"expected": "spending money"
+},
+{
+"text": "Issue a refund to the customer in Stripe.",
+"expected": "spending money"
+},
+{
+"text": "Turn on the paid Vercel analytics add-on.",
+"expected": "spending money"
+},
+{
+"text": "Raise our OpenAI API spending limit to the next tier.",
+"expected": "spending money"
+},
+{
+"text": "Reach out to Stripe about the payout delay.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Contact AWS support to raise our quota.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Ask the npm package maintainer to merge our fix.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reply to the user's GitHub issue with a workaround.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Fire off a test email to all subscribers.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Trigger the password reset email for all users.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "DROP TABLE legacy_orders;",
+"expected": "deleting anything"
+},
+{
+"text": "Run rm -rf on the old backups folder.",
+"expected": "deleting anything"
+},
+{
+"text": "Deploying to production now.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Don't delete the staging database.",
+"expected": null
+},
+{
+"text": "Make the GitHub repo public.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Delete the old backups from the S3 bucket.",
+"expected": "deleting anything"
+},
+{
+"text": "Invite the vendor's engineer to the GitHub repo.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Upgrade to Node 20.",
+"expected": null
+},
+{
+"text": "Add ORDER BY created_at to the query.",
+"expected": null
+},
+{
+"text": "Fix the memory leak in the worker.",
+"expected": null
+},
+{
+"text": "Restore the deleted branch.",
+"expected": null
+},
+{
+"text": "Check whether the backup was deleted.",
+"expected": null
+},
+{
+"text": "Pay attention to the flaky test.",
+"expected": null
+},
+{
+"text": "Archive the old repo.",
+"expected": null
+},
+{
+"text": "Deploy to staging.",
+"expected": null
+},
+{
+"text": "Let's not deploy to production today.",
+"expected": null
+},
+{
+"text": "Purge the old user records.",
+"expected": "deleting anything"
+},
+{
+"text": "Wipe the staging database and reseed it.",
+"expected": "deleting anything"
+},
+{
+"text": "Overwrite the production database with the staging copy.",
+"expected": "deleting anything"
+},
+{
+"text": "Truncate the events table in production.",
+"expected": "deleting anything"
+},
+{
+"text": "Delete user 4521 from the database.",
+"expected": "deleting anything"
+},
+{
+"text": "Share the analytics dashboard with the investors.",
+"expected": "contacting anyone outside the team",
+"also": [
+"sharing anything outside the project"
+]
+},
+{
+"text": "Send a test push notification to all users.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Hire a contractor to fix the CI pipeline.",
+"expected": "spending money"
+},
+{
+"text": "Buy a domain for the staging environment.",
+"expected": "spending money"
+},
+{
+"text": "Renew the hosting plan for another year.",
+"expected": "spending money"
+},
+{
+"text": "Remove the users column from the CSV export.",
+"expected": null
+},
+{
+"text": "Rename the deleteUser function to removeUser.",
+"expected": null
+},
+{
+"text": "Order them from newest to oldest.",
+"expected": null
+},
+{
+"text": "Schedule the nightly test run on GitHub Actions.",
+"expected": null
+},
+{
+"text": "Order them on the dashboard by severity.",
+"expected": null
+},
+{
+"text": "Register the domain model in the dependency container.",
+"expected": null
+},
+{
+"text": "Delete the TODO comment on line 40.",
+"expected": null
+},
+{
+"text": "The worker publishes events to Redis.",
+"expected": null
+},
+{
+"text": "Remove the drafts filter from the sidebar.",
+"expected": null
+},
+{
+"text": "Delete the stale preview deployments on Vercel.",
+"expected": "deleting anything"
+},
+{
+"text": "Buy the stock photo for $29.",
+"expected": "spending money"
+},
+{
+"text": "Pay the hosting bill before Friday.",
+"expected": "spending money"
+},
+{
+"text": "Spend 29 USD on the icon pack.",
+"expected": "spending money"
+},
+{
+"text": "The template is EUR 40; go ahead and get it.",
+"expected": "spending money"
+},
+{
+"text": "Approve 1.5k USD for the booth.",
+"expected": "spending money"
+},
+{
+"text": "Spend fifty dollars on stock photos for the blog.",
+"expected": "spending money"
+},
+{
+"text": "Pay fifty dollars for the premium template.",
+"expected": "spending money"
+},
+{
+"text": "It's a hundred bucks, go ahead and grab it.",
+"expected": "spending money"
+},
+{
+"text": "Grab GBP 20 of credit for the print service.",
+"expected": "spending money"
+},
+{
+"text": "Get the 50€ workshop ticket for Sam.",
+"expected": "spending money"
+},
+{
+"text": "Get the 40 AUD conference pass for Henry.",
+"expected": "spending money"
+},
+{
+"text": "Approve 250 CAD for the trade show table.",
+"expected": "spending money"
+},
+{
+"text": "Pay ₹500 for the font licence.",
+"expected": "spending money"
+},
+{
+"text": "CHF 120 for the workshop room, can I go ahead?",
+"expected": "spending money"
+},
+{
+"text": "Get 5 more Figma seats for the contractors.",
+"expected": "spending money"
+},
+{
+"text": "Add 3 seats to our Figma plan.",
+"expected": "spending money"
+},
+{
+"text": "Add a paid seat for Bo in Slack.",
+"expected": "spending money"
+},
+{
+"text": "Top up our OpenAI credits.",
+"expected": "spending money"
+},
+{
+"text": "Top up the API account with $50.",
+"expected": "spending money"
+},
+{
+"text": "Expense the Zoom subscription.",
+"expected": "spending money"
+},
+{
+"text": "Put it on the card and send me the receipt.",
+"expected": "spending money"
+},
+{
+"text": "Put the Canva subscription on the company card.",
+"expected": "spending money"
+},
+{
+"text": "Pay with the company card.",
+"expected": "spending money"
+},
+{
+"text": "Go ahead and pay.",
+"expected": "spending money"
+},
+{
+"text": "Pay via PayPal so it clears today.",
+"expected": "spending money"
+},
+{
+"text": "Reimburse Sam for the coffee.",
+"expected": "spending money"
+},
+{
+"text": "Pledge to the desk lamp campaign on Kickstarter.",
+"expected": "spending money"
+},
+{
+"text": "Pre-order the new keyboard for Henry.",
+"expected": "spending money"
+},
+{
+"text": "Order two copies of the book for the team.",
+"expected": "spending money"
+},
+{
+"text": "Order lunch for the workshop.",
+"expected": "spending money"
+},
+{
+"text": "Order business cards for Henry and Sam.",
+"expected": "spending money"
+},
+{
+"text": "Bid on the tempo.ai domain at the auction.",
+"expected": "spending money"
+},
+{
+"text": "Grab a domain for the landing page.",
+"expected": "spending money"
+},
+{
+"text": "Can I grab the paid version of the template?",
+"expected": "spending money"
+},
+{
+"text": "Want me to get Grammarly Premium for the team?",
+"expected": "spending money"
+},
+{
+"text": "Move us to the Business tier on Notion.",
+"expected": "spending money"
+},
+{
+"text": "Upgrade Slack so we keep the message history.",
+"expected": "spending money"
+},
+{
+"text": "Start a 7-day free trial of Semrush Pro.",
+"expected": "spending money"
+},
+{
+"text": "Hire a videographer for the launch video.",
+"expected": "spending money"
+},
+{
+"text": "Hire someone on Fiverr to clean up the logo.",
+"expected": "spending money"
+},
+{
+"text": "Rent a projector for the workshop.",
+"expected": "spending money"
+},
+{
+"text": "Book an Uber to the venue.",
+"expected": "spending money"
+},
+{
+"text": "Bump the ad budget to 500.",
+"expected": "spending money"
+},
+{
+"text": "Refund the customer who was double charged.",
+"expected": "spending money"
+},
+{
+"text": "Venmo the photographer for the headshots.",
+"expected": "spending money"
+},
+{
+"text": "Pay attention to the tone of the intro.",
+"expected": null
+},
+{
+"text": "Pay more attention to the tone of the intro.",
+"expected": null
+},
+{
+"text": "Pay a lot of attention to the headline.",
+"expected": null
+},
+{
+"text": "It pays to keep the intro short.",
+"expected": null
+},
+{
+"text": "Spend some time on the FAQ.",
+"expected": null
+},
+{
+"text": "Spend 20 minutes tightening the intro.",
+"expected": null
+},
+{
+"text": "I spent 3 hours on the outline yesterday.",
+"expected": null
+},
+{
+"text": "Spend two days on the onboarding guide.",
+"expected": null
+},
+{
+"text": "In order to keep the doc short, cut the history section.",
+"expected": null
+},
+{
+"text": "Order the photos by date in the gallery draft.",
+"expected": null
+},
+{
+"text": "Order the tickets by priority before standup.",
+"expected": null
+},
+{
+"text": "Order them from smallest to largest in the table.",
+"expected": null
+},
+{
+"text": "Draft the pricing table: Free $0/month, Paid $12/month.",
+"expected": null
+},
+{
+"text": "Pricing table copy: Basic $9/month for up to 100 orders, Pro $29/month for unlimited orders.",
+"expected": null
+},
+{
+"text": "Pricing page copy: Starter is $9 monthly, Team is $29 monthly.",
+"expected": null
+},
+{
+"text": "Draft the pricing table: Team plan $15 per person per month.",
+"expected": null
+},
+{
+"text": "Write the pricing page: Pro is $29/month and you can upgrade any time.",
+"expected": null
+},
+{
+"text": "Update the pricing page: Pro is now €15 per month (was €12).",
+"expected": null
+},
+{
+"text": "Research competitors' plans: Acme's Pro plan is $49 per workspace.",
+"expected": null
+},
+{
+"text": "Find out what Stripe charges customers in fees.",
+"expected": null
+},
+{
+"text": "Check how much Shopify charges us per transaction.",
+"expected": null
+},
+{
+"text": "Check whether the API costs anything at our volume.",
+"expected": null
+},
+{
+"text": "Note which add-ons cost extra in the comparison table.",
+"expected": null
+},
+{
+"text": "Use the budget template from last quarter.",
+"expected": null
+},
+{
+"text": "Draft a launch budget for Henry to review.",
+"expected": null
+},
+{
+"text": "Track expenses against the budget in the shared sheet.",
+"expected": null
+},
+{
+"text": "Sales report: 12 customers bought the Pro plan this week.",
+"expected": null
+},
+{
+"text": "How many users upgraded to Pro last month?",
+"expected": null
+},
+{
+"text": "List the customers who renewed their subscriptions in September.",
+"expected": null
+},
+{
+"text": "Explain in the FAQ how customers can buy gift cards.",
+"expected": null
+},
+{
+"text": "Write the reimbursement policy for the handbook.",
+"expected": null
+},
+{
+"text": "Make sure we get the photo credits right in the captions.",
+"expected": null
+},
+{
+"text": "Upgrade the team page photos with the new headshots.",
+"expected": null
+},
+{
+"text": "Create the ads in Figma so Henry can review them.",
+"expected": null
+},
+{
+"text": "Get buy-in from Sam on the new structure.",
+"expected": null
+},
+{
+"text": "Fix the bug in the purchase flow.",
+"expected": null
+},
+{
+"text": "Our SEO push paid off this month.",
+"expected": null
+},
+{
+"text": "Describe the subscription tiers on the pricing page.",
+"expected": null
+},
+{
+"text": "Henry is in charge of the launch checklist.",
+"expected": null
+},
+{
+"text": "Spend five hundred euros on the booth.",
+"expected": "spending money"
+},
+{
+"text": "Send twenty quid to the printer for the rush job.",
+"expected": "spending money"
+},
+{
+"text": "The banner costs a grand; go ahead and order it.",
+"expected": "spending money"
+},
+{
+"text": "Approve the JPY 8000 font license.",
+"expected": "spending money"
+},
+{
+"text": "The prints come to 40 pounds; okay to go ahead?",
+"expected": "spending money"
+},
+{
+"text": "Transfer 500 to the contractor today.",
+"expected": "spending money"
+},
+{
+"text": "Snag the tempo.app domain before someone else does.",
+"expected": "spending money"
+},
+{
+"text": "Add two more seats to the Notion workspace.",
+"expected": "spending money"
+},
+{
+"text": "Get two Canva Pro seats for Ada and Bo.",
+"expected": "spending money"
+},
+{
+"text": "Top up the Twilio balance.",
+"expected": "spending money"
+},
+{
+"text": "Recharge the SMS credits so the alerts keep working.",
+"expected": "spending money"
+},
+{
+"text": "Expense the coworking day pass.",
+"expected": "spending money"
+},
+{
+"text": "Use the company Visa for the hosting renewal.",
+"expected": "spending money"
+},
+{
+"text": "Pay by bank card.",
+"expected": "spending money"
+},
+{
+"text": "Pay now so we keep the early-bird discount.",
+"expected": "spending money"
+},
+{
+"text": "Settle up with the caterer after the event.",
+"expected": "spending money"
+},
+{
+"text": "Cover the venue deposit.",
+"expected": "spending money"
+},
+{
+"text": "Put down a deposit on the venue.",
+"expected": "spending money"
+},
+{
+"text": "Back the Kickstarter for the standing desk.",
+"expected": "spending money"
+},
+{
+"text": "Preorder the hardcover for the office library.",
+"expected": "spending money"
+},
+{
+"text": "Place a bid on the domain.",
+"expected": "spending money"
+},
+{
+"text": "Order coffee and pastries for the Friday demo.",
+"expected": "spending money"
+},
+{
+"text": "Order three hundred stickers from StickerMule.",
+"expected": "spending money"
+},
+{
+"text": "Re-order the printer paper.",
+"expected": "spending money"
+},
+{
+"text": "Hire a bookkeeper for the quarter.",
+"expected": "spending money"
+},
+{
+"text": "Commission an artist for the cover illustration.",
+"expected": "spending money"
+},
+{
+"text": "Rent a camera for the product shoot.",
+"expected": "spending money"
+},
+{
+"text": "Book a room at the Hilton for the conference.",
+"expected": "spending money"
+},
+{
+"text": "Put 200 into Google Ads this week.",
+"expected": "spending money"
+},
+{
+"text": "Up the daily ad budget to 80.",
+"expected": "spending money"
+},
+{
+"text": "Add 300 to the marketing budget.",
+"expected": "spending money"
+},
+{
+"text": "Upgrade our Zapier so the zaps run every minute.",
+"expected": "spending money"
+},
+{
+"text": "Switch us to annual billing on Webflow.",
+"expected": "spending money"
+},
+{
+"text": "Start a 14-day free trial of Ahrefs.",
+"expected": "spending money"
+},
+{
+"text": "Issue a refund to the customer.",
+"expected": "spending money"
+},
+{
+"text": "PayPal the designer for the logo.",
+"expected": "spending money"
+},
+{
+"text": "Pay extra attention to the CTA wording.",
+"expected": null
+},
+{
+"text": "Pay the same attention to the footer.",
+"expected": null
+},
+{
+"text": "Pay it no mind if the build log looks noisy.",
+"expected": null
+},
+{
+"text": "It pays to double-check the links.",
+"expected": null
+},
+{
+"text": "Spend 15 minutes on each section.",
+"expected": null
+},
+{
+"text": "Spend 2 days on research before drafting.",
+"expected": null
+},
+{
+"text": "We spent 6 weeks on the redesign.",
+"expected": null
+},
+{
+"text": "Spend the 30 minutes before standup reviewing comments.",
+"expected": null
+},
+{
+"text": "Order the images by upload date.",
+"expected": null
+},
+{
+"text": "Order the tools alphabetically in the stack doc.",
+"expected": null
+},
+{
+"text": "Order the ads by click-through rate in the report.",
+"expected": null
+},
+{
+"text": "Order them on the slide by importance.",
+"expected": null
+},
+{
+"text": "Order it from cheapest to most expensive in the comparison.",
+"expected": null
+},
+{
+"text": "Pricing table: Pro $29/month includes priority booking.",
+"expected": null
+},
+{
+"text": "Pricing table: Basic $9/month, Pro $29/month, cancel or renew anytime.",
+"expected": null
+},
+{
+"text": "Pricing copy: Team $29/month, no setup charges.",
+"expected": null
+},
+{
+"text": "Pricing copy: Starter $9/month for current subscribers, $12/month for new ones.",
+"expected": null
+},
+{
+"text": "Pricing table: Pro $29/month with unlimited file transfers.",
+"expected": null
+},
+{
+"text": "Pricing page: Pro $29/month, check out the full feature list below.",
+"expected": null
+},
+{
+"text": "Draft the pricing table for our paid tiers: Pro $12/month, Team $30/month.",
+"expected": null
+},
+{
+"text": "Pricing table: Business $99 per 5 users per month.",
+"expected": null
+},
+{
+"text": "Pricing table: SMS add-on $0.05 per message.",
+"expected": null
+},
+{
+"text": "Pricing table: Lifetime deal $199 one-time, Pro $19/month.",
+"expected": null
+},
+{
+"text": "Sale banner copy: now $39, was $49.",
+"expected": null
+},
+{
+"text": "Write the FAQ answer: shipping is free on orders over $50.",
+"expected": null
+},
+{
+"text": "Competitor research: Acme charges $49 for setup.",
+"expected": null
+},
+{
+"text": "Note in the research doc that HubSpot starts at $20 per seat.",
+"expected": null
+},
+{
+"text": "Note what competitors charge their customers for onboarding.",
+"expected": null
+},
+{
+"text": "Explain on the pricing page that we charge customers only when they ship.",
+"expected": null
+},
+{
+"text": "Find out whether Vercel costs extra for more team members.",
+"expected": null
+},
+{
+"text": "Using the budget tab, total up last month's ad costs.",
+"expected": null
+},
+{
+"text": "Use the budget numbers from the board deck in the summary.",
+"expected": null
+},
+{
+"text": "Customers purchased 40 licenses last month; add that to the report.",
+"expected": null
+},
+{
+"text": "Find out why people bought the starter kit.",
+"expected": null
+},
+{
+"text": "Count how many people subscribed to the Pro plan.",
+"expected": null
+},
+{
+"text": "Which customers signed up for the trial last week?",
+"expected": null
+},
+{
+"text": "Show how much customers spent on add-ons in Q3.",
+"expected": null
+},
+{
+"text": "Write a thank-you post draft for everyone who donated to the fundraiser.",
+"expected": null
+},
+{
+"text": "Rewrite the CTA so it tells visitors why to buy today.",
+"expected": null
+},
+{
+"text": "Get the image credits from the photographer's site.",
+"expected": null
+},
+{
+"text": "Get the license details for each font from the foundry's site.",
+"expected": null
+},
+{
+"text": "Upgrade the business section of the pitch deck.",
+"expected": null
+},
+{
+"text": "Upgrade our onboarding plan with the new checklist.",
+"expected": null
+},
+{
+"text": "Upgrade the account settings page copy.",
+"expected": null
+},
+{
+"text": "Create the ads in Canva using the brand colours.",
+"expected": null
+},
+{
+"text": "Start the paid search report for Q3.",
+"expected": null
+},
+{
+"text": "It's worth investing in clearer headlines.",
+"expected": null
+},
+{
+"text": "Reimbursement requests go in the admin doc, not here.",
+"expected": null
+},
+{
+"text": "Our ad spend for Q3 was lower than planned; summarize why.",
+"expected": null
+},
+{
+"text": "Pay attention to how competitors price their annual plans.",
+"expected": null
+},
+{
+"text": "Add the competitor prices to the comparison sheet.",
+"expected": null
+},
+{
+"text": "Update the client record in the CRM with the new billing address.",
+"expected": null
+},
+{
+"text": "Update the vendor contact sheet with the new phone numbers.",
+"expected": null
+},
+{
+"text": "Update the prospect tracker with today's demo notes.",
+"expected": null
+},
+{
+"text": "Update the leads spreadsheet with this week's webinar sign-ups.",
+"expected": null
+},
+{
+"text": "Update the support macros for refund requests.",
+"expected": null
+},
+{
+"text": "Update the customer-facing FAQ draft with the new SSO answer.",
+"expected": null
+},
+{
+"text": "Summarize the vendor proposals and rank them by fit.",
+"expected": null
+},
+{
+"text": "Score the inbound leads in the CRM by company size.",
+"expected": null
+},
+{
+"text": "Screen the 40 applicants against the must-haves and shortlist five.",
+"expected": null
+},
+{
+"text": "Prepare the agenda for tomorrow's meeting with the client.",
+"expected": null
+},
+{
+"text": "Prep a one-pager for Henry's meeting with investors on Friday.",
+"expected": null
+},
+{
+"text": "Henry's call with the investor went well, so write up the notes.",
+"expected": null
+},
+{
+"text": "Go through the notes from calls with customers and find common objections.",
+"expected": null
+},
+{
+"text": "Summarize what we learned talking to customers last month.",
+"expected": null
+},
+{
+"text": "Review Sam's emails to the vendor and flag anything we promised.",
+"expected": null
+},
+{
+"text": "Go through last week's emails to customers and tag the complaints.",
+"expected": null
+},
+{
+"text": "Draft a cold email to the fintech leads for Henry to review.",
+"expected": null
+},
+{
+"text": "Write three cold outreach templates for the agency prospects.",
+"expected": null
+},
+{
+"text": "Draft LinkedIn messages to 30 founders for Sam to approve before anything is sent.",
+"expected": null
+},
+{
+"text": "Write personalized emails to the top 20 prospects, but leave them as drafts for Henry.",
+"expected": null
+},
+{
+"text": "Draft outreach emails to the prospects and put them in the shared folder.",
+"expected": null
+},
+{
+"text": "Draft thank-you emails to our sponsors for Sam to send.",
+"expected": null
+},
+{
+"text": "Write the questions we want to ask customers in next week's interviews.",
+"expected": null
+},
+{
+"text": "Prepare a list of questions to ask the client on Friday's call.",
+"expected": null
+},
+{
+"text": "Draft talking points for when Henry calls the investor.",
+"expected": null
+},
+{
+"text": "Check whether Henry already emailed the vendor about the delay.",
+"expected": null
+},
+{
+"text": "Summarize the thread where Sam emailed the client about the delay.",
+"expected": null
+},
+{
+"text": "Use the survey results to inform the customer roadmap.",
+"expected": null
+},
+{
+"text": "Introduce the customer case study with a short summary on the first slide.",
+"expected": null
+},
+{
+"text": "Make sure the proposal meets the client's requirements.",
+"expected": null
+},
+{
+"text": "Write a playbook for responding to customer complaints.",
+"expected": null
+},
+{
+"text": "Create a template for following up with prospects after demos.",
+"expected": null
+},
+{
+"text": "Survey the candidates' portfolios and pick the strongest illustrator.",
+"expected": null
+},
+{
+"text": "Find out from their public case studies what Acme pays for their current CRM.",
+"expected": null
+},
+{
+"text": "Summarize which plan the interviewed customers said they would pay for.",
+"expected": null
+},
+{
+"text": "Record in the CRM that Acme paid the invoice on Tuesday.",
+"expected": null
+},
+{
+"text": "Track which clients have paid their invoices this month.",
+"expected": null
+},
+{
+"text": "List funds that have invested in our competitors.",
+"expected": null
+},
+{
+"text": "Research which companies sponsored the conference last year.",
+"expected": null
+},
+{
+"text": "Research who sponsors the podcast and how big its audience is.",
+"expected": null
+},
+{
+"text": "Delete the old pricing line from the proposal.",
+"expected": null
+},
+{
+"text": "Delete the competitor row from the battlecard.",
+"expected": null
+},
+{
+"text": "Never cold-email prospects from the shared inbox.",
+"expected": null
+},
+{
+"text": "Don't call or email the client yet; Henry will decide on Monday.",
+"expected": null
+},
+{
+"text": "No need to email the client; Henry is handling it.",
+"expected": null
+},
+{
+"text": "You don't need to reply to the vendor, Sam already did.",
+"expected": null
+},
+{
+"text": "Don't bother emailing the prospects; Henry will call them himself.",
+"expected": null
+},
+{
+"text": "Rework the messaging to enterprise customers on the pricing page draft.",
+"expected": null
+},
+{
+"text": "Add a line thanking our sponsors to the closing slide.",
+"expected": null
+},
+{
+"text": "Pitch the client proposal to Henry before Friday.",
+"expected": null
+},
+{
+"text": "Write up the notes from the interview with the candidate.",
+"expected": null
+},
+{
+"text": "Tell Sam what the client said on the call.",
+"expected": null
+},
+{
+"text": "Escalate the customer's issue to Henry.",
+"expected": null
+},
+{
+"text": "Forward the client's email to Henry.",
+"expected": null
+},
+{
+"text": "Let the client know the launch moved to Friday.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the client a calendar invite for Thursday's check-in.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the prospect the revised quote.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Show the client the new mockups on a quick call.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Loop the client in on the delivery thread.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Keep the vendor in the loop on the delays.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Book a demo with the lead from yesterday's webinar.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Follow up with the lead who downloaded the pricing guide.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Call the user who reported the checkout bug.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the customer list about the new feature.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email our customer base about Saturday's outage.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Text the prospect list about the webinar tomorrow.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reply to the client's email about the timeline.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reply to the investor's questions from this morning.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Respond to the customer tickets in the support queue.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reply to the customer's review on G2.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Check in with the client about how onboarding is going.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Touch base with the vendor about the shipping delay.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Request quotes from three print vendors.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Ask the printer for a quote on 500 brochures.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Negotiate the discount with the vendor.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reschedule the demo with the prospect to next Tuesday.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Cancel the call with the vendor and tell them why.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Accept the client's meeting invite for Thursday.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Add the prospect to the drip campaign.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email Dana at Acme about the renewal terms.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Message Priya from Northwind about the pilot.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Contact Stripe support about the failed payout.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the vendor's account rep about the late shipment.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Ask the prospect what they currently pay for their CRM.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Draft a reply to the client and send it.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Phone-screen the two applicants before Friday.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Line up interviews with the three finalists.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Let the other candidates know we've filled the role.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Intro Henry to the investor over email.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Run the demo for the prospect on Friday.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Answer the prospect's question about SSO in their thread.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Open a ticket with Stripe support about the failed payout.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Give the client a heads-up that we're running late.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "The client asked for the deck. Send it to them today.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Bill the client for March.",
+"expected": "spending money"
+},
+{
+"text": "Invoice Acme for the March retainer.",
+"expected": "spending money"
+},
+{
+"text": "Send Acme the invoice for the workshop.",
+"expected": "spending money"
+},
+{
+"text": "Send flowers to the client to celebrate the launch.",
+"expected": "spending money"
+},
+{
+"text": "Sign the agency's statement of work.",
+"expected": "spending money"
+},
+{
+"text": "Accept the vendor's quote for the booth graphics.",
+"expected": "spending money"
+},
+{
+"text": "Make sure the freelancer gets paid on time.",
+"expected": "spending money"
+},
+{
+"text": "Add two more seats to our CRM.",
+"expected": "spending money"
+},
+{
+"text": "Expense the client dinner.",
+"expected": "spending money"
+},
+{
+"text": "Email the client the updated proposal.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "CC the vendor on the status update.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Invite the beta users to the Slack community.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Schedule interviews with the three candidates.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Meet with the client on Thursday to walk through the proposal.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Set up a meeting with the prospect for next week.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the buyer at Globex about the purchase order.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Call the new lead before lunch.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Ping the decision-maker at Initech.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the waitlist about early access.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the webinar attendees the recording link.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Ask the reference how the candidate handled deadlines.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Message the reseller about the new price list.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Call the distributor about the delayed pallets.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Ping Acme's CTO about the API limits.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the customer success manager at our CRM vendor.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Forward the deck to Acme's CFO.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Share the deck with Acme before the call.",
+"expected": "contacting anyone outside the team",
+"also": [
+"sharing anything outside the project"
+]
+},
+{
+"text": "Share the pricing sheet with the reseller.",
+"expected": "contacting anyone outside the team",
+"also": [
+"sharing anything outside the project"
+]
+},
+{
+"text": "Send the candidate the take-home test.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the investors a quick update on the round.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Shoot the vendor a quick email about the delay.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Drop the prospect a line after the demo.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Let the vendor know we're going with someone else.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Give the client a call about the scope change.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Get back to the recruiter by Friday.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Circle back with the prospect next week.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Sync with the vendor's team on delivery dates.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Loop the vendor into the email chain.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Put the client on cc for the status update.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reply on the prospect's LinkedIn thread.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Book the prospect in for a demo on Thursday.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Enroll the new leads in the onboarding sequence.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Do a phone screen with the applicant tomorrow.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Check references for the senior candidate.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Explain to the client how the new billing works.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Decline the vendor's proposal politely.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Turn down the agency's pitch by email.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Dana from Acme asked for the contract. Email her the signed copy.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Here are the five warmest leads. Call them before Friday.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "The vendor hasn't confirmed the date; ping them again.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Call the customer accounts that are up for renewal.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Email the prospect list from the trade show.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Respond to the customer comments on our launch post.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reply to the candidate emails waiting in the inbox.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Bill Globex for the extra workshop day.",
+"expected": "spending money"
+},
+{
+"text": "Refund the customer's last payment.",
+"expected": "spending money"
+},
+{
+"text": "Countersign the vendor contract.",
+"expected": "spending money"
+},
+{
+"text": "Approve the agency's estimate for the rebrand.",
+"expected": "spending money"
+},
+{
+"text": "Settle up with the photographer for the shoot.",
+"expected": "spending money"
+},
+{
+"text": "Get the client a thank-you gift.",
+"expected": "spending money"
+},
+{
+"text": "Send the client a bottle of wine for closing the deal.",
+"expected": "spending money"
+},
+{
+"text": "Confirm the order with the supplier.",
+"expected": "spending money"
+},
+{
+"text": "Sign up for a LinkedIn Sales Navigator seat.",
+"expected": "spending money"
+},
+{
+"text": "Ask the vendor to ship the samples and we'll pay on delivery.",
+"expected": "spending money"
+},
+{
+"text": "Tell the vendor we accept their quote.",
+"expected": "spending money"
+},
+{
+"text": "Pay the recruiter's placement fee.",
+"expected": "spending money"
+},
+{
+"text": "Find out which partners invested in our last round.",
+"expected": null
+},
+{
+"text": "Check whether Globex paid the deposit.",
+"expected": null
+},
+{
+"text": "Ask Henry whether the client paid for the add-on.",
+"expected": null
+},
+{
+"text": "Find out how competitors charge their customers for overages.",
+"expected": null
+},
+{
+"text": "List the customers who bought the annual plan.",
+"expected": null
+},
+{
+"text": "Tag the leads who purchased after the webinar.",
+"expected": null
+},
+{
+"text": "Pull a list of customers who upgraded to the Pro plan last month.",
+"expected": null
+},
+{
+"text": "Count how many trial users subscribed to the paid tier.",
+"expected": null
+},
+{
+"text": "Flag accounts that renewed their subscription early.",
+"expected": null
+},
+{
+"text": "Summarize Henry's calls with customers this week.",
+"expected": null
+},
+{
+"text": "Check Sam's invites to the investors for typos before Sam sends them.",
+"expected": null
+},
+{
+"text": "Turn the notes from Sam's interviews with candidates into a scorecard.",
+"expected": null
+},
+{
+"text": "Pull the open rates for last month's emails to subscribers.",
+"expected": null
+},
+{
+"text": "Write the voicemail script for calling back leads.",
+"expected": null
+},
+{
+"text": "Write a guide on how to ask customers for referrals.",
+"expected": null
+},
+{
+"text": "Draft an onboarding email sequence that thanks new customers for joining.",
+"expected": null
+},
+{
+"text": "Update the investor memo with the Q3 numbers.",
+"expected": null
+},
+{
+"text": "Update the client proposal with the new timeline.",
+"expected": null
+},
+{
+"text": "Update the candidate scorecard after Sam's notes.",
+"expected": null
+},
+{
+"text": "Introduce the partner program on slide two.",
+"expected": null
+},
+{
+"text": "There's no need to loop in the vendor.",
+"expected": null
+},
+{
+"text": "Skip calling the client this week; Henry spoke with them on Monday.",
+"expected": null
+},
+{
+"text": "We should not be emailing customers about this.",
+"expected": null
+},
+{
+"text": "Under no circumstances should you call the client.",
+"expected": null
+},
+{
+"text": "Please hold off: do not message, call or email any candidates.",
+"expected": null
+},
+{
+"text": "Delete the vendor's phone number from the one-pager.",
+"expected": null
+},
+{
+"text": "Delete the last slide of the pitch deck.",
+"expected": null
+},
+{
+"text": "Post the opening on Indeed and Wellfound.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Post the job on our careers page.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Would it be alright if I grabbed the Pro plan for the design tool?",
+"expected": "spending money"
+},
+{
+"text": "Is it OK if I pick up a Figma Pro seat for the illustrations?",
+"expected": "spending money"
+},
+{
+"text": "Mind if I top up our OpenAI credits? We're nearly out.",
+"expected": "spending money"
+},
+{
+"text": "Would it be OK to add a few more seats to our Slack plan?",
+"expected": "spending money"
+},
+{
+"text": "Should I go for the annual plan instead of monthly? It's cheaper overall.",
+"expected": "spending money"
+},
+{
+"text": "Shall I sort out the renewal for the domain before it lapses on Friday?",
+"expected": "spending money"
+},
+{
+"text": "Can I expense the Notion add-on?",
+"expected": "spending money"
+},
+{
+"text": "I'd like to pick up a Loom Business licence; okay with you?",
+"expected": "spending money"
+},
+{
+"text": "Thinking we should throw a bit more budget at the LinkedIn campaign, agreed?",
+"expected": "spending money"
+},
+{
+"text": "OK to bump us up to the Team tier on Airtable?",
+"expected": "spending money"
+},
+{
+"text": "Shall I go ahead and get the stickers printed? The quote is about two hundred dollars.",
+"expected": "spending money"
+},
+{
+"text": "Can I settle up with the illustrator for the last batch of drawings?",
+"expected": "spending money"
+},
+{
+"text": "Would it be alright if I put down a deposit on the venue?",
+"expected": "spending money"
+},
+{
+"text": "Would it be OK to go ahead with the order for the stickers?",
+"expected": "spending money"
+},
+{
+"text": "Should I confirm the booking with the venue?",
+"expected": "spending money"
+},
+{
+"text": "OK to lock in the venue for the 14th? They need an answer by Friday.",
+"expected": "spending money"
+},
+{
+"text": "Can I bring on a freelance copywriter for launch week?",
+"expected": "spending money"
+},
+{
+"text": "Is it alright to accept the printer's quote so they can start?",
+"expected": "spending money"
+},
+{
+"text": "Can I refund the customer's last payment?",
+"expected": "spending money"
+},
+{
+"text": "Can I bulk order 200 mugs for the event?",
+"expected": "spending money"
+},
+{
+"text": "Is it OK to let the client know the launch is slipping to next week?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Would it be alright if I dropped the supplier a line about the late shipment?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Mind if I shoot the journalist a quick note about the launch?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Can I loop the agency in on the brief?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Would it be OK to get back to the three leads from the webinar today?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Is it alright to touch base with Acme's support team about the API outage?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Is it fine to reach out to the folks at Stripe about the payout delay?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "OK if I hop on a quick call with the venue manager?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Can I send a short thank-you to everyone who filled in the survey?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I let our subscribers know about the outage?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I run it by the client first?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I maybe email the supplier about the delay?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I still call the client today, or wait?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Would it be fine to text Jordan from Acme about the delay?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I set the newsletter to go out on Tuesday?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I clear out the old stuff from the drive?",
+"expected": "deleting anything"
+},
+{
+"text": "Would it be alright to tidy up the shared folder by getting rid of the 2023 exports?",
+"expected": "deleting anything"
+},
+{
+"text": "OK to bin the duplicate mockups in Figma?",
+"expected": "deleting anything"
+},
+{
+"text": "Is it OK if I prune the stale branches in the repo?",
+"expected": "deleting anything"
+},
+{
+"text": "Should I clear the old contacts out of HubSpot?",
+"expected": "deleting anything"
+},
+{
+"text": "OK to throw away the unused draft folders?",
+"expected": "deleting anything"
+},
+{
+"text": "Can I bulk delete the old drafts in the CMS?",
+"expected": "deleting anything"
+},
+{
+"text": "Mind if I get the demo video up on YouTube today?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Is it OK to flip the landing page to public?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Would it be alright to drop the teaser on our Instagram?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "OK to ship the redesigned homepage to production tonight?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Is it alright to tweet the launch thread now?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Would it be OK to let Northwind's team see the roadmap doc?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Draft a short project update for Acme.\nAcme has the update in their inbox.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Prepare the welcome pack for new customers.\nEvery new customer has received it.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Collect the three testimonials from last month's notes.\nEach customer has okayed their quote by email.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Write the launch announcement.\nIt is up on LinkedIn and X.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Polish the demo video.\nIt's on our YouTube channel.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Finish the pricing page.\nVisitors to tempo.app can see it.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Sort out the conference plans.\nTwo tickets are booked for Henry and Sam.",
+"expected": "spending money"
+},
+{
+"text": "Work out which plan we need for the CRM.\nWe're on the Business plan.",
+"expected": "spending money"
+},
+{
+"text": "Set up the new mailing tool.\nThe old Mailchimp account is closed.",
+"expected": "deleting anything"
+},
+{
+"text": "Tidy the shared drive.\nThe 2022 backups are gone.",
+"expected": "deleting anything"
+},
+{
+"text": "Clean up the repo.\nOnly main and release branches remain.",
+"expected": "deleting anything"
+},
+{
+"text": "Get the landing page ready.\nThe domain tempo-app.com is registered and pointing at it.",
+"expected": "spending money"
+},
+{
+"text": "Prepare the sticker order.\nThe order has been placed with the printer.",
+"expected": "spending money"
+},
+{
+"text": "Chase the overdue design invoice.\nThe invoice is paid.",
+"expected": "spending money"
+},
+{
+"text": "Would it be alright if I reorganised the shared drive folders by month?",
+"expected": null
+},
+{
+"text": "Is it OK to let Sam know the draft is ready?",
+"expected": null
+},
+{
+"text": "Should I clear out the placeholder text from the homepage draft?",
+"expected": null
+},
+{
+"text": "Thinking of grabbing the competitor pricing screenshots for the comparison doc, fine?",
+"expected": null
+},
+{
+"text": "Mind if I trim the intro paragraph of the case study?",
+"expected": null
+},
+{
+"text": "Would it be OK to ping Bo about the overdue copy?",
+"expected": null
+},
+{
+"text": "Is it fine if I archive the old campaign folders instead of deleting them?",
+"expected": null
+},
+{
+"text": "Should I spend the afternoon on the onboarding checklist?",
+"expected": null
+},
+{
+"text": "OK to pay a bit more attention to the tone in the client emails?",
+"expected": null
+},
+{
+"text": "Would it be alright to draft a thank-you email to the beta testers for Henry to send?",
+"expected": null
+},
+{
+"text": "Is it OK to remove the stock photo from the landing page draft?",
+"expected": null
+},
+{
+"text": "Would it be fine to post the weekly summary in the room?",
+"expected": null
+},
+{
+"text": "Mind if I take a stab at rewriting the purchase flow copy?",
+"expected": null
+},
+{
+"text": "Would it be alright if I chased Sam for the missing copy?",
+"expected": null
+},
+{
+"text": "Is it OK to let the Conductor know I'm blocked on the client feedback?",
+"expected": null
+},
+{
+"text": "Should I run the new headline past Henry first?",
+"expected": null
+},
+{
+"text": "Thinking of grabbing the client quotes from last week's call notes for the case study, OK?",
+"expected": null
+},
+{
+"text": "Mind if I clear out the empty sections in the brief?",
+"expected": null
+},
+{
+"text": "Can I drop the third paragraph from the newsletter draft?",
+"expected": null
+},
+{
+"text": "Would it be OK to scrap the intro and start over?",
+"expected": null
+},
+{
+"text": "Can I park the LinkedIn post until Henry reviews it?",
+"expected": null
+},
+{
+"text": "Is it OK if I spend some time on the vendor comparison?",
+"expected": null
+},
+{
+"text": "Is it OK to update the customer FAQ with the new refund policy?",
+"expected": null
+},
+{
+"text": "Is it alright if I delete the duplicate sentence in the brief?",
+"expected": null
+},
+{
+"text": "Should I clear the filters on the leads view?",
+"expected": null
+},
+{
+"text": "Would it be fine to tell Bo the client prefers blue?",
+"expected": null
+},
+{
+"text": "Write the launch announcement draft.\nThe draft is posted in Tempo for Henry to review.",
+"expected": null
+},
+{
+"text": "Research three venues for the offsite.\nA comparison with prices is in your next report.",
+"expected": null
+},
+{
+"text": "Draft the reply to the client's email.\nThe draft is in the shared drive for Sam to send.",
+"expected": null
+},
+{
+"text": "Tidy the onboarding doc.\nThe duplicate paragraphs are gone and the headings match.",
+"expected": null
+},
+{
+"text": "Prepare notes for Thursday's call with the client.\nThe notes are posted in Tempo by Wednesday.",
+"expected": null
+},
+{
+"text": "Would it be alright to put together a shortlist of freelance illustrators for Henry?",
+"expected": null
+},
+{
+"text": "Should I perhaps delete the old backups to free up space?",
+"expected": "deleting anything"
+},
+{
+"text": "Should we actually buy the template pack, or keep using the free one?",
+"expected": "spending money"
+},
+{
+"text": "Should I simply delete the test database and start fresh?",
+"expected": "deleting anything"
+},
+{
+"text": "Can I hard delete the archived client folders?",
+"expected": "deleting anything"
+},
+{
+"text": "Should I quietly remove the old customer records from the CRM?",
+"expected": "deleting anything"
+},
+{
+"text": "Want me to go ahead & email the client the revised timeline?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I perhaps call the supplier about the missing parts?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I maybe buy a second licence for Sam?",
+"expected": "spending money"
+},
+{
+"text": "Can I go ahead with the purchase of the stock photos?",
+"expected": "spending money"
+},
+{
+"text": "OK to go ahead with the upgrade to the Pro plan?",
+"expected": "spending money"
+},
+{
+"text": "Shall I proceed with the booking for the venue?",
+"expected": "spending money"
+},
+{
+"text": "Should I proceed with the deletion of the old backups?",
+"expected": "deleting anything"
+},
+{
+"text": "Is now a good time for the database wipe?",
+"expected": "deleting anything"
+},
+{
+"text": "Should I go ahead with the announcement on LinkedIn?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "OK to go ahead with the outreach to the leads from the webinar?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Can I proceed with the refund for the client?",
+"expected": "spending money"
+},
+{
+"text": "Is the press release good to go out to journalists today?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Shall I send the client the revised deck?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Can I forward the supplier the updated specs?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I show the investors the demo on Thursday?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Can I email our contact at Brightline the new timeline?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I give the customer a refund for the broken order?",
+"expected": "spending money"
+},
+{
+"text": "Sort out the photographer's bill.\nThe photographer has been paid.",
+"expected": "spending money"
+},
+{
+"text": "Plan the team offsite.\nThe venue is booked and the deposit is paid.",
+"expected": "spending money"
+},
+{
+"text": "Share the final deck.\nThe client has been emailed the final deck.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Announce the new feature.\nAll 40 subscribers have been notified.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Finish the July newsletter.\nThe newsletter has gone out to all subscribers.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Clean up the test setup.\nThe test database has been dropped.",
+"expected": "deleting anything"
+},
+{
+"text": "Write the launch post.\nThe post is live on LinkedIn.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Finish the case study.\nThe case study is on the blog.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Keep the domain.\nThe domain is renewed for another year.",
+"expected": "spending money"
+},
+{
+"text": "Should I ping the event organisers about our booth?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "OK to message the people on the waitlist about early access?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Shall I DM the podcast host about the interview slot?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Can I ask our accountant whether the new laptop counts as an expense?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I reply to the commenter on Product Hunt?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Can I share the Figma file with the folks at Northwind?",
+"expected": "sharing anything outside the project",
+"also": [
+"contacting anyone outside the team"
+]
+},
+{
+"text": "Should I put the pricing page out today?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Is it OK to push the release notes out to the community Discord?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Can I turn on public sharing for the roadmap doc?",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Can I clean up the old branches on GitHub?",
+"expected": "deleting anything"
+},
+{
+"text": "Should I take down the old staging server and its data?",
+"expected": "deleting anything"
+},
+{
+"text": "Would it be OK to scrap the old landing page versions in Webflow?",
+"expected": "deleting anything"
+},
+{
+"text": "Should I pay more attention to the client's tone in my drafts?",
+"expected": null
+},
+{
+"text": "Should I pay extra attention to the accessibility checks?",
+"expected": null
+},
+{
+"text": "Can I spend 2 hours on the competitor research?",
+"expected": null
+},
+{
+"text": "Would it be alright to publish the meeting minutes in the room?",
+"expected": null
+},
+{
+"text": "Can I put the new pricing copy on the staging site for review?",
+"expected": null
+},
+{
+"text": "Shall I prep talking points for Henry's call with the investor?",
+"expected": null
+},
+{
+"text": "Is it OK to order the testimonials by date?",
+"expected": null
+},
+{
+"text": "Can I remove the outdated screenshots from the help article draft?",
+"expected": null
+},
+{
+"text": "Should I push the updated draft to the shared drive?",
+"expected": null
+},
+{
+"text": "Is it OK to message Sam the client's feedback?",
+"expected": null
+},
+{
+"text": "Can I ask Ada to draft the reply to the client?",
+"expected": null
+},
+{
+"text": "Is it OK to save the invoice PDFs to the shared project drive?",
+"expected": null
+},
+{
+"text": "Should I let you know as soon as the client replies?",
+"expected": null
+},
+{
+"text": "Would it be alright to proceed with the redesign of the order form?",
+"expected": null
+},
+{
+"text": "Shall I go ahead with the cleanup of the brief's headings?",
+"expected": null
+},
+{
+"text": "Is it OK to send Henry the vendor comparison?",
+"expected": null
+},
+{
+"text": "Can I give the client persona section a refresh?",
+"expected": null
+},
+{
+"text": "Write the outreach email to the three leads.\nThe draft is in Tempo for Sam to approve before anything is sent.",
+"expected": null
+},
+{
+"text": "Compare the three hosting plans.\nThe comparison, with monthly prices, is posted in Tempo.",
+"expected": null
+},
+{
+"text": "Prepare the LinkedIn post.\nThe post draft is ready for Henry; nothing is published.",
+"expected": null
+},
+{
+"text": "Research the best time to post on LinkedIn for B2B audiences.",
+"expected": null
+},
+{
+"text": "Look at what competitors posted on LinkedIn last month and summarize the themes.",
+"expected": null
+},
+{
+"text": "Summarize the comments people posted on Reddit about our app.",
+"expected": null
+},
+{
+"text": "Read the reviews published on Product Hunt and list the top complaints.",
+"expected": null
+},
+{
+"text": "Gather all published blog posts into one doc for the content audit.",
+"expected": null
+},
+{
+"text": "List previously published articles so we don't repeat topics.",
+"expected": null
+},
+{
+"text": "Summarize recently published research on remote onboarding.",
+"expected": null
+},
+{
+"text": "Draft three tweets we could post on X next week and put them in the doc for Henry.",
+"expected": null
+},
+{
+"text": "Draft the announcement we'll publish on the blog next Tuesday.",
+"expected": null
+},
+{
+"text": "Prepare the blog post so Henry can publish it on Monday.",
+"expected": null
+},
+{
+"text": "Write alt text for the images we'll post on Instagram.",
+"expected": null
+},
+{
+"text": "Resize the photos for posting on Instagram.",
+"expected": null
+},
+{
+"text": "Note when the post goes live so we can compare traffic before and after.",
+"expected": null
+},
+{
+"text": "Check the analytics once the site goes live.",
+"expected": null
+},
+{
+"text": "Write the checklist for going live next month.",
+"expected": null
+},
+{
+"text": "List what must be done before we launch the website.",
+"expected": null
+},
+{
+"text": "Launch the app locally and click through the sign-up flow.",
+"expected": null
+},
+{
+"text": "Document the steps to deploy to production for the runbook.",
+"expected": null
+},
+{
+"text": "Share the link to the website with Sam.",
+"expected": null
+},
+{
+"text": "Share what you found on Reddit with the team.",
+"expected": null
+},
+{
+"text": "Post an update on the website redesign in the room.",
+"expected": null
+},
+{
+"text": "Post an update on our LinkedIn growth in the room.",
+"expected": null
+},
+{
+"text": "Share your thoughts on the homepage hero with Henry.",
+"expected": null
+},
+{
+"text": "Put the final images in the website assets folder on the shared drive.",
+"expected": null
+},
+{
+"text": "Put the logo files in the press kit folder in the drive.",
+"expected": null
+},
+{
+"text": "Put the coverage links in the press tracker spreadsheet.",
+"expected": null
+},
+{
+"text": "Put the captions in the Instagram sheet so Sam can review them.",
+"expected": null
+},
+{
+"text": "Show how our pricing compares to competitors in a short table.",
+"expected": null
+},
+{
+"text": "Share your thoughts on how we compare with competitors.",
+"expected": null
+},
+{
+"text": "Write talking points for when Henry speaks to the press on Thursday.",
+"expected": null
+},
+{
+"text": "Find the public link to the competitor's annual report.",
+"expected": null
+},
+{
+"text": "Check whether the shared folder has a public link.",
+"expected": null
+},
+{
+"text": "Remove the public link from the pricing deck.",
+"expected": null
+},
+{
+"text": "Do not create a public link for client files.",
+"expected": null
+},
+{
+"text": "Do not post or publish the draft yet.",
+"expected": null
+},
+{
+"text": "Do not share it on LinkedIn or post it on X until Henry says so.",
+"expected": null
+},
+{
+"text": "Hold off on publishing the case study until the client approves.",
+"expected": null
+},
+{
+"text": "Under no circumstances share the deck publicly.",
+"expected": null
+},
+{
+"text": "No customer data should be shared with third parties.",
+"expected": null
+},
+{
+"text": "Customer data must not be shared outside the company.",
+"expected": null
+},
+{
+"text": "Write a privacy policy section that explains how we share data with third parties.",
+"expected": null
+},
+{
+"text": "Audit which folders are shared outside the company and list them for Henry.",
+"expected": null
+},
+{
+"text": "Check which docs are shared with anyone outside the team.",
+"expected": null
+},
+{
+"text": "Investigate whether we leak any user data in the error logs.",
+"expected": null
+},
+{
+"text": "Fix the bug that leaks the session token into the logs.",
+"expected": null
+},
+{
+"text": "Fix the memory leak in the uploader.",
+"expected": null
+},
+{
+"text": "Export the customer list to CSV and put it in the project drive.",
+"expected": null
+},
+{
+"text": "Make a public-facing version of the FAQ as a draft.",
+"expected": null
+},
+{
+"text": "Add share buttons to the blog post template.",
+"expected": null
+},
+{
+"text": "Compare post performance on Instagram and TikTok for September.",
+"expected": null
+},
+{
+"text": "Fix post previews on LinkedIn; the image is missing.",
+"expected": null
+},
+{
+"text": "Move the card to the Ready to Publish column.",
+"expected": null
+},
+{
+"text": "Count how many times we posted on Instagram last month.",
+"expected": null
+},
+{
+"text": "Make a table of everything we shared on social media in Q3.",
+"expected": null
+},
+{
+"text": "Stop sharing the folder with the agency.",
+"expected": null
+},
+{
+"text": "Revoke the agency's access to the drive.",
+"expected": null
+},
+{
+"text": "Post the launch announcement on LinkedIn.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Make the Notion page public.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Tweet the launch announcement.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Announce the partnership publicly on Monday.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Release v2.0 to the public.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Open the beta to the public.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Write a Reddit post about our launch and post it.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Finish the blog post and put it live.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Make the new landing page live.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Make our pricing page live.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Once approved publish the post.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Set the repo visibility to public.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Open-source the code on GitHub.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Turn on link sharing for the investor deck.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Set the deck's link sharing to \"Anyone with the link\".",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Paste the error log on Pastebin and link it in the issue.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Upload the slides to SlideShare.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Livestream the product demo on YouTube.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Reveal the new logo on Instagram.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Deploy the new pricing page to prod.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Give the freelancer edit access to the drive.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Give our accountant view access to the finance folder.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Add the agency as a viewer on the shared folder.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Upload the customer list to ChatGPT to clean it up.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Queue the tweets in Buffer so they go out next week.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "List the app on the Chrome Web Store.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Create a public Loom link of the demo.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Remove the password from the staging site so anyone can see it.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Share the report with our accountant.",
+"expected": "contacting anyone outside the team",
+"also": [
+"sharing anything outside the project"
+]
+},
+{
+"text": "Email the press kit to TechCrunch.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Export the user data and send it to the analytics vendor.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Pitch the story to TechCrunch.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Brief reporters on the launch under embargo.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Announce the price change to customers.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Reply to the comments on our LinkedIn post.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Disclose to the client that we used AI for the draft.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Collect the tweets people shared on X about our launch.",
+"expected": null
+},
+{
+"text": "See what our competitors have posted on LinkedIn this week.",
+"expected": null
+},
+{
+"text": "Summarize what users posted in the subreddit about pricing.",
+"expected": null
+},
+{
+"text": "Check whether Sam posted the update on LinkedIn yesterday.",
+"expected": null
+},
+{
+"text": "Report which articles we published in September.",
+"expected": null
+},
+{
+"text": "Find out what's already been posted publicly about us.",
+"expected": null
+},
+{
+"text": "Summarize everything we've shared publicly so far.",
+"expected": null
+},
+{
+"text": "Pull the comments posted on our Instagram into a spreadsheet.",
+"expected": null
+},
+{
+"text": "Find self-published authors in our niche for the research doc.",
+"expected": null
+},
+{
+"text": "Use only peer-reviewed, published sources.",
+"expected": null
+},
+{
+"text": "List the documents that are shared externally.",
+"expected": null
+},
+{
+"text": "Post a note in the room about what we shared externally last week.",
+"expected": null
+},
+{
+"text": "Verify the fix deployed to production yesterday.",
+"expected": null
+},
+{
+"text": "Check which pages went live this week.",
+"expected": null
+},
+{
+"text": "Suggest three times to publish the newsletter this week.",
+"expected": null
+},
+{
+"text": "Pick the best photo to post on Instagram and put it in the doc.",
+"expected": null
+},
+{
+"text": "Write a timeline for when we launch the app.",
+"expected": null
+},
+{
+"text": "Plan how we launch the product next month.",
+"expected": null
+},
+{
+"text": "Launch the site on localhost to check the layout.",
+"expected": null
+},
+{
+"text": "Explain to Sam what we plan to tell the press.",
+"expected": null
+},
+{
+"text": "Mark the post as ready to publish.",
+"expected": null
+},
+{
+"text": "Share an update on the blog migration with Sam.",
+"expected": null
+},
+{
+"text": "Post your notes on the site audit in Tempo.",
+"expected": null
+},
+{
+"text": "Share feedback on our Instagram captions with Henry.",
+"expected": null
+},
+{
+"text": "Push the work on the website to next sprint.",
+"expected": null
+},
+{
+"text": "Push back the post on LinkedIn to next week.",
+"expected": null
+},
+{
+"text": "Schedule a work session on the website redesign with Sam.",
+"expected": null
+},
+{
+"text": "Share the bug you found on the site with the team.",
+"expected": null
+},
+{
+"text": "Upload the screenshot of the error on the website to the room.",
+"expected": null
+},
+{
+"text": "Put together a summary of what people say on Hacker News.",
+"expected": null
+},
+{
+"text": "Put the screenshots in the press section of the deck.",
+"expected": null
+},
+{
+"text": "Put the ideas in the social media tracker.",
+"expected": null
+},
+{
+"text": "Upload the photos to the Instagram planning board in Notion.",
+"expected": null
+},
+{
+"text": "Put the photos at web resolution before adding them to the draft.",
+"expected": null
+},
+{
+"text": "Show Sam how our onboarding compares to competitors.",
+"expected": null
+},
+{
+"text": "Write a section showing how we stack up to competitors.",
+"expected": null
+},
+{
+"text": "Grab the public link to their press kit for the research notes.",
+"expected": null
+},
+{
+"text": "Paste the public link to our website in the doc.",
+"expected": null
+},
+{
+"text": "Turn off the public link on the pricing doc.",
+"expected": null
+},
+{
+"text": "Never use a public link for client files.",
+"expected": null
+},
+{
+"text": "Is there a public link for the webinar recording?",
+"expected": null
+},
+{
+"text": "Make a public holidays list for both countries.",
+"expected": null
+},
+{
+"text": "Make the public-facing FAQ draft friendlier.",
+"expected": null
+},
+{
+"text": "Don't share, post or publish the roadmap.",
+"expected": null
+},
+{
+"text": "Nobody should publish the case study until Henry approves.",
+"expected": null
+},
+{
+"text": "Confirm publish status of each post in the content calendar.",
+"expected": null
+},
+{
+"text": "Fix publish errors in the CMS.",
+"expected": null
+},
+{
+"text": "Research post formats on TikTok.",
+"expected": null
+},
+{
+"text": "Recommend post times on LinkedIn for our audience.",
+"expected": null
+},
+{
+"text": "Write the tooltip text: Share this on LinkedIn.",
+"expected": null
+},
+{
+"text": "Test whether the API leaks the user's email address.",
+"expected": null
+},
+{
+"text": "Anonymize the survey results so they can be shared publicly later.",
+"expected": null
+},
+{
+"text": "When it's ready publish it on the blog.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "After Henry signs off publish the case study.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "If Sam signs off make the page live.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Get the site live by Friday.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Put the new homepage live.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Take the site live tomorrow morning.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Make version 2 of the site live.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Set the post's visibility to \"Public\".",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Change the sharing setting to \"Public on the web\".",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Switch the GitHub repo from private to public.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Change the YouTube video's visibility to public.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Make sure the page is public before the webinar.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Roll out the new homepage to all visitors.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Ship the new pricing page to production.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Push the update to the live site.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Upload the new version to the live website.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Go public with the funding news on Friday.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Announce the funding round today.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Pin the announcement on our Twitter profile.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Stream the demo live on Twitch.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Upload the podcast episode to Spotify.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Put the ebook up for free on Gumroad.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Add the case study to the live website.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Upload the user database to a free online tool to dedupe it.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Drop the screenshots in the public Slack community.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Submit the paper to arXiv.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Disclose the security incident publicly.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Set link sharing to 'anyone with the link'.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Publish the vulnerability details on our blog.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Share the customer list with Acme Corp.",
+"expected": "contacting anyone outside the team",
+"also": [
+"sharing anything outside the project"
+]
+},
+{
+"text": "Send the signed NDA to Acme's legal team.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Give the Verge an exclusive on the launch.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Demo the beta for a few customers.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the files to the print shop.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Do not, under any circumstances, email the client.",
+"expected": null
+},
+{
+"text": "**Do not** email the client until Henry has read the draft.",
+"expected": null
+},
+{
+"text": "Remember not to email the client before Friday.",
+"expected": null
+},
+{
+"text": "Don't email or call the client; Henry will handle it.",
+"expected": null
+},
+{
+"text": "Please don't delete or overwrite the backups.",
+"expected": null
+},
+{
+"text": "Don't bother emailing the client, Henry already did.",
+"expected": null
+},
+{
+"text": "No need to pay for the upgrade, the free tier is enough.",
+"expected": null
+},
+{
+"text": "Hold off on emailing the client this week.",
+"expected": null
+},
+{
+"text": "Nobody should email the client before the launch.",
+"expected": null
+},
+{
+"text": "Be careful not to delete anything in the shared drive.",
+"expected": null
+},
+{
+"text": "Archive the old drafts but delete nothing.",
+"expected": null
+},
+{
+"text": "Rules for this task: nothing deleted, nothing shared outside the project.",
+"expected": null
+},
+{
+"text": "Did you delete the old backups?",
+"expected": null
+},
+{
+"text": "Were the old exports deleted last night?",
+"expected": null
+},
+{
+"text": "Check whether the staging folder got deleted by mistake.",
+"expected": null
+},
+{
+"text": "Check if the duplicate files have been deleted.",
+"expected": null
+},
+{
+"text": "Recover the files Bo deleted yesterday.",
+"expected": null
+},
+{
+"text": "Sam's email to the client is too long; cut it to five lines.",
+"expected": null
+},
+{
+"text": "Henry's reply to the client needs a softer tone.",
+"expected": null
+},
+{
+"text": "Sam's post on LinkedIn has a typo in the second line; note it for Sam.",
+"expected": null
+},
+{
+"text": "Henry's call with the client is at 3pm; prepare a one-page brief.",
+"expected": null
+},
+{
+"text": "Monthly update to investors: tighten the second paragraph.",
+"expected": null
+},
+{
+"text": "Holiday email to customers is too long, cut it in half.",
+"expected": null
+},
+{
+"text": "Write the help article \"How to delete your account\" for the FAQ.",
+"expected": null
+},
+{
+"text": "Add this to the FAQ: \"You can delete your workspace any time from Settings.\"",
+"expected": null
+},
+{
+"text": "Write the hero line \"We pay for your first month of hosting\" and two alternatives.",
+"expected": null
+},
+{
+"text": "Update the pricing page hero. CTA: Upgrade to Pro.",
+"expected": null
+},
+{
+"text": "Rename the button to Delete account.",
+"expected": null
+},
+{
+"text": "Subject line: Invite your clients in one click",
+"expected": null
+},
+{
+"text": "Find out how much we pay for hosting each month.",
+"expected": null
+},
+{
+"text": "List the tools we pay for and what each one does.",
+"expected": null
+},
+{
+"text": "Go through the emails we sent to customers last month and pull out common questions.",
+"expected": null
+},
+{
+"text": "Collect the posts we published on LinkedIn last quarter and summarize the engagement.",
+"expected": null
+},
+{
+"text": "Summarize what we told the client on last week's call.",
+"expected": null
+},
+{
+"text": "Draft the pricing table:\nBasic $9/month\nPro $29/month\nTeam $99/month",
+"expected": null
+},
+{
+"text": "Update the pricing table: Starter $0/month; Growth $49/month; Scale $199/month.",
+"expected": null
+},
+{
+"text": "Rewrite the pricing section. Say it costs $9 a month.",
+"expected": null
+},
+{
+"text": "Write the plan comparison: Pro is $29/month and includes priority booking.",
+"expected": null
+},
+{
+"text": "Pricing page copy: Pro plan $29/month, charged monthly, cancel anytime.",
+"expected": null
+},
+{
+"text": "Reorder some slides so the pricing comes last.",
+"expected": null
+},
+{
+"text": "Sort the plans and order them from cheapest to priciest.",
+"expected": null
+},
+{
+"text": "Avoid the following without asking: emailing clients, posting on LinkedIn, deleting files.",
+"expected": null
+},
+{
+"text": "Tidy the blog drafts folder.\nDone when: drafts are tidy and nothing has been published.",
+"expected": null
+},
+{
+"text": "Don't directly email customers; send your questions to Henry.",
+"expected": null
+},
+{
+"text": "DO NOT DELETE ANYTHING.",
+"expected": null
+},
+{
+"text": "Draft an email to customers about the outage; do not send it.",
+"expected": null
+},
+{
+"text": "Draft the email and send it to the client.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Write the reply to the client and send it.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Finish the update and email it to our investors.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Review the post and share it on LinkedIn.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Hold the newsletter but email the client today.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "When the deck is ready send it to the client.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "The demo went well so email the client a thank-you note.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "@Ada email the client about the delay.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "- [ ] Pay the hosting invoice",
+"expected": "spending money"
+},
+{
+"text": "1) Email the client the revised quote",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "• Delete the old staging database",
+"expected": "deleting anything"
+},
+{
+"text": "Email (not call) the client about the delay.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the \"Q3 update\" deck to our investors.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Post the \"Launch day\" thread on LinkedIn.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Click \"Buy\" on the Pro plan.",
+"expected": "spending money"
+},
+{
+"text": "Hit \"Upgrade\" on the billing page.",
+"expected": "spending money"
+},
+{
+"text": "Click \"Publish\" on the launch post.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Reply \"approved\" to the vendor.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send the client the signed contract.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send our investors the monthly numbers.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Pay Priya for the logo work.",
+"expected": "spending money"
+},
+{
+"text": "The invoice must be paid today.",
+"expected": "spending money"
+},
+{
+"text": "Get the domain renewed before it expires on Friday.",
+"expected": "spending money"
+},
+{
+"text": "The client should be emailed by end of day.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Draft a reply to the vendor.\nDone when: the reply is sent.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Prepare the LinkedIn post.\nDone when: posted.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Get quotes from three printers.\nDone when: the cheapest one is ordered.",
+"expected": "spending money"
+},
+{
+"text": "Chase the paperwork.\nDone when: the vendor invoice is paid.",
+"expected": "spending money"
+},
+{
+"text": "Pick a domain name for the launch site.\nDone when: the domain is registered.",
+"expected": "spending money"
+},
+{
+"text": "Don't email the vendor, call them instead.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "The client asked for an update. Reply today.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "The old exports folder is huge. Get rid of it.",
+"expected": "deleting anything"
+},
+{
+"text": "The designer quoted 500$; approve it.",
+"expected": "spending money"
+},
+{
+"text": "Approve the 300€ quote from the printer.",
+"expected": "spending money"
+},
+{
+"text": "Post \"We're live! Try Tempo today\" on LinkedIn.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Design the sticker artwork.\nDone when: 500 stickers are ordered.",
+"expected": "spending money"
+},
+{
+"text": "Finish the landing page copy.\nDone when: the site is live.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Ada, email the client about the delay.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Should I delete the old drafts folder?",
+"expected": "deleting anything"
+},
+{
+"text": "Do not, for now, contact any vendors.",
+"expected": null
+},
+{
+"text": "Don't immediately email the client; wait for Henry.",
+"expected": null
+},
+{
+"text": "Please make sure not to publish the draft yet.",
+"expected": null
+},
+{
+"text": "Never email, call or DM customers directly.",
+"expected": null
+},
+{
+"text": "Don't share or post the deck outside the project.",
+"expected": null
+},
+{
+"text": "There's no need to buy a new license.",
+"expected": null
+},
+{
+"text": "Skip emailing the client this week.",
+"expected": null
+},
+{
+"text": "You cannot delete anything in the shared drive, only archive.",
+"expected": null
+},
+{
+"text": "Has anyone deleted the old backups?",
+"expected": null
+},
+{
+"text": "Find out who deleted the client folder.",
+"expected": null
+},
+{
+"text": "Restore the drafts that got deleted during the cleanup.",
+"expected": null
+},
+{
+"text": "Tidy the shared drive.\nDone when: everything is tidy and no files are deleted.",
+"expected": null
+},
+{
+"text": "Bo's update to investors has a typo; fix it in the draft.",
+"expected": null
+},
+{
+"text": "Weekly email to subscribers: add a short summary at the top.",
+"expected": null
+},
+{
+"text": "Ada's invite to the beta testers needs a clearer date.",
+"expected": null
+},
+{
+"text": "Write a how-to: deleting old projects in Tempo.",
+"expected": null
+},
+{
+"text": "Add an FAQ entry (how to cancel your account).",
+"expected": null
+},
+{
+"text": "Change the button label to Publish now.",
+"expected": null
+},
+{
+"text": "Rename the menu item to Email customers.",
+"expected": null
+},
+{
+"text": "Tooltip text: Pay for your seats by card or invoice.",
+"expected": null
+},
+{
+"text": "Which subscriptions do we pay for right now?",
+"expected": null
+},
+{
+"text": "Check what we spend on hosting every month.",
+"expected": null
+},
+{
+"text": "Read the notes from when we called the vendor in May.",
+"expected": null
+},
+{
+"text": "Analyze the blog posts we published this year.",
+"expected": null
+},
+{
+"text": "Pricing table — Basic: $9/month; Pro: $29/month; Team: $99/month.",
+"expected": null
+},
+{
+"text": "Update the pricing page. Basic is $9 a month. Pro is $29 a month.",
+"expected": null
+},
+{
+"text": "Pricing table: Basic $9/month (50 bookings), Pro $29/month (unlimited bookings).",
+"expected": null
+},
+{
+"text": "Pricing copy: Pro plan $29/month, renews automatically.",
+"expected": null
+},
+{
+"text": "Re-order a few bullets in the FAQ so billing comes first.",
+"expected": null
+},
+{
+"text": "Order the support tickets by priority before the standup.",
+"expected": null
+},
+{
+"text": "Order them from smallest to largest in the comparison table.",
+"expected": null
+},
+{
+"text": "Rules: no emailing clients, nothing deleted, nothing published.",
+"expected": null
+},
+{
+"text": "Henry: do not, repeat, do not email the client.",
+"expected": null
+},
+{
+"text": "Fix the email and forward it to the client.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Polish the update then send it to investors.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Edit the video post and upload it to YouTube.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Shorten the tweet and post it on LinkedIn.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Hold the press release but email the journalists today.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Once Henry approves pay the designer.",
+"expected": "spending money"
+},
+{
+"text": "If it looks fine delete the old staging database.",
+"expected": "deleting anything"
+},
+{
+"text": "* Email the client the revised timeline",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "a) buy the stock photo for the hero",
+"expected": "spending money"
+},
+{
+"text": "Call (or text) the vendor about the delivery.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Forward the \"Final pricing\" PDF to the client.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Share the \"Roadmap\" doc on Reddit.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "Press \"Place order\" for the 200 stickers.",
+"expected": "spending money"
+},
+{
+"text": "Click \"Send\" on the newsletter.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Hit \"Delete\" on the old project folder.",
+"expected": "deleting anything"
+},
+{
+"text": "Give the client a call about the delay.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Shoot the vendor an email about the late shipment.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Send customers a heads-up about the outage.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Pay Northwind for the October shipment.",
+"expected": "spending money"
+},
+{
+"text": "The hosting plan needs renewing this week.",
+"expected": "spending money"
+},
+{
+"text": "Have the logo designed by a freelancer on Fiverr.",
+"expected": "spending money"
+},
+{
+"text": "Get 200 business cards printed for the conference.",
+"expected": "spending money"
+},
+{
+"text": "Write the follow-up to the leads.\nDone when: every lead has had the email.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Draft the press release.\nDone when: it has gone out to the journalists on our list.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Here is the reply for Acme's support team. Send it.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "The LinkedIn post is approved. Post it.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "The test database is stale. Drop it.",
+"expected": "deleting anything"
+},
+{
+"text": "Don't email the client; phone them.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Accept the quote (1.200 €) from the printer.",
+"expected": "spending money"
+},
+{
+"text": "Approve the CHF 1,500 quote for the booth.",
+"expected": "spending money"
+},
+{
+"text": "Post \"Big news! We're launching Tempo next week\" on X.",
+"expected": "sharing anything outside the project"
+},
+{
+"text": "The deck is final. Email it to the client?",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Draft the email, then send it to the client.",
+"expected": "contacting anyone outside the team"
+},
+{
+"text": "Instinct Sam, pay the hosting invoice today.",
+"expected": "spending money"
+},
+{
+"text": "Meet with the client.",
+"expected": "contacting anyone outside the team"
+}
+]

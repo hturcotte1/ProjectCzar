@@ -1,0 +1,512 @@
+import type { Clause } from './limits-text.js';
+import { CONTENT_HEADS } from './limits-text.js';
+
+/**
+ * The four default limits as rules over clauses (see limits-text.ts for how text becomes clauses).
+ * Each rule has:
+ *   strict   patterns trusted in any clause that is not negated, even work about something
+ *            ("List the app on the Chrome Web Store" starts with a research word but is an act)
+ *   loose    patterns that only count in a request or a statement, never inside drafting or
+ *            research ("$29" in "Write the CTA: Buy now for $29" is copy)
+ *   state    patterns for a finished act given as the goal ("the deposit is paid")
+ * Patterns are written for lower-case text with wrapping already removed, so most start at the
+ * head verb (^). Recipients and public places are shared building blocks below.
+ */
+
+export interface RuleContext {
+  /** Names of the room's people and agents (lower case); anyone else named is outside the team. */
+  team: Set<string>;
+}
+
+export interface Rule {
+  label: string;
+  /** The first word of the label, used to find the room's own wording for the same limit. */
+  key: string;
+  test(c: Clause, ctx: RuleContext): boolean;
+}
+
+const rx = (s: string, flags = '') => new RegExp(s, flags);
+
+// ------------------------------------------------------------------------------------------------
+// Shared pieces
+// ------------------------------------------------------------------------------------------------
+
+const DET = String.raw`(?:the|a|an|our|your|my|their|his|her|its|this|that|these|those|all|every|each|some|any|both|another|other|several|a\s+few|few|many|more|new|\d+|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|hundred)`;
+
+/** People and organisations outside the team. */
+const OUTSIDER_NOUN = String.raw`(?:customers?|clients?|vendors?|suppliers?|press|journalists?|reporters?|media|editors?\s+at|investors?|vcs?|angels?|prospects?|leads?|influencers?|creators?|bloggers?|podcasters?|podcast\s+hosts?|hosts?|newsletter\s+writers?|users?|subscribers?|beta\s+testers?|testers?|beta\s+users?|early\s+adopters?|candidates?|applicants?|finalists?|recruiters?|headhunters?|references?|agenc(?:y|ies)|freelancers?|contractors?|consultants?|partners?|resellers?|distributors?|wholesalers?|retailers?|buyers?|decision-?makers?|sponsors?|donors?|landlords?|bank|insurers?|accountants?|bookkeepers?|lawyers?|attorneys?|legal\s+team|advisors?|advisers?|mentors?|founders?|ceos?|ctos?|cfos?|cmos?|coos?|hiring\s+managers?|account\s+managers?|customer\s+success\s+managers?|sales\s+reps?|reps?|maintainers?|moderators?|organi[sz]ers?|event\s+organi[sz]ers?|venue\s+managers?|venue|caterers?|photographers?|videographers?|printers?|print\s+shops?|designers?\s+at|followers|fans|audience|attendees|participants|commenters?|reviewers?\s+on|community\s+members?|community|public|outsiders?|strangers?|third[- ]part(?:y|ies)|support|support\s+team|helpdesk|sales\s+team|the\s+folks|folks|waitlist|wait\s+list|mailing\s+list|email\s+list|e-?mail\s+lists?|press\s+list|customer\s+list|customer\s+base|user\s+base|subscriber\s+list|prospect\s+list|leads?\s+list|contact\s+list|journalist\s+list)`;
+
+/** Words that make the noun before them a thing, not a person: "customer quotes", "client library". */
+const THING_AFTER = String.raw`(?:quotes?|lists?(?!\s+(?:about|that|we))|pages?|portal(?!\s+about)|stor(?:y|ies)|feedback|data|success\s+(?:stories|metrics)|segments?|personas?|journeys?|names?|logos?|testimonials?|reviews?|interviews?(?!\s+with)|research|insights?|counts?|base(?!\s+about)|sections?|logins?|faqs?|tiers?|copy|decks?|kits?|e-?mails?(?!\s+(?:about|today|now))|surveys?|docs?|documents?|notes|questions|needs|pain\s+points|problems|use\s+cases|onboarding|retention|churn|database|records?|accounts?(?!\s+(?:that|who))|profiles?|types?|examples|comments(?!\s+(?:on|under))|ratings|numbers|metrics|growth|acquisition|team\s+(?:page|bio)|plan|tickets?(?!\s+in)|articles?|policy|center|pricing|template|matrix|map|endpoint|endpoints|api|apis|service|services|sdk|library|libraries|package|packages|side|-side|table|schema|model|field|ids?|id\s+field|tracker|sheet|spreadsheet|macros|memo|proposal|scorecard|case\s+stud(?:y|ies)|program|programme|badges?|photos?|results|language|logic|code|module|component|object|class|record|portfolio|portfolios|details|info|information|address|addresses|phone\s+numbers?|contact\s+sheet|calls?\s+notes|requests?|messages|carousel|section|validation|cache|settings|dashboard|panel|app|portal|login|session|token|key|keys|events?|webhooks?|count|charter|guidelines|guide|playbook|resources|landing\s+page|website|site|newsletter\s+(?:draft|copy|template)|sequence\s+(?:draft|copy)|filter|segment|column|tag|label|button|form|flow|experience|journey|voice|language|objections|complaints|tickets\s+(?:queue)?|happiness|satisfaction|nps|testimonial|referrals?\s+program|discount\s+codes?|promo\s+codes?(?!\s+to)|benefits?|value|pain|problem|needs|story|stories|success|quote|wins?|outcomes?)`;
+
+/** "Acme's marketing team", "the agency's designer": a person or group at an outside organisation. */
+const ROLE_AFTER = String.raw`(?:'s|s'|')\s+(?:[\w-]+\s+){0,2}?(?:team|designer|developer|engineer|cto|ceo|cfo|cmo|coo|founder|owner|legal\s+team|legal|support|support\s+team|marketing\s+team|sales\s+team|people|staff|folks|reps?|contact|manager|lead|account\s+manager|buyer|head\s+of\s+\w+|director|vp|president|partner|editor|producer|host|assistant|recruiter|accountant|lawyer)\b`;
+
+const MODIFIER = String.raw`(?:(?!(?:with|from|to|for|of|in|on|at|by|about|and|or|but|so|than|as|into|onto|over|under|out|up|off|down|back|whether|if|what|how|why|when|where|who|whom|that|which|whatever|re|is|are|was|were|said|henry|sam|ada|bo|muse|instinct)\b)[\w'$-]+\s+)`;
+const OUTSIDER = String.raw`(?:${MODIFIER}{0,4}?${OUTSIDER_NOUN}(?:${ROLE_AFTER}|(?:'s|s'|')?(?![\w'-])(?!(?:'s|s'|')?\s+${THING_AFTER}\b)))`;
+
+/** "everyone who signed up", "the people on the waitlist", "anyone outside the team". */
+const AUDIENCE = String.raw`(?:(?:(?:the|all\s+the|all|those|these)\s+)?(?:everyone|everybody|anyone|people|folks|those|users|customers)\s+(?:who|that|on\s+(?:the|our)\s+(?:waitlist|wait\s+list|list|mailing\s+list|email\s+list|beta)|from\s+(?:the|our)\s+(?:webinar|waitlist|trade\s+show|event|list)|at\s+\w+|outside)|(?:someone|anyone|people|everyone|anybody|somebody)\s+outside(?:\s+(?:the|our)\s+(?:team|company|project))?|outside\s+(?:the|our)\s+(?:team|company)|external\s+(?:people|contacts|parties|partners|stakeholders))`;
+
+/** Known services and tools: a send to one of these is moving data, not talking to someone. */
+const TOOL_NAMES = new Set(
+  (
+    'slack notion figma canva github gitlab google gmail drive docs sheets linkedin twitter x instagram facebook meta tiktok youtube vimeo reddit ' +
+    'medium substack mailchimp hubspot salesforce stripe shopify zapier webflow wordpress vercel netlify heroku aws s3 rds azure gcp cloudflare ' +
+    'sentry datadog grafana postgres redis kafka docker npm jira trello asana airtable zoom loom buffer hootsuite semrush ahrefs grammarly ' +
+    'dropbox box chatgpt openai claude anthropic tempo lighthouse ga4 analytics excel word powerpoint keynote calendar outlook teams discord ' +
+    'pastebin gist dev.to hashnode spotify twitch gumroad arxiv indeed wellfound producthunt hackernews intercom zendesk typeform calendly ' +
+    'twilio sendgrid postmark segment mixpanel amplitude hotjar vistaprint stickermule fiverr upwork mondays fridays'
+  ).split(' '),
+);
+const NOT_NAMES = new Set(
+  (
+    'i monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december ' +
+    'q1 q2 q3 q4 ok okay faq cta api pr sso hr url pdf crm sow nda ux ui ai ceo cto cfo eod asap utc mt pt et gb tb kb mb usd eur gbp ' +
+    'done when is it the a an we you they he she please also then and but so if once after before team room conductor'
+  ).split(' '),
+);
+
+/** Capitalised names in the clause that are not on the team (people and companies outside). */
+const PUBLIC_WORDS = new Set(
+  'hacker news product hunt indie hackers slideshare chrome web store app play apple podcasts stack overflow show hn reddit gumroad arxiv wellfound indeed dev.to hashnode medium substack twitch spotify youtube vimeo instagram facebook tiktok linkedin twitter threads mastodon bluesky discord g2 capterra trustpilot pastebin gist github'.split(' '),
+);
+
+function outsideNames(c: Clause, ctx: RuleContext, humanVerb: boolean, includeFirst = false): string[] {
+  const words = c.raw.replace(/[^\w'@.&-]+/g, ' ').trim().split(/\s+/);
+  const out: string[] = [];
+  words.forEach((w, i) => {
+    const bare = w.replace(/'s$|'$/, '').replace(/[.]+$/, '');
+    if (!/^[A-Z][a-z]/.test(bare) && !/^[A-Z][A-Z]?[a-z]+[A-Z]/.test(bare)) return;
+    if (i === 0 && !includeFirst) return;
+    if (PUBLIC_WORDS.has(bare.toLowerCase())) return;
+    const lower = bare.toLowerCase();
+    if (NOT_NAMES.has(lower) || ctx.team.has(lower)) return;
+    if (!humanVerb && TOOL_NAMES.has(lower)) return;
+    if (/^(?:muse|instinct|stand-in|henry|sam|ada|bo)$/.test(lower)) return;
+    out.push(lower);
+  });
+  return out;
+}
+
+function namePattern(names: string[]): string {
+  return names.length ? String.raw`(?:${DET}\s+)?(?:${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?:${ROLE_AFTER}|(?:'s|s')?\b)` : String.raw`(?!x)x`;
+}
+
+/** Who the clause is aimed at, if anyone outside the team. */
+function recipients(c: Clause, ctx: RuleContext, humanVerb: boolean): string {
+  return String.raw`(?:${OUTSIDER}|${AUDIENCE}|${namePattern(outsideNames(c, ctx, humanVerb))}|(?:\w+\s+){0,2}(?:at|from)\s+${namePattern(outsideNames(c, ctx, true))})`;
+}
+
+function mentionsOutsider(text: string): boolean {
+  return rx(String.raw`\b(?:${OUTSIDER}|${AUDIENCE})`).test(text);
+}
+
+const PRONOUN_OBJ = String.raw`(?:it|them|him|her|this|that|these|those|the\s+(?:reply|email|message|update|deck|draft|note|answer|response|invite|invitation|quote|file|files|doc|pdf|link|news))`;
+
+/** Places that are public, or outside the project's own tools. */
+const PUBLIC_PLACE = String.raw`(?:(?:our|the|a|my|his|her|their|your|company|public|official|personal|main|new|community|open)\s+){0,2}(?:community(?:\s+(?:forum|discord|slack|page|group|board|server))?|linkedin|twitter|x(?=[\s.,;!?]|$)|facebook|fb|instagram|ig|tiktok|threads|mastodon|bluesky|reddit|r\/\w+|subreddit|hacker\s*news|hn|show\s+hn|product\s*hunt|indie\s*hackers|dev\.to|hashnode|medium|substack|youtube|vimeo|twitch|spotify|apple\s+podcasts|soundcloud|slideshare|scribd|gist|pastebin|stack\s*overflow|quora|discord|slack\s+community|community\s+forum|forums?|g2|capterra|trustpilot|blog|website|web\s*site|site|homepage|landing\s+page|careers\s+page|jobs?\s+page|status\s+page|chrome\s+web\s+store|app\s+store|play\s+store|gumroad|arxiv|indeed|wellfound|angellist|newswire|internet|web|social(?:\s+media)?|socials|chatgpt|(?:free\s+)?online\s+tool|third[- ]party\s+tool|tempo\.app|[\w-]+\.(?:com|app|io|ai|co|org|net|dev)(?!\w))`;
+const NOT_PUBLIC_AFTER = String.raw`(?:settings|config|configuration|file|files|codebase|component|theme\s+file|resolution|design|designs|version\s+of|fonts?|form|forms|browser|developers?|dev|safe|friendly|ready|optimi[sz]ed|format|size|quality|traffic|visitors|growth|presence|strategy|captions?|drafts?|copy|outline|ideas?|plan|planning|calendar|folder|folders|docs?|documents?|templates?|mock-?ups?|strategy|brief|board|tracker|sheet|spreadsheet|analytics|numbers|stats|engagement|metrics|comments|account\s+settings|repo|repository|assets|kit|section|team|redesign|audit|migration|copy\s+deck|post\s+draft|preview|staging|changes|bug|error|issue|layout|work)`;
+const PUBLIC = String.raw`${PUBLIC_PLACE}\b(?!\s+(?:[\w-]+\s+)?${NOT_PUBLIC_AFTER}\b)`;
+
+/** Places inside the project: posting there is never sharing outside. */
+const INTERNAL = /\b(?:in|to|into|on|with)\s+(?:the\s+|our\s+)?(?:room|tempo(?!\.)|team|shared\s+drive|drive|shared\s+folder|folder|doc|shared\s+doc|draft|outline|deck|channel|thread\s+here|feed|playbook|internal\s+\w+|private\s+\w+|staging)\b|\bwith\s+(?:henry|sam|ada|bo|the\s+team|everyone\s+here|the\s+conductor)\b/;
+
+// ------------------------------------------------------------------------------------------------
+// Money
+// ------------------------------------------------------------------------------------------------
+
+const NUM_WORD = String.raw`(?:a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|a\s+few|a\s+couple(?:\s+of)?|several|hundred|thousand)`;
+const AMOUNT = String.raw`(?:(?:[$€£¥₹₩₽₺₪฿₫₴₦]|\b(?:us|au|ca|nz|hk|s|r)\$)\s?\d|\d[\d.,]*\s?(?:k|m)?\s?[$€£¥₹]|\b(?:usd|eur|gbp|cad|aud|chf|jpy|inr|nzd|sek|nok|dkk|mxn|brl|sgd|hkd|cny|rmb|zar|pln|czk|huf|ils|aed)\s?\d|\b\d[\d.,]*\s?(?:k|m|bn)?\s?(?:usd|eur|gbp|cad|aud|chf|jpy|inr|nzd|sek|nok|dkk|mxn|brl|sgd|hkd|dollars?|bucks|euros?|pounds(?!\s+(?:of|heavier|lighter))|quid|rupees?|yen|francs?|kronor|krona|cents)\b|\b${NUM_WORD}(?:[\s-]+(?:hundred|thousand|grand))?\s+(?:dollars?|bucks|euros?|pounds|quid|grand|k)\b|\ba\s+grand\b|\b(?:a|one|two|three|five|ten)\s+hundred\b(?=\s*(?:\??$|,|;|\.|\s+(?:for|on|to)\b)))`;
+const AMOUNT_RE = rx(AMOUNT, 'g');
+/** An amount given as a rate in a price list ("$29/month", "$9 per seat", "€15 monthly"). */
+const RATE = String.raw`${AMOUNT}[\d.,]*\s?(?:k|m)?\s?(?:(?:\/|per\s+|a\s+|an\s+|each\s+)\s?(?:mo|month|months|yr|year|annum|seat|user|member|person|licen[cs]e|head|week|wk|day|message|sms|transaction|channel|workspace|order|booking|editor|creator|5\s+users)\b|(?:monthly|yearly|annually|one-time|lifetime)\b)`;
+const RATE_RE = rx(RATE, 'g');
+/** With a rate, these still mean spending: "Allocate $30 a day to ads". */
+const SPEND_CONTEXT = /\b(?:allocate|budget|spend|spending|plan\s+for|put|throw|ads?|advertising|campaign|boost|pay|paying|buy|purchase|order|subscribe|upgrade|hire|book|approve|accept|charge|top\s+up|commit)\b/;
+const CODE_CONTEXT = /\b(?:script|shell|bash|zsh|command|argument|arg|param|parameter|variable|env|cli|regex|placeholder|template\s+string|positional)\b/;
+const TIME_UNIT = /^(?:hours?|hrs?|minutes?|mins?|days?|weeks?|months?|years?|seconds?|secs?|sprints?|afternoons?|mornings?|evenings?|nights?|sessions?|pomodoros?)$/;
+
+function hasAmount(text: string): boolean {
+  const all = text.match(AMOUNT_RE);
+  if (!all) return false;
+  let rest = text;
+  if (!SPEND_CONTEXT.test(text)) rest = rest.replace(RATE_RE, ' ');
+  const left = rest.match(AMOUNT_RE);
+  if (!left) return false;
+  if (CODE_CONTEXT.test(text) && left.every((a) => /^\$\d$/.test(a.trim()))) return false;
+  return true;
+}
+
+/** Goods and paid things you get, grab or pick up. */
+const PAID_THING = String.raw`(?:plans?|tiers?|subscriptions?|licen[cs]es?|seats?|domains?|tickets?|passes|pass|memberships?|premium|pro|version\s+of|add-?ons?|upgrades?|template\s+packs?|stock\s+photos?|stock\s+images?|fonts?|themes?|plugins?|courses?|books?|copies|hardcover|paperback|gifts?|gift\s+cards?|flowers|wine|lunch|dinner|breakfast|coffee|pastries|pizza|food|snacks|drinks|catering|hardware|laptops?|monitors?|keyboards?|desks?|chairs?|equipment|supplies|paper|swag|merch|stickers|business\s+cards|cards|prints|posters?|flyers?|banners?|brochures?|mugs|t-?shirts?|hoodies?|samples|materials?|parts|credits|tokens|minutes|instances?|servers?|hosting|storage|bandwidth|space|booths?|tables?\s+at|rooms?|venue|hotel|flights?|trains?|taxi|uber|lyft|cab|car|van|projector|camera|microphones?|lights|annual\s+plan|monthly\s+plan|bundle|kit|ebook|e-?book|report\s+from|data\s+set|dataset|list\s+of\s+leads|leads\s+list|ads?|advert|placements?)`;
+const PAID_THING_SKIP = String.raw`(?:key|keys|count|details?|info|information|number|numbers|id|ids|url|link|links|name|names|price|prices|pricing|cost|costs|quote|quotes|terms|page|pages|copy|text|screenshot|screenshots|logo|feedback|list(?!\s+of\s+leads)|credit\s+line|photo\s+credits?|image\s+credits?)`;
+
+/** The object after a verb, up to the first preposition: "the annual Canva Pro plan for the team" gives "the annual canva pro plan". */
+function objectAfter(text: string, verb: RegExp): string | null {
+  const m = verb.exec(text);
+  if (!m) return null;
+  const rest = text.slice(m.index + m[0].length);
+  const cut = rest.search(/\s(?:from|for|to|on|in|at|with|by|before|after|so|because|while|if|when|that|which|who|and|or|but|instead|until|via|through|today|tomorrow|now|asap|this|next)\b|[,;!?]|\.(?=\s|$)/);
+  return (cut >= 0 ? rest.slice(0, cut) : rest).trim();
+}
+
+function paidObject(obj: string | null): boolean {
+  if (!obj) return false;
+  if (rx(String.raw`\b${PAID_THING_SKIP}$`).test(obj) && !rx(String.raw`\b(?:paid|premium|pro)\b`).test(obj)) return false;
+  if (rx(String.raw`\b(?:image|photo|picture|font)\s+credits?$`).test(obj)) return false;
+  return rx(String.raw`\b${PAID_THING}$`).test(obj) || rx(String.raw`\b(?:paid|premium|pro|business|team|enterprise|plus|annual|yearly|lifetime)\s+(?:[\w-]+\s+)?(?:version|plan|tier|account|edition|licen[cs]e|seat|seats|subscription|membership)\b`).test(obj) || hasAmount(obj) || /\b(?:\d+|a\s+few|more|extra|another|two|three|five|ten)\s+(?:more\s+)?(?:[\w-]+\s+)?(?:seats?|licen[cs]es?|copies|credits)\b/.test(obj);
+}
+
+const TECH_THING = String.raw`(?:packages?|dependenc(?:y|ies)|deps|librar(?:y|ies)|lib|sdk|framework|service|services|module|parser|node|postgres|mysql|database|db|section|page|photos?|copy|deck|slides?|settings|docs|readme|workflow|scripts?|tests?|ci|runner|browser|os|firmware|schema|api|client|model|image|runtime|python|typescript|react|vite|eslint|compiler|toolchain|engine|component|components|cli|plugin\s+version|code|checklist|outline|onboarding\s+plan|launch\s+plan|project\s+plan|content\s+plan|test\s+plan|migration\s+plan|plan\s+parser|team\s+page|business\s+section|account\s+service|sso\s+module)`;
+
+const MONEY_STRICT: RegExp[] = [
+  // buying
+  /^(?:buy|buys|purchase|procure|pre-?order|preorder|bulk\s+(?:order|buy|purchase))\b(?!\s+(?:us\s+)?(?:some\s+)?(?:time|a\s+(?:few|couple\s+of)\s+(?:days|hours|weeks))\b|\s+in\b|\s+into\b)/,
+  /^(?:order|orders)\b(?!.*\b(?:by|alphabetically|chronologically|numerically|from\s+(?:the\s+)?(?:\w+est|cheapest|newest|oldest|smallest|largest|highest|lowest|a|top|most|least)\s+to|in\s+(?:ascending|descending|reverse|the\s+right|the\s+same|which)|so\s+(?:that\s+)?(?:pricing|billing|the\s+\w+)\s+comes?|on\s+the\s+(?:slide|page|dashboard|board|list|sprint)|in\s+the\s+(?:table|list|doc|deck|report|gallery|comparison|sheet|outline|faq)|priority|importance|date|severity)\b)/,
+  /^(?:re-?order|reorder)\s+(?:the\s+|more\s+|some\s+)?(?:[\w-]+\s+)?(?:paper|supplies|stickers|cards|business\s+cards|ink|toner|coffee|stock|inventory|mugs|samples|labels|boxes|materials)\b/,
+  /^(?:get|grab|pick\s+up|snag|nab|score|obtain|secure|source|acquire|go\s+for)\b/,
+  /^(?:place|put\s+in|submit)\s+(?:an?\s+|the\s+|our\s+|another\s+|a\s+new\s+|a\s+bulk\s+)?(?:[\w-]+\s+)?orders?\b(?!\s+(?:form|page|confirmation|flow|status|history|number|summary|email|details|field|template)\b)/,
+  /^(?:hire|commission|retain|engage|contract|bring\s+on|bring\s+in|take\s+on)\s+(?:a\s+|an\s+|the\s+|some\s+|another\s+|two\s+|three\s+|\d+\s+)?(?:[\w-]+\s+){0,2}?(?:freelancers?|contractors?|agency|agencies|designers?|developers?|devs?|consultants?|photographers?|videographers?|copywriters?|writers?|editors?|illustrators?|artists?|translators?|virtual\s+assistants?|vas?|firm|studio|lawyers?|accountants?|bookkeepers?|someone|somebody|people|help|team|caterers?|printers?|voice\s+actors?|animators?|models?|recruiters?|interns?|temps?|staff)\b/,
+  /^(?:book|reserve|rent|lease|lock\s+in|hold)\s+(?:a\s+|an\s+|the\s+|some\s+|our\s+|two\s+|\d+\s+)?(?:[\w-]+\s+){0,2}?(?:flights?|hotels?|rooms?|venues?|booths?|stands?|tables?|space|spaces|desks?|car|cars|van|vans|uber|lyft|taxi|cab|train|bus|projector|camera|equipment|studio|photographer|caterers?|catering|tickets?|seats?|airbnb|apartment|coworking|day\s+pass|meeting\s+room|conference\s+room|stage|screen|microphones?|lights|truck)\b/,
+  /^(?:sign\s+(?:us\s+|me\s+|them\s+|him\s+|her\s+|everyone\s+)?up\s+for|register\s+(?:us\s+|me\s+|them\s+)?for|enrol+\s+(?:us\s+|me\s+)?in|join)\s+(?:a\s+|an\s+|the\s+|our\s+)?(?:[\w'-]+\s+){0,3}?(?:plans?|tiers?|trials?|seats?|premium|pro|subscriptions?|memberships?|courses?|conferences?|workshops?|bootcamps?|programs?|summits?|webinars?\s+series|accounts?\s+on|team\s+plan)\b/,
+  /^register\s+(?:a\s+|an\s+|the\s+|our\s+|new\s+|another\s+)*(?:[\w.-]+\s+)?(?:domains?\b(?!\s+(?:events?|models?|handlers?|logic|layer|objects?|entit(?:y|ies)))|[\w-]+\.(?:com|app|io|ai|co|net|org|dev)\b)/,
+  /^subscribe\s+(?:us\s+|me\s+)?(?:to|for)\s+(?!(?:(?:the|our|their|a|an|your|my)\s+)?(?:[\w-]+\s+)?(?:newsletter|mailing\s+list|updates|notifications|alerts|events?|webhooks?|topics?|channel|feed|rss|blog|podcast|calendar|thread|stream|queue|changes|hooks?|room|repo|issue|order\s+events|messages)\b)/,
+  /^upgrade\b(?!\s+(?:the\s+|our\s+|my\s+|its\s+)?(?:[\w-]+\s+){0,2}?(?:packages?|dependenc(?:y|ies)|deps|librar(?:y|ies)|lib|sdk|framework|service|module|parser|node|postgres|mysql|section|page|photos?|copy|deck|slides?|settings|docs|readme|workflow|scripts?|tests?|ci|runner|browser|os|firmware|schema|api|client|model|runtime|python|typescript|react|vite|eslint|compiler|toolchain|engine|components?|cli|checklist|outline|onboarding\s+plan|launch\s+plan|project\s+plan|content\s+plan|test\s+plan|migration\s+plan|plan\s+parser)\b)/,
+  /^(?:switch|move|bump|migrate|put|downgrade|change)\s+(?:us\s+|our\s+[\w-]+\s+|the\s+[\w-]+\s+|[\w-]+\s+)?(?:up\s+)?(?:to|onto)\s+(?:the\s+|a\s+|an\s+)?(?:[\w-]+\s+){0,2}?(?:plan|tier|billing|edition|subscription|licen[cs]e|seats?|pricing\s+plan)\b/,
+  /^scale\s+.{0,40}\b(?:up|to)\b.{0,30}\b(?:instance|plan|tier|gb|tb|nodes?|servers?|cpus?|replicas?|larger|bigger|size|machine|dyno)\b/,
+  /^(?:turn\s+on|enable|activate|switch\s+on|add|install|buy|get)\s+.{0,40}\b(?:paid|premium)\b(?!\s+(?:[\w-]+\s+)?(?:report|analysis|doc|summary|review|audit|copy|plan\s+section|section|page|deck|draft|research|study|metrics|data|results|column|tab))/,
+  /^(?:turn\s+on|enable|activate|add|install|buy|get)\s+(?:the\s+|a\s+|an\s+)?(?:[\w-]+\s+){0,3}?add-?on\b/,
+  /^renew\b/,
+  /^(?:top\s+up|recharge|reload|refill)\b/,
+  /^add\s+(?:[\w$€£.,-]+\s+){0,3}?(?:seats?|licen[cs]es?|credits|funds|money|balance)\b/,
+  /^add\s+(?:a\s+|an\s+|another\s+|\d+\s+|two\s+|three\s+)?(?:more\s+)?(?:paid\s+)?(?:users?|members?)\s+to\s+(?:our|the)\s+(?:[\w-]+\s+)?(?:plan|subscription|account|workspace|licen[cs]e)\b/,
+  /^(?:expense|reimburse)\b/,
+  /^(?:refund|re-?fund)\b/,
+  /^(?:issue|give|process|send|grant|approve|offer|do)\s+(?:the\s+|a\s+|an\s+|them\s+a\s+|the\s+customer\s+a\s+|him\s+a\s+|her\s+a\s+)?(?:full\s+|partial\s+)?refund/,
+  /^pay\b(?!\s+(?:(?:a\s+lot\s+of|a\s+bit\s+more|more|less|extra|close|closer|special|careful|particular|the\s+same|equal|enough|some|no|little|much|full|any|more\s+careful|real|proper|serious)\s+)?(?:attention|heed|mind|respects?|tribute|homage|lip\s+service|dividends|a\s+visit|it\s+forward|off)\b|\s+it\s+no\s+mind)/,
+  /^spend\s+(?:up\s+to\s+|about\s+|around\s+|roughly\s+|at\s+most\s+|less\s+than\s+|no\s+more\s+than\s+|more\s+than\s+|over\s+|under\s+)?(?:(?:more|less|extra|any|some|the|our|my|a\s+(?:few|bit|little))\s+)?(?:money|cash|budget|funds|credits|dollars|euros)\b/,
+  /^charge\b(?!\s+(?:the\s+|my\s+|your\s+)?(?:battery|batteries|phone|laptop|device|cable))/,
+  /^retry\s+.{0,30}\b(?:charges?|payments?|payouts?)\b/,
+  /^(?:process|send|release|approve|schedule|run)\s+(?:the\s+)?(?:pending\s+|outstanding\s+)?(?:payouts?|payments?|payroll|transfers?|wires?)\b(?!\s+(?:events?|data|logs?|info|details|form|webhooks?|notifications?|records?|metrics|code|module|service|page|flow|tests?))/,
+  /^(?:bill|invoice)\b(?!.*\b(?:template|layout|design|copy|wording|format|page)\b)/,
+  /^(?:send|forward|submit|issue|raise|e-?mail)\s+(?:.{1,40}\s+)?(?:the\s+|an?\s+|our\s+|this\s+)?(?:[\w-]+\s+)?invoices?\b(?!\s+(?:template|wording|copy|layout|design|format|draft|example|sample|fields?|page)\b)/,
+  /^(?:tip|donate|pledge|sponsor|fund|crowdfund)\b(?!\s+(?:list|page|copy|section|of)\b)/,
+  /^back\s+(?:the\s+|a\s+|our\s+)?(?:[\w-]+\s+){0,3}?(?:kickstarter|indiegogo|campaign|project|crowdfunding|fundraiser|patreon)\b/,
+  /^invest\s+(?:[$€£\d]|money|cash|funds|(?:in|into)\s+(?:the\s+|a\s+|some\s+)?(?:stocks?|shares?|crypto|bitcoin|a\s+fund|fund|startups?|compan(?:y|ies)|the\s+round|bonds?|real\s+estate|ads|advertising|paid))/,
+  /^(?:bid|place\s+(?:a\s+)?bids?)\b/,
+  /^(?:put\s+down|pay|cover|send|make|leave|place|wire|transfer)\s+(?:a\s+|the\s+)?(?:[\w-]+\s+)?deposits?\b/,
+  /^(?:settle|settle\s+up)\b(?!\s+(?:on|the\s+(?:headline|debate|question|argument|design)))/,
+  /^pick\s+up\s+the\s+(?:tab|bill|check|cheque)\b/,
+  /^treat\s+.{1,40}\s+to\s+(?:lunch|dinner|drinks|coffee|a\s+meal|breakfast|a\s+gift)\b/,
+  /^(?:send|get|buy|order|give)\s+(?:.{1,40}\s+)?(?:flowers|a\s+gift|gifts|a\s+bottle(?:\s+of\s+\w+)?|wine|champagne|a\s+hamper|chocolates|a\s+gift\s+card|gift\s+cards|swag\s+box|a\s+thank[- ]you\s+gift)\b/,
+  /^(?:venmo|paypal|zelle|cash\s*app|revolut|wise)\b/,
+  /^(?:wire|transfer|send|move|pay\s+out|remit)\s+(?:over\s+)?(?:[$€£]?\s?\d|money|cash|funds|the\s+(?:money|funds|deposit|balance|fee|fees|payments?\b(?!\s+(?:form|page|flow|code|module|service|events?|button|screen|processor|provider|api|integration|details|method|logic|webhook|data|tests?))))/,
+  /^(?:run|set\s+up|launch|start|buy|place|book|turn\s+on|boost|put\s+up|create\s+and\s+run|kick\s+off)\s+(?:a\s+|an\s+|the\s+|our\s+|some\s+|more\s+|new\s+)?(?:[\w-]+\s+){0,2}?(?:ads?|adverts?|advertisements?|advertising|ad\s+campaigns?|ad\s+sets?|sponsored\s+(?:posts?|content|ads?)|paid\s+(?:campaigns?|promotions?|posts?|ads?|social|search|media)|promoted\s+(?:posts?|tweets?)|google\s+ads|meta\s+ads)\b(?!\s+(?:brief|copy|plan|ideas?|draft|outline|mock-?ups?|concepts?|creative|headlines?|text|strategy|proposal|report)s?\b)/,
+  /^boost\s+(?:the|this|that|our|a|it)\b(?:\s+[\w-]+){0,2}?\s*(?:post|tweet|video|reel|story|page|it)?\b/,
+  /^promote\s+.{0,40}\b(?:with\s+(?:a\s+)?paid|paid\s+boost|ads?\b|budget)/,
+  /^(?:put|throw|allocate|commit|add|move|spend|invest|plan\s+for|budget|earmark|set\s+aside|dedicate)\s+(?:(?:a|an|some|more|another|extra|the|our|small|big|little|bit|of|few|whole|\d[\d,.]*k?|[$€£][\d,.]+k?)\s+){0,4}?(?:budget|money|cash|funds|spend|[$€£]?\d[\d,.]*k?|ad\s+spend)(?:\s+(?:a|per|each|every)\s+(?:day|week|month))?\s+(?:behind|into|on|to|at|for|toward|towards)\b/,
+  /^(?:increase|raise|bump|up|double|triple|boost|top\s+up|lift|grow|expand|use|spend|allocate|release|unlock|approve|commit|exceed|go\s+over|blow|add\s+to)\s+(?:the\s+|our\s+|a\s+|more\s+|some\s+|extra\s+|any\s+|this\s+month's\s+)?(?:daily\s+|weekly\s+|monthly\s+)?(?:(?!performance|error|time|token|bundle|size|latency|byte|memory|cpu|perf|frame|render)[\w-]+\s+){0,2}?budget\b(?!\s+(?:template|tab|numbers?|sheet|doc|section|line|heading|figures?|spreadsheet|summary|report|column|row|cell)\b)/,
+  /^(?:increase|raise|bump|up|double|lift)\s+(?:the\s+|our\s+)?(?:[\w-]+\s+){0,2}?(?:spend|spending\s+(?:limit|cap)|ad\s+spend|bid|bids|credit\s+limit)\b/,
+  /^(?:start|begin|activate|take|kick\s+off|open)\s+(?:a\s+|an\s+|the\s+|our\s+)?(?:[\w-]+\s+){0,3}?trial\b/,
+  /^(?:approve|accept|sign|countersign|confirm|agree\s+to|green-?light|sign\s+off\s+on|go\s+with)\s+(?:the\s+|a\s+|an\s+|our\s+|their\s+|its\s+|[\w'-]+'s\s+)?(?:[\w$€£.,'-]+\s+){0,3}?(?:quotes?|estimates?|contracts?|sow|statement\s+of\s+work|proposals?|purchase\s+orders?|po|orders?|bookings?|purchases?|invoices?|expenses?|offers?|deals?|bids?|retainers?|budgets?|spend|payments?|renewals?|upgrades?|subscriptions?|reservations?|engagement\s+letter|terms)\b/,
+  /^(?:accept|approve)\s+(?:the\s+|their\s+)?(?:[\w-]+\s+)?(?:[$€£]?\d[\d,.]*\s?[$€£]?\s+)?(?:quote|estimate)/,
+  /^proceed\s+(?:the\s+|a\s+|an\s+|our\s+|my\s+|with\s+)?(?:(?!of\b)[\w'-]+\s+){0,2}?(?:purchase|order|booking|upgrade|renewal|refund|payment|deposit|subscription|sign-?up|reservation|hire|hiring|buy|bill|bills|tab|invoice|fees?|expense|(?:annual|monthly|yearly|paid|pro|premium|business|team|enterprise|plus|standard|growth)\s+(?:plan|tier|version|licen[cs]e))\b(?!\s+(?:form|page|flow|copy|template|button|screen|email|confirmation|status|history|section))/,
+  /^print\s+(?:\d|a\s+few|some|several|a\s+(?:batch|run)|more|extra|copies|\w+\s+(?:copies|flyers|posters|cards|banners|stickers))/,
+  /^print\s+.{0,40}\b(?:at|from|with)\s+(?:the\s+)?(?:copy\s+shop|print\s+shop|printers?|printing\s+company|vistaprint|moo|stickermule|staples|fedex)\b/,
+  /^(?:get|have)\s+.{1,50}?\s+(?:printed|catered|framed|shipped\s+(?:express|overnight))\b/,
+  /^(?:get|have)\s+.{1,50}?\s+(?:made|designed|built|shot|filmed|edited|done|created|produced|written|translated|illustrated|animated|voiced|photographed)\s+(?:by|on|via|through|at)\s+(?:a\s+|an\s+|the\s+)?(?:[\w-]+\s+)?(?:fiverr|upwork|99designs|toptal|freelancers?|agency|contractors?|studio|professional|pro|print\s+shop|printer|vendor)\b/,
+  /^(?:get|have)\s+.{1,40}?\s+(?:renewed|registered|booked|upgraded|bought|purchased|ordered|paid|reserved|catered)\b/,
+  /\b(?:on|via|through|from|off)\s+(?:fiverr|upwork|99designs|toptal|taskrabbit|thumbtack)\b/,
+  /^proceed\s+.{0,40}\bpurchase\b/,
+  /^(?:click|hit|press|tap)\s+(?:buy|purchase|upgrade|subscribe|pay|order|checkout|check\s+out)\b/,
+  /^(?:go\s+through|complete|finish|finali[sz]e)\s+(?:the\s+)?(?:check-?out|purchase|order|payment|booking|sign-?up\s+for\s+the\s+(?:paid|pro))\b(?!\s+(?:flow|page|copy|form|design|tests?|screen|step)\b)/,
+  /^(?:use|put\s+(?:it|this|that|them)\s+on|charge\s+(?:it|this|that|them)\s+to|pay\s+with|enter|add)\s+(?:the\s+|our\s+|my\s+|a\s+|your\s+|their\s+)?(?:company\s+|corporate\s+|business\s+)?(?:credit\s+card|debit\s+card|company\s+card|corporate\s+card|card|visa|amex|mastercard|paypal\s+account)\b/,
+  /^(?:put|charge|bill|expense)\s+.{1,50}?\s+(?:on|to)\s+(?:the\s+|my\s+|our\s+|a\s+)?(?:company\s+|corporate\s+|business\s+)?(?:credit\s+card|debit\s+card|card|amex|visa|mastercard|tab|expense\s+account)\b/,
+  /^(?:raise|increase|bump|lift)\s+(?:our\s+|the\s+)?(?:[\w-]+\s+){0,3}?(?:spending|usage|credit|billing)\s+(?:limit|cap|quota)\b/,
+];
+
+const MONEY_LOOSE: RegExp[] = [
+  /\bpaid\s+(?:boost|ads?|promotion|campaign|placement|post|search|social|media|seat|seats|plan|tier|version|account|add-?on|feature|subscription|licen[cs]e|membership|upgrade|template|course|workshop|tool|app|service|edition)\b(?!\s+(?:report|copy|section|page|draft))/,
+  /\b(?:company|corporate|business)\s+(?:credit\s+)?card\b/,
+  /\bon\s+(?:my|our|the)\s+(?:credit\s+)?card\b/,
+  /\b(?:accept|approve|sign)\s+(?:their|the|its|his|her)\s+(?:quote|estimate|offer|contract|proposal)\b/,
+  /\bpay\s+(?:on|upon|at|when|after|before)\s+(?:delivery|receipt|arrival|completion|pickup)\b/,
+  /\bcosts?\s+(?:a\s+grand|\w+\s+hundred|\d)/,
+  /\b(?:we're|we\s+are|we've\s+been|are\s+we)\s+on\s+(?:the\s+)?(?:[\w-]+\s+)?(?:plan|tier)\b/,
+];
+
+const MONEY_STATE =
+  /\b(?:is|are|'s|'re|be|been|being|gets?|got|getting|was\s+just|has|have)\s+(?:all\s+|fully\s+|now\s+|already\s+|finally\s+)?(?:paid(?!\s+(?:attention|off))|bought|purchased|ordered|pre-?ordered|booked|reserved|rented|renewed|registered|signed|countersigned|upgraded|refunded|invoiced|billed|charged|hired|subscribed|topped\s+up|funded|sponsored|expensed|reimbursed|settled|placed\s+(?:with|on|at|for))\b|\bneeds?\s+(?:renewing|paying|buying|ordering|booking|upgrading|topping\s+up)\b|\border\b.{0,30}\bplaced\b|\bplaced\s+(?:an?\s+)?order\b/;
+
+function moneyTest(c: Clause): boolean {
+  const t = c.text;
+  if (c.pressed.some((p) => /\b(?:buy|purchase|pay|upgrade|subscribe|place\s+order|order\s+now|check\s*out|confirm\s+(?:purchase|order|payment)|renew|start\s+(?:free\s+)?trial)\b/.test(p))) return true;
+  // get / grab / pick up: only with something paid
+  if (/^(?:get|grab|pick\s+up|snag|nab|score|obtain|secure|source|acquire|go\s+for)\b/.test(t)) {
+    const obj = objectAfter(t, /^(?:get|grab|pick\s+up|snag|nab|score|obtain|secure|source|acquire|go\s+for)\b/);
+    if (paidObject(obj)) return true;
+    if (/^get\s+(?:\w+\s+){0,2}?(?:a|an|the|some|two|\d+)\s+(?:[\w-]+\s+)?(?:gifts?|flowers|seats?|licen[cs]es?)\b(?!\s+(?:key|keys|count|details?|info|number|id|file|text|terms|holder|type))/.test(t)) return true;
+  }
+  for (const re of MONEY_STRICT.slice(4)) if (re.test(t)) return true;
+  if (MONEY_STRICT[0].test(t) || MONEY_STRICT[1].test(t) || MONEY_STRICT[2].test(t)) return true;
+  // "spend" with an amount, not with time
+  if (/^spend\b/.test(t) && hasAmount(t)) return true;
+  if (c.frame === 'state' && MONEY_STATE.test(t)) return true;
+  if (c.frame === 'content') return false;
+  if (MONEY_LOOSE.some((re) => re.test(t))) return true;
+  if (hasAmount(t)) {
+    // "Spend 2 hours", "pass $1 as the name": not money.
+    const m = t.match(AMOUNT_RE)!;
+    const realAmount = m.some((a) => {
+      const after = t.slice(t.indexOf(a) + a.length).trim().split(/\s+/)[0] ?? '';
+      return !TIME_UNIT.test(after);
+    });
+    if (realAmount) return true;
+  }
+  return false;
+}
+
+// ------------------------------------------------------------------------------------------------
+// Contacting people outside the team
+// ------------------------------------------------------------------------------------------------
+
+const CONTACT_DIRECT = String.raw`(?:e-?mail|mail|text|sms|message|dm|pm|whatsapp|call(?!\s+out\b)|phone|ring|ping|contact|cold[- ]?(?:e-?mail|call|dm|message)|thank|congratulate|notify|inform|remind|nudge|tell|ask|invite|interview|survey|poll|brief|pitch|meet|visit|cc|bcc|chase|reconnect\s+with|update|warn|alert|reassure|greet|welcome|phone-?screen|interview|negotiate\s+with|negotiate|hound|pester|approach|court|lobby)`;
+const CONTACT_PHRASAL = String.raw`(?:reach\s+out\s+to|reach|write\s+(?:back\s+)?to|reply\s+(?:back\s+)?(?:to|on|in|under)|respond\s+(?:to|on|in|under)|answer|follow\s+up\s+(?:with|on)|check\s+in\s+with|touch\s+base\s+with|circle\s+back\s+(?:with|to)|get\s+back\s+to|get\s+in\s+touch\s+with|get\s+hold\s+of|sync\s+(?:up\s+)?with|catch\s+up\s+with|talk\s+(?:to|with)|speak\s+(?:to|with)|chat\s+with|connect\s+with|hop\s+on\s+(?:a\s+)?(?:quick\s+)?call\s+with|jump\s+on\s+(?:a\s+)?(?:quick\s+)?call\s+with|go\s+meet|apologi[sz]e\s+to|explain\s+(?:it\s+|this\s+|that\s+)?to|disclose\s+(?:it\s+|this\s+)?to|report\s+back\s+to|run\s+(?:it|this|that)\s+by|run\s+.{1,30}\s+by|reach\s+back\s+out\s+to|ring\s+up|call\s+up|phone\s+up|look\s+up\s+and\s+call)`;
+const CONTACT_SEND = String.raw`(?:send|resend|re-send|forward|e-?mail|mail|text|message|dm|deliver|submit|pitch|present|explain|disclose|announce|introduce|intro|show|demo|give|hand|hand\s+over|offer|reply|respond|apologi[sz]e|send\s+out|upload|reach\s+out|walk\s+through|pass\s+(?:along|on)|relay|fax|ship|share|reshare)`;
+
+function contactTest(c: Clause, ctx: RuleContext): boolean {
+  const t = c.text;
+  // "Present the pricing to customers as three tiers on the page": page copy, not a meeting.
+  if (/^(?:present|show|explain|introduce)\b.*\b(?:on|in)\s+(?:the\s+|our\s+)?(?:page|site|website|deck|copy|pricing\s+page|doc|landing\s+page|homepage|slide|faq)\b/.test(t)) return false;
+  const human = recipients(c, ctx, true);
+  const strict = recipients(c, ctx, false);
+  const recipientHere = rx(String.raw`\b(?:${human})`).test(t);
+  const hasDirect = rx(String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL})\b`).test(t);
+  if (c.pressed.some((p) => /\b(?:send|reply|email|invite|call)\b/.test(p)) && (recipientHere || mentionsOutsider(c.before) || /\b(?:newsletter|campaign|blast|announcement|launch\s+e-?mail)\b/.test(t))) return true;
+  // email the client, ask our vendor, reach out to the press, reply to the user's issue
+  if (rx(String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL})\s+(?:back\s+|out\s+to\s+|up\s+with\s+|with\s+|again\s+|directly\s+|personally\s+|quickly\s+|now\s+)?(?:${human})`).test(t)) return true;
+  if (rx(String.raw`^negotiate\b.{0,50}\bwith\s+(?:${human})`).test(t)) return true;
+  // replying to comments, reviews, tickets and emails from people outside
+  if (/^(?:answer|reply\s+(?:to|on)|respond\s+(?:to|on)|address|work\s+through|get\s+back\s+to)\s+(?:the\s+|all\s+|every\s+|each\s+|any\s+|our\s+|those\s+|these\s+)?(?:[\w'-]+\s+){0,2}?(?:questions|comments?|reviews?|replies|mentions|messages|dms|e-?mails|tickets|inquiries|enquiries|complaints|threads?|issues?|requests|applications)\b/.test(t) && !/\b(?:sam|henry|ada|bo|team|conductor|teammate)'?s?\b.{0,20}\b(?:comments?|questions|messages|replies|review)|\b(?:in|on)\s+(?:the\s+)?(?:doc|draft|room|tempo|pr|pull\s+request|code\s+review|outline)\b|\bcode\s+review\b/.test(t)) return true;
+  if (rx(String.raw`^proceed\s+(?:the\s+|a\s+|our\s+)?(?:[\w-]+\s+){0,2}?(?:outreach|e-?mails?|calls?|follow-?ups?|reply|replies|announcement\s+e-?mail|newsletter|invites?|intro|introduction|campaign|blast|message|messages)\b.{0,40}\b(?:to|with|for)\s+(?:${human})`).test(t)) return true;
+  if (/^proceed\s+(?:the\s+|our\s+)?(?:[\w-]+\s+)?(?:outreach|newsletter|e-?mail\s+blast|blast)\b/.test(t)) return true;
+  // email the draft to the client; send the deck over to Acme's CFO; demo the beta for customers
+  if (rx(String.raw`^${CONTACT_SEND}\b(?!\s+(?:a\s+|the\s+)?(?:banner|message|modal|pop-?up|tooltip|notice|warning|error|prompt|toast|alert)\s+to\s+users)(?:\s+(?!to\b|with\b|for\b|cc\b)[\w'"$€£.-]+){0,10}?\s+(?:over\s+|out\s+|along\s+|back\s+)?(?:to|for|cc)\s+(?:${strict})`).test(t)) return true;
+  if (rx(String.raw`^(?:share|reshare|forward|show)\b(?!\s+(?:your|my|our|some|any)\s+(?:thoughts|feedback|ideas|notes|views|opinions|take|findings|concerns|questions)\b).{0,60}?\bwith\s+(?:${strict})`).test(t)) return true;
+  // send the client the contract; give the client a call; drop the prospect a line
+  if (rx(String.raw`^(?:send|resend|forward|mail|e-?mail|text|give|show|hand|offer|tell|ask|drop|shoot|fire\s+off|get|write|pass)\s+(?:${human})\s+(?:a|an|the|our|this|that|these|those|some|it|them|\d|"q"|quick|short|heads|details|word|news|info)\b`).test(t)) return true;
+  // let the client know, keep the vendor in the loop, loop the agency in, put the client on cc
+  if (rx(String.raw`^let\s+(?:${human})\s+(?:know|hear|see\s+the\s+(?:email|reply|message))\b`).test(t)) return true;
+  if (rx(String.raw`^(?:keep|loop|bring|add|put|cc|copy)\s+(?:in\s+)?(?:${human})\s+(?:in\s+the\s+loop|posted|updated|informed|in\b|into\b|on\s+(?:the\s+)?(?:cc|bcc|thread|email|chain)|to\s+the\s+(?:email\s+)?(?:thread|chain|conversation|call|loop))`).test(t)) return true;
+  if (rx(String.raw`^(?:loop\s+in|cc\s+in|bring\s+in)\s+(?:${human})`).test(t)) return true;
+  // calls, meetings and demos with outsiders
+  if (rx(String.raw`^(?:book|schedule|set\s+up|arrange|organi[sz]e|line\s+up|hold|run|do|have|plan|reschedule|cancel|move|accept|confirm|take|join|attend|host|lead)\s+(?:a\s+|an\s+|the\s+|our\s+|another\s+|\d+\s+)?(?:[\w-]+\s+){0,2}?(?:calls?|meetings?|demos?|chats?|interviews?|zoom|video\s+call|phone\s+screen|screens?|coffee|lunch|kickoff|kick-off|check-?ins?|walkthroughs?|sessions?|invites?|presentations?|pitch(?:es)?|intro\s+calls?|call\s+back|follow-?up)\s+(?:with|for|to)\s+(?:${human})`).test(t)) return true;
+  if (rx(String.raw`^(?:book|schedule)\s+(?:${human})\s+(?:in\s+)?(?:for|into)\b`).test(t)) return true;
+  if (rx(String.raw`^accept\s+(?:the\s+)?(?:${human})\s+(?:[\w-]+\s+)?(?:invite|invitation|request)`).test(t)) return true;
+  if (/^(?:phone-?screen|interview|check\s+references|do\s+(?:a\s+)?phone\s+screen|line\s+up\s+interviews|reference[- ]check)\b/.test(t) && /\b(?:candidates?|applicants?|finalists?|references?|the\s+\w+\s+candidate|for\s+the\s+(?:senior|junior))\b|^check\s+references/.test(t)) return true;
+  // announcements to many people at once
+  if (/^(?:send|send\s+out|e-?mail|mail|text|message|blast|resend|push|fire\s+off|schedule|queue|trigger|launch|go\s+out\s+with|announce|notify|dm|pm)\b.{0,60}\b(?:waitlist|wait\s+list|mailing\s+list|email\s+list|e-?mail\s+lists?|press\s+list|customer\s+(?:list|base)|subscriber\s+list|subscribers|contact\s+list|prospect\s+list|leads?\s+list|user\s+base|everyone|everybody|all\s+(?:\d+\s+)?(?:users|customers|subscribers|leads|contacts|members)|every\s+(?:customer|user|subscriber|lead|contact)|journalist\s+list|influencer\s+list|newsletter)\b/.test(t)) return true;
+  if (/^(?:send|send\s+out|schedule|push|release|launch|go\s+out\s+with|blast)\s+(?:the\s+|our\s+|this\s+|a\s+|today's\s+)?(?:[\w-]+\s+){0,2}?(?:newsletter|email\s+blast|mass\s+e-?mail|e-?mail\s+campaign|drip|announcement\s+e-?mail|launch\s+e-?mail|press\s+release|price-?change\s+notice|notice\s+to)s?\b(?!\s+(?:draft|copy|template|outline|plan|ideas?)s?\b)/.test(t)) return true;
+  if (/^(?:hit|press|click)\s+send\b/.test(t)) return true;
+  if (/^set\s+(?:the\s+)?(?:newsletter|email|campaign|announcement|blast)\s+to\s+(?:go\s+out|send)/.test(t)) return true;
+  if (rx(String.raw`^(?:enrol+|enroll|add|put|subscribe)\s+(?:${human}).{0,40}\b(?:sequence|campaign|drip|cadence|nurture|outreach|newsletter|mailing\s+list)\b`).test(t)) return true;
+  if (/^(?:open|file|raise|submit|log|create)\s+(?:a\s+|an\s+)?(?:support\s+)?(?:ticket|case|request|issue)\s+with\s+/.test(t)) return true;
+  if (/^contact\b(?!\s+(?:page|form|details|info|sheet|list|section|us\s+(?:page|form)|fields?|button)\b)/.test(t)) return true;
+  if (/^(?:request|get|ask\s+for|gather|collect)\s+(?:a\s+)?(?:quotes?|bids|estimates?|proposals?)\s+from\s+(?:\w+\s+)?(?:\d+|a\s+few|several|three|two|some|other|local|different)?\s*(?:[\w-]+\s+)?(?:vendors?|suppliers?|printers?|print\s+shops?|agencies|contractors|freelancers|shops?|companies|venues|caterers|photographers)\b/.test(t)) return true;
+  if (/^(?:trigger|run|kick\s+off|start|execute|fire)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?(?:job|task|script|workflow|cron|automation|zap|sequence|campaign)\s+(?:that|which|to)\s+(?:e-?mails?|texts?|messages?|notif(?:y|ies)|sends?\s+(?:an?\s+)?e-?mails?)/.test(t)) return true;
+  if (/^(?:trigger|send|resend|fire)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?e-?mails?\s+(?:to|for)\s+(?:all|every|everyone)\b/.test(t)) return true;
+  if (/^(?:demo|present|walk\s+through|show\s+(?:the\s+|our\s+)?(?:demo|beta|product|prototype|mock-?ups?|designs?|deck|slides|app|roadmap))\b.{0,40}\b(?:to|for|with)\s+(?:a\s+few\s+|some\s+|our\s+)?(?:customers|prospects|clients|investors|leads|users)\b/.test(t)) return true;
+  if (/^(?:give|offer)\s+(?:the\s+)?(?:verge|press|techcrunch|\w+)\s+an?\s+exclusive\b/.test(t)) return true;
+  if (/^(?:decline|turn\s+down|reject|accept|counter)\s+(?:the\s+)?[\w'-]+'s\s+(?:proposal|pitch|offer|invite|invitation|request|application)\b/.test(t)) return true;
+  if (/^brief\s+(?:the\s+)?(?:reporters|journalists|press|media|analysts)/.test(t)) return true;
+  // a pronoun or no object, with someone outside mentioned just before: "Send it to them today"
+  if (rx(String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL}|${CONTACT_SEND})\s+(?:(?:${PRONOUN_OBJ})\b(?!\s+(?:to|with)\s+(?:sam|henry|ada|bo|the\s+team|me|us)\b)|back\b|today|now|tomorrow|asap|by\s+\w+|before\s+\w+|this\s+\w+)`).test(t) || rx(String.raw`^(?:reply|respond|call|e-?mail|phone|text|answer|follow\s+up)\s*$`).test(t)) {
+    if (mentionsOutsider(c.before) || rx(String.raw`\b(?:to|with)\s+(?:them|him|her)\b`).test(t) && mentionsOutsider(c.before)) return true;
+    if (outsideNames({ ...c, raw: c.before.replace(/\b(\w)/g, (m) => m) }, ctx, true).length && /\b(?:at|from)\s+[a-z]/.test(c.before)) return true;
+  }
+  // "Send it to them today" where they were named before; "Email her the signed copy"
+  if (rx(String.raw`^(?:${CONTACT_SEND}|${CONTACT_DIRECT})\b.{0,40}\b(?:to|with)\s+(?:them|him|her)\b`).test(t) && mentionsOutsiderOrName(c.before)) return true;
+  if (rx(String.raw`^(?:${CONTACT_DIRECT}|send|give|show|tell)\s+(?:them|him|her)\b`).test(t) && mentionsOutsiderOrName(c.before)) return true;
+  if (/^(?:keep|leave)\s+(?:them|him|her)\s+(?:in\s+the\s+loop|posted|updated)/.test(t) && mentionsOutsiderOrName(c.before)) return true;
+  // goals: "The client has been emailed", "All 40 subscribers have been notified", "the reply is sent"
+  if (c.frame === 'state') {
+    const t = c.text.replace(/\s+(?:before|until|unless|once|so\s+that|in\s+case)\s+.*$/, '');
+    const told = /\b(?:is|are|be|been|being|has|have|gets?|got)\s+(?:all\s+|now\s+|already\s+)?(?:e-?mailed|e-mailed|messaged|texted|called|phoned|notified|informed|contacted|told|invited|sent|cc'd|briefed|pitched|pinged|updated|reached|thanked)\b/.test(t);
+    const out = /\b(?:gone|go|goes|went|is|are|be)\s+out\s+(?:to\b|$)/.test(t) || /\b(?:has|have)\s+gone\s+out\b/.test(t);
+    const received = /\b(?:has|have|got|gets|received|receives|has\s+had|have\s+had)\b.{0,40}\b(?:inbox|e-?mail|email|update|reply|it|the\s+\w+)\b/.test(t) && rx(String.raw`^(?:${OUTSIDER}|${AUDIENCE}|every\s+(?:new\s+)?(?:customer|lead|user|subscriber|client)|each\s+(?:customer|lead|client)|${namePattern(outsideNames(c, ctx, true, true))})`).test(t);
+    const okayed = rx(String.raw`^(?:${OUTSIDER}|each\s+\w+|every\s+\w+).{0,30}\b(?:has|have)\s+(?:okayed|ok'd|approved|agreed|confirmed|signed\s+off)\b.{0,30}\bby\s+(?:e-?mail|phone|text)`).test(t);
+    if (okayed || received) return true;
+    if ((told || out) && (rx(String.raw`\b(?:${OUTSIDER}|${AUDIENCE})`).test(t) || mentionsOutsider(c.before) || outsideNames(c, ctx, true, true).length > 0)) return true;
+  }
+  if (c.frame === 'content' || c.frame === 'report') {
+    if (/^is\s+.{1,40}\bgood\s+to\s+go\s+out\s+to\b/.test(t) && rx(String.raw`\bto\s+(?:${human})`).test(t)) return true;
+    return false;
+  }
+  if (rx(String.raw`\bgo(?:es|ing)?\s+out\s+to\s+(?:${human})`).test(t)) return true;
+  void hasDirect;
+  return false;
+}
+
+function mentionsOutsiderOrName(before: string): boolean {
+  return mentionsOutsider(before) || /\b(?:from|at)\s+[a-z][\w-]+\b/.test(before) || /\b[a-z]+'s\s+(?:team|cto|ceo|cfo|legal|support|marketing)\b/.test(before);
+}
+
+// ------------------------------------------------------------------------------------------------
+// Deleting
+// ------------------------------------------------------------------------------------------------
+
+/** Parts of a draft, a deck or code: removing these is editing, not deleting anything. */
+const CONTENT_PART = String.raw`(?:words?|sentences?|paragraphs?|lines?|commas?|periods?|full\s+stops?|typos?|spaces?|bullets?|bullet\s+points?|headings?|subheadings?|emojis?|phrases?|clauses?|characters?|letters?|filler(?:\s+words)?|adjectives?|adverbs?|exclamation\s+(?:marks?|points?)|hyphens?|dashes?|placeholders?|lorem\s+ipsum|footnotes?|captions?|line\s+breaks?|blank\s+lines?|whitespace|taglines?|repetition|jargon|buzzwords?|intro|outro|sections?|rows?|columns?|cells?|slides?|photos?|images?|pictures?|graphics?|icons?|tables?(?!\s+(?:from\s+the\s+)?(?:database|db))|charts?|ctas?|buttons?|testimonials?|quotes?|items?|entr(?:y|ies)|comments?|todos?|code|statements?|dependenc(?:y|ies)|imports?|attributes?|fields?|filters?|menu(?:\s+items?)?|endpoints?|functions?|methods?|class(?:es)?|variables?|version\s+numbers?|labels?|links?|banners?|footers?|headers?|logos?|numbers?|phone\s+numbers?|e-?mail\s+address(?:es)?|address(?:es)?|names?|mentions?|references?|paragraph|subhead|copy|text|wording|header|stock\s+photo|carousel|hero|video\s+section|price|pricing\s+line|competitor\s+row|cta\s+button|password|watermark|border|background|shadow|animation|tab|tabs|widget|sidebar\s+item|bios?|signature|disclaimer|line\s+item|option|options|step|steps|question|questions|answer|answers|bullet\s+list|toc|table\s+of\s+contents|log\s+statements?|debug\s+(?:logs?|statements?)|console\s+logs?|todo\s+comments?)`;
+/** Places that hold a draft, a deck or code. */
+const CONTENT_PLACE = String.raw`(?:draft|drafts|doc|document|deck|pitch\s+deck|slide\s+\d+|slide|slides|page\s+draft|mock-?up|mockup|readme|one-pager|battlecard|proposal|outline|copy|router|component|template|script|spreadsheet|sheet|faq|post\s+draft|email\s+draft|newsletter\s+draft|case\s+study|landing\s+page\s+draft|homepage\s+draft|presentation|brief|report|article|essay|bio|form|config|file\s+\w+\.\w+|[\w-]+\.(?:ts|tsx|js|jsx|json|md|py|css|html|yml|yaml)|error\s+message|message\s+text|footer|header|sidebar|nav|menu|modal|carousel|section|table|layout|design|wireframe)`;
+/** Things that are data: removing these deletes something. */
+const DATA_THING = String.raw`(?:files?|folders?|director(?:y|ies)|repos?|repositor(?:y|ies)|branch(?:es)?|databases?|dbs?|records?|accounts?|users?|backups?|data|datasets?|drives?|channels?|workspaces?|projects?|rooms?|archives?|logs?|history|everything|all\s+of\s+it|stuff|docs|documents|drafts|posts?|tweets?|threads?|e-?mails|messages|attachments?|assets|uploads?|versions?|recordings?|videos?|spreadsheets|sheets|decks|contacts?|subscribers?|leads|customers?|members?|lists?|snapshots?|volumes?|buckets?|environments?|envs?|servers?|stacks?|clusters?|instances?|images?\s+(?:in|on)\s+(?:the\s+)?(?:registry|bucket|server)|exports?|mockups|pages?\s+(?:on|from)\s+(?:the\s+)?(?:site|website|blog|live)|blog\s+posts?|articles|listings?|reviews?|comments\s+on\s+(?:our|the)\s+(?:post|page)|tables?\s+(?:in|on|from)\s+(?:the\s+)?(?:prod|production|database|db)|collections?|indexes|indices|keys|secrets|tokens\s+in|caches?\s+in\s+prod|queues?|topics?|sites?|apps?|pipelines?|zaps?|automations?|forms?|surveys?|calendars?|events\s+in)`;
+
+const DELETE_VERB = String.raw`(?:delete|erase|purge|destroy|shred|nuke|wipe|obliterate|hard[- ]delete|bulk[- ]delete|permanently\s+(?:delete|remove|erase)|force[- ]delete|remove|get\s+rid\s+of|bin|trash|throw\s+(?:away|out)|discard|scrap|ditch|dump|junk|toss|clear\s+out|clean\s+out|clean\s+up|prune|flush|empty|tear\s+down|take\s+down|shut\s+down|kill|decommission|deprovision|retire|unpublish|unlist|drop|truncate|overwrite|replace|reset|close|cancel|terminate|deactivate|clear|zap|axe|cull)`;
+
+function deleteTest(c: Clause): boolean {
+  const t = c.text;
+  if (c.pressed.some((p) => /\b(?:delete|remove|empty\s+trash|discard|destroy|wipe|purge|close\s+account|cancel\s+subscription)\b/.test(p))) return true;
+  if (/\bwipe\s+the\s+slate\b|\bclean\s+slate\b/.test(t)) return false;
+  // shell and database commands
+  if (/\bterraform\s+destroy\b|\bgit\s+branch\s+-d\b|\brm\s+-[a-z]*r|\bdrop\s+(?:table|database|schema|collection)\b|\btruncate\s+(?:table\s+)?(?!.*\b(?:name|names|title|text|string|label|to\s+\d)\b)\w+\s+on\s+(?:the\s+)?(?:prod|production)|\bdelete\s+from\b|\bgit\s+push\s+(?:-f|--force)\b|\bforce[- ]push\b|\bflushall\b|\bflushdb\b/.test(t)) return true;
+  if (/^(?:run|trigger|execute|kick\s+off|start)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?(?:deletion|delete|cleanup|clean-?up|purge|wipe|teardown|destroy|reset)\s+(?:script|job|task|command|migration|workflow)\b/.test(t)) return true;
+  if (/^(?:run|trigger|execute|kick\s+off|start)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?(?:job|task|script|workflow|cron|migration|automation|command)\s+(?:that|which|to)\s+(?:deletes?|wipes?|purges?|drops?|removes?|truncates?|clears?|destroys?)\b/.test(t)) return true;
+  if (/^replace\s+(?:the\s+)?(?:prod|production|live)\s+(?:data|database|db)\b|^overwrite\s+(?:the\s+)?(?:[\w-]+\s+)?(?:files?|backups?|database|data|folder|records|history|branch|main)\b/.test(t)) return true;
+  if (/^(?:close|cancel|terminate|deactivate|shut\s+down|delete|remove|kill)\s+(?:the\s+|our\s+|my\s+|their\s+|this\s+|old\s+)?(?:[\w-]+\s+){0,3}?(?:accounts?|workspaces?|subscriptions?\s+and)\b(?!\s+(?:settings|page|form|copy|name|email|password|section|details|tab|screen|menu|manager)\b)/.test(t)) return true;
+  if (/^(?:take\s+down|tear\s+down|decommission|deprovision|retire|unpublish|unlist|shut\s+down|kill)\s+(?:the\s+|our\s+|old\s+)?(?:[\w-]+\s+){0,3}?(?:posts?|pages?|sites?|websites?|blog\s+posts?|articles?|videos?|tweets?|listings?|servers?|environments?|envs?|stacks?|clusters?|staging|instances?|databases?|apps?|landing\s+pages?|campaigns?|old\s+\w+)\b/.test(t)) return true;
+  if (/^(?:drop|truncate)\s+(?:the\s+)?(?:[\w-]+\s+)?(?:tables?|databases?|db|collections?|schema|index)\b(?!.*\bfrom\s+(?:the\s+)?(?:readme|doc|draft|deck|page|onboarding\s+doc|outline|slide))/.test(t) && !/\b(?:name|names|title)\s+to\b/.test(t)) return true;
+  if (/^(?:flush|clear|wipe|purge|reset)\s+(?:out\s+)?(?:the\s+|all\s+)?(?:prod|production|live)\b/.test(t)) return true;
+  if (/^(?:flush|purge)\s+(?:the\s+)?(?:[\w-]+\s+)?(?:redis|database|db|cache|queue|cdn)\b/.test(t)) return true;
+  if (/^empty\s+(?:the\s+)?(?:[\w-]+\s+)?(?:trash|bin|recycle\s+bin|bucket|folder|drive|inbox|database|table|list)\b/.test(t)) return true;
+  if (/^(?:clean\s+up|clear\s+out|clean\s+out|prune|cull)\b/.test(t) && rx(String.raw`\b(?:${DATA_THING}|old|stale|unused|merged|inactive|duplicate)\b`).test(t) && !/\b(?:code|copy|text|wording|outline|draft\s+text|css|styles|imports|formatting|layout)\b/.test(t)) return true;
+  if (/^(?:clear|reset)\s+(?:out\s+)?(?:the\s+|all\s+|our\s+)?(?:[\w-]+\s+)?(?:data|database|db|records|history|backups?|contacts|subscribers|logs|repo|repository|server|drive|folder|inbox)\b(?!\s+(?:[\w-]+\s+)?(?:fields?|form|section|filters?|search|selection|badge|count|pool|timeout|connection|connections|settings|cache\s+key|config))/.test(t) && !/\b(?:after|when|on)\s+(?:the\s+)?(?:user|submit|save|logout|unmount|close)\b/.test(t) && !/\bform\s+data\b/.test(t)) return true;
+  if (/^(?:empty|clear)\s+.{0,30}\btrash\b/.test(t)) return true;
+  if (/^(?:move|put|send|drag)\s+.{0,40}\bto\s+(?:the\s+)?(?:trash|bin|recycle\s+bin)\b/.test(t)) return true;
+  if (/\bby\s+(?:getting\s+rid\s+of|deleting|removing|wiping|clearing\s+out|purging|binning|trashing|throwing\s+away)\b/.test(t)) return true;
+  if (/^proceed\s+.{0,30}\b(?:deletion|wipe|purge|cleanup|clean-?up|teardown|removal|delete)\b/.test(t) && !rx(String.raw`\bof\s+(?:the\s+)?(?:[\w'-]+\s+){0,2}?(?:${CONTENT_PART}|${CONTENT_PLACE})\b`).test(t)) return true;
+  if (/^(?:the\s+)?(?:[\w-]+\s+){0,2}?(?:wipe|deletion|purge)\b/.test(t) && c.frame !== 'report' && c.frame !== 'content') return true;
+  // delete / remove / bin ... with an object
+  const verb = rx(String.raw`^${DELETE_VERB}\b`).exec(t);
+  if (verb) {
+    const rest = t.slice(verb[0].length).trim();
+    if (/^(?:the\s+|a\s+|an\s+)?(?:old\s+)?session\b.*\bon\s+(?:logout|unmount|close|exit)|^(?:the\s+)?(?:chart|component|modal|listener|instance|timer|interval|observer|subscription|socket|connection)\b/.test(rest)) return false;
+    if (/^(?:[\w-]+\s+)?(?:timeout|filters?|pool|password|badge|counter|count|state|styles?|zoom|layout|form|search|selection|cache\s+key|flag)\b/.test(rest) && !/\bfrom\s+(?:the\s+)?(?:prod|production|server|database)\b/.test(rest)) return false;
+    if (/^(?:it|them|this|that|these|those)\b/.test(rest)) {
+      // "Drop it" after "The test database is stale"; "Delete it" after "The second paragraph is weak"
+      const back = c.before.split(/[.;!?]|\s+and\s+/).filter(Boolean).pop() ?? c.before;
+      if (rx(String.raw`\b${CONTENT_PART}\b`).test(back) && !rx(String.raw`\b${DATA_THING}\b`).test(back)) return false;
+      if (/^(?:reset|replace|close|cancel|clear|kill|drop|retire|terminate)$/.test(verb[0].trim())) return rx(String.raw`\b${DATA_THING}\b`).test(back);
+      return true;
+    }
+    if (/^(?:reset|replace|close|cancel|clear|kill|drop|retire|terminate)$/.test(verb[0].trim()) && !rx(String.raw`\b${DATA_THING}\b`).test(rest)) return false;
+    const head = (objectAfter(' ' + rest, /^/) ?? rest).replace(/\s+(?:you|we|i|they|that|which|who)\s+\w+.*$/, '');
+    const fromPlace = /\b(?:from|in|on|of)\s+(?:the\s+|this\s+|that\s+|our\s+|my\s+|your\s+|slide\s+\d+\s+of\s+the\s+)?(?:[\w-]+\s+){0,3}?([\w.-]+)\b/.exec(rest);
+    const partAtEnd = rx(String.raw`\b${CONTENT_PART}$`).test(head.replace(/\s+(?:about|for|on|with|from|in|of)\b.*$/, ''));
+    const inContentPlace = fromPlace && rx(String.raw`\b(?:from|in|on|of)\s+(?:the\s+|this\s+|that\s+|our\s+|my\s+|your\s+|slide\s+\d+\s+of\s+the\s+)?(?:[\w-]+\s+){0,3}?${CONTENT_PLACE}\b`).test(rest);
+    const dataHead = rx(String.raw`\b${DATA_THING}$`).test(head) || rx(String.raw`^(?:all|everything|anything|the\s+lot)\b`).test(rest);
+    if (partAtEnd && !dataHead) return false;
+    if (inContentPlace && !dataHead) return false;
+    if (inContentPlace && dataHead && /\b(?:draft|doc|deck|slide|mock-?up|readme|copy)\b/.test(rest) && !/\b(?:folders?|files?|drafts\s+folder|cms|drive)\b/.test(rest)) return false;
+    // "remove" and other soft verbs need something that holds data; "delete" needs anything that is not a part of a draft
+    if (/^(?:delete|erase|purge|destroy|shred|nuke|wipe|obliterate|hard[- ]delete|bulk[- ]delete|permanently|force[- ]delete|bin|trash|throw|discard|scrap|ditch|dump|junk|toss|zap|axe|get\s+rid\s+of)/.test(verb[0])) return true;
+    if (dataHead) return true;
+    if (/\b(?:old|stale|unused|inactive|duplicate|archived|outdated|previous|legacy)\s+\w+/.test(rest) && /^(?:remove|clean\s+up|clear\s+out|prune)/.test(verb[0]) && !partAtEnd) return true;
+    return false;
+  }
+  if (c.frame === 'state') {
+    if (/\b(?:no|nothing|none|not\s+a\s+single)\b/.test(t.split(/\b(?:is|are|has|have|was|were|gets?)\b/)[0] ?? '')) return false;
+    const subject = t.split(/\b(?:is|are|has|have|was|were|gets?|got)\b/)[0] ?? '';
+    const draftPart = rx(String.raw`\b${CONTENT_PART}\b`).test(subject) && !rx(String.raw`\b${DATA_THING}\b`).test(subject);
+    if (!draftPart && /\b(?:is|are|be|been|being|has|have|gets?|got)\s+(?:all\s+|now\s+|already\s+|permanently\s+)?(?:deleted|removed|erased|purged|wiped|destroyed|dropped|gone|emptied|cleared\s+out|pruned|overwritten|torn\s+down|taken\s+down|shut\s+down|binned|trashed)\b/.test(t)) return true;
+    if (/\b(?:accounts?|subscriptions?|workspaces?|repos?|channels?)\b.{0,20}\b(?:is|are|has\s+been|have\s+been)\s+(?:closed|cancell?ed|deactivated|terminated)\b/.test(t)) return true;
+    if (/\bonly\s+.{1,40}\s+remains?\b/.test(t)) return true;
+  }
+  return false;
+}
+
+// ------------------------------------------------------------------------------------------------
+// Sharing outside the project (publishing included)
+// ------------------------------------------------------------------------------------------------
+
+const SHARE_VERB = String.raw`(?:post|repost|cross-?post|tweet|retweet|share|reshare|publish|republish|upload|put|drop|submit|list|stream|livestream|live-?stream|reveal|announce|launch|unveil|debut|paste|commit|push|deploy|ship|release|send|get|go|syndicate|add|place|pin|feature|embed|host|mirror|leak|expose|broadcast|air|premiere|schedule|queue|run)`;
+const TECH_PUBLISH = /\b(?:events?|messages?|metrics?|logs?\s+to|to\s+(?:the\s+)?(?:message\s+)?(?:queue|topic|kafka|redis|sns|pubsub|bus|stream|internal|private|staging|room|channel\s+in\s+tempo|tempo)|docker\s+image|container\s+image|image\s+to\s+(?:our\s+)?(?:private\s+)?registry|private\s+registry|internal\s+wiki|in\s+the\s+room|to\s+the\s+room|meeting\s+minutes\s+in|package\s+to\s+(?:our\s+)?private|artifact|build\s+artifact|test\s+results?)\b/;
+
+function shareTest(c: Clause, ctx: RuleContext): boolean {
+  const t = c.text;
+  const publicHere = rx(String.raw`\b${PUBLIC}`).test(t);
+  if (c.pressed.some((p) => /\b(?:publish|post|share|tweet|go\s+live|make\s+public|deploy|release|launch)\b/.test(p))) return true;
+  const internal = INTERNAL.test(t);
+  // giving outsiders access
+  const human = recipients(c, ctx, true);
+  if (rx(String.raw`^(?:give|grant|share|offer)\s+(?:${human})\s+(?:edit|view|viewer|read|write|comment|full|admin|owner|editor|guest)?\s*(?:access|rights|permissions?)\b`).test(t)) return true;
+  if (rx(String.raw`^(?:add|invite)\s+(?:${human})\s+(?:as\s+(?:a\s+|an\s+)?(?:collaborator|viewer|editor|guest|member|admin|owner|contributor)|to\s+(?:our|the)\s+(?:shared\s+)?(?:[\w-]+\s+)?(?:figma|github|repo|drive|folder|workspace|slack|notion|file|doc|board|channel|project|org|organi[sz]ation))`).test(t)) return true;
+  if (rx(String.raw`^(?:let|allow)\s+(?:${human})\s+(?:see|view|access|edit|look\s+at|read|into|download)\b`).test(t)) return true;
+  if (/^(?:push|move|bump|postpone|delay|defer|shift)\b.{0,50}\bto\s+(?:next|later|another|the\s+following|tomorrow|monday|tuesday|wednesday|thursday|friday)\b|^push\s+back\b/.test(t)) return false;
+  // publish (not events to a queue, not a private registry)
+  if (/^(?:publish|republish)\b/.test(t) && !TECH_PUBLISH.test(t)) return true;
+  if (/^(?:tweet|retweet|cross-?post|livestream|live-?stream|syndicate|broadcast)\b/.test(t)) return true;
+  if (/^(?:leak|expose|disclose|reveal|unveil|debut)\b/.test(t) && !/^(?:expose|reveal)\s+(?:the\s+)?(?:[\w-]+\s+)?(?:helper|method|function|api|endpoint|field|property|setting|button|option|config)\b/.test(t)) return true;
+  if (/^announce\b/.test(t) && !/\b(?:internally|to\s+the\s+team|in\s+the\s+room|to\s+(?:sam|henry|the\s+conductor))\b/.test(t)) return true;
+  if (/^go\s+public\b|^break\s+(?:the\s+)?embargo\b|^open-?source\b|\bnpm\s+publish\b|^(?:go|goes|going)\s+live\b/.test(t)) return true;
+  // post / upload / put ... on a public place
+  if (!internal && rx(String.raw`^${SHARE_VERB}\b(?:\s+(?!on\b|to\b|onto\b|in\b|into\b|at\b|across\b|via\b)[\w'"$€£.&-]+){0,10}?\s+(?:up\s+|out\s+|live\s+)?(?:on|to|onto|in|into|at|across|via|through)\s+(?:the\s+)?${PUBLIC}`).test(t) && !/^(?:push)\s+(?:the\s+)?(?:[\w-]+\s+)?(?:branch|commit|commits|fix|code|changes|pr)\b/.test(t) && !/^share\s+(?:your|my|our|some|any)\s+(?:thoughts|feedback|ideas|notes|views|opinions|take|findings|concerns|questions)\b/.test(t)) return true;
+  if (!internal && rx(String.raw`^${SHARE_VERB}\s+(?:it|them|this|that)\s+(?:up\s+)?(?:on|to)\s+${PUBLIC}`).test(t)) return true;
+  // go live / make live / put live / take live / ship to production
+  if (/^(?:make|put|take|get|push|bring|set|turn|switch|flip)\s+(?:.{0,40}?\s+)?live\b(?!\s+(?:chat|demo|session|stream\s+plan))/.test(t)) return true;
+  if (/^(?:deploy|ship|release|push|promote|roll\s+out|launch|move|merge|cut\s+over)\b.{0,50}?\b(?:to|into|on|onto|in|for)\s+(?:the\s+)?(?:production|prod|live|live\s+site|main\s+and\s+let\s+the\s+pipeline\s+deploy|netlify|vercel|heroku|all\s+(?:users|visitors|customers)|100%\s+of\s+(?:users|traffic|visitors)|everyone|the\s+public|public|app\s+store|play\s+store|chrome\s+web\s+store|npm)\b/.test(t)) return true;
+  if (/\blet\s+the\s+pipeline\s+deploy\s+to\s+production\b|^(?:kick\s+off|start|trigger|run)\s+(?:the\s+)?(?:production|prod|live)\s+(?:deploy|deployment|release)\b/.test(t)) return true;
+  if (/^(?:release|launch|ship|open|roll\s+out|debut)\b.{0,40}\b(?:to\s+the\s+public|publicly|to\s+everyone|to\s+all\s+(?:users|visitors)|on\s+product\s*hunt|on\s+hacker\s*news|to\s+the\s+world)\b/.test(t)) return true;
+  if (/^(?:release|ship)\s+(?:v\d|version\s+\d|the\s+(?:hotfix|update|new\s+version|app|product|beta))\b(?!.*\b(?:notes|checklist|plan|branch|candidate|to\s+staging|locally)\b)/.test(t)) return true;
+  if (/^launch\s+(?:on|at)\s+/.test(t) && publicHere) return true;
+  if (/^(?:launch|ship)\s+(?:the\s+|our\s+)?(?:new\s+)?(?:site|website|landing\s+page|homepage|app|product|beta|v\d|store|shop)\b(?!.*\b(?:locally|localhost|simulator|emulator|staging|dev\s+server|ios\s+simulator|android\s+emulator|copy|plan|checklist|brief|draft|email|timeline)\b)/.test(t)) return true;
+  if (/^flip\b.*\bflag\b.*\b(?:everyone|all\s+users|production|prod)\b/.test(t)) return true;
+  if (/^(?:put|get|send)\s+.{0,30}\b(?:out|up)\b(?!\s+(?:of|for\s+review|to\s+(?:sam|henry)))/.test(t) && /^put\s+.{0,30}\bout\b|\bup\s+(?:on|for\s+free)\b/.test(t)) return true;
+  // live site edits
+  if (/\blive\s+(?:site|website|page|homepage|app|store|version)\b/.test(t) && /^(?:update|change|swap|add|upload|push|edit|replace|put|post|publish|deploy|switch)\b/.test(t)) return true;
+  // public settings and links
+  if (/^(?:make|set|switch|change|flip|turn|open)\s+.{1,50}?\s+(?:to\s+|from\s+private\s+to\s+)?(?:public(?:-read)?|world-readable|anyone\s+with\s+(?:the|a)\s+link|visible\s+to\s+(?:everyone|anyone|the\s+public))(?:\s+on\s+the\s+web)?\s*$/.test(t) && !/\b(?:method|constructor|class|function|property|field|api|getter|setter|member|variable|helper)\b/.test(t)) return true;
+  if (/^(?:set|change|switch|flip|turn|update)\s+.{0,40}\b(?:visibility|sharing(?:\s+settings?)?|link\s+sharing|access|acl|permissions?)\b.{0,20}\bto\s+(?:"q"|public|anyone|everyone)/.test(t) && (!/"q"/.test(t) || c.quoted.some((q) => /public|anyone|everyone|on the web/.test(q)))) return true;
+  if (/^(?:turn\s+on|enable|switch\s+on|create|make|generate|share|send|post|publish|open)\s+.{0,30}\b(?:link\s+sharing|public\s+(?:\w+\s+)?link|public\s+sharing|anyone\s+with\s+(?:the|a)\s+link|share\s+link\s+for\s+anyone)\b/.test(t)) return true;
+  if (/^open\s+.{0,40}\bto\s+(?:anyone|everyone|the\s+public|the\s+world)\b/.test(t)) return true;
+  if (/^expose\b|\bto\s+the\s+internet\b/.test(t) && /^(?:expose|open|make|put)/.test(t)) return true;
+  if (/^(?:paste|commit|push|drop|put|post|upload)\s+.{0,50}\b(?:into|in|to|on)\s+(?:a\s+|the\s+)?public\s+\w+/.test(t)) return true;
+  if (/^(?:upload|paste|put|send|share|feed|give)\s+.{0,50}\b(?:to|into|in|with)\s+(?:a\s+|an\s+|the\s+)?(?:chatgpt|gpt|free\s+online\s+tool|online\s+tool|third[- ]party\s+(?:tool|service|site|app)|random\s+website)\b/.test(t)) return true;
+  if (/\bso\s+(?:that\s+)?(?:anyone|everyone|the\s+public|people|visitors|the\s+world)\s+can\s+(?:see|view|access|read|download|find)\b/.test(t)) return true;
+  if (/^share\b(?!\s+(?:your|my|our|some|any)\s+(?:thoughts|feedback|ideas|notes|views|opinions|take|findings|concerns|questions)\b).{0,60}\b(?:publicly|externally|outside\s+(?:the|our)\s+(?:team|company|project)|with\s+the\s+world|with\s+(?:another|other|outside)\s+compan(?:y|ies)|with\s+(?:competitors?|third[- ]part(?:y|ies)))\b/.test(t)) return true;
+  if (/^(?:list|submit)\s+.{0,40}\b(?:on|to)\s+(?:the\s+)?(?:chrome\s+web\s+store|app\s+store|play\s+store|product\s*hunt|marketplace|gumroad|ebay|amazon|etsy|arxiv|directories|directory)\b/.test(t)) return true;
+  if (/^(?:queue|schedule)\s+(?:the\s+|our\s+|a\s+)?(?:[\w-]+\s+)?(?:tweets?|posts?|threads?|reels?|stories|videos?)\b(?!\s+(?:for\s+review|in\s+the\s+doc|draft))/.test(t) && !/\bdraft/.test(t)) return true;
+  if (/^proceed\s+.{0,40}\b(?:launch|announcement|release|publication|go-?live|deploy(?:ment)?|post|reveal)\b/.test(t)) return true;
+  // post with no place: only clearly public things, or "post it" after a public place
+  if (/^(?:post|share)\s+(?:the\s+|our\s+|a\s+|this\s+)?(?:[\w-]+\s+)?(?:news|announcement|launch|thread|tweet|video|teaser|reveal|press\s+release|job|opening|story|case\s+study|blog\s+post|article|reel|funding\s+news|update\s+publicly)\b/.test(t) && !internal && !/\bwith\s+/.test(t)) return true;
+  if (/^(?:post|publish|share|upload|put\s+up)\s+(?:it|them|this|that)\b/.test(t) && rx(String.raw`\b${PUBLIC}`).test(c.before)) return true;
+  // goals: "The post is live on LinkedIn", "Visitors to tempo.app can see it", "Done when: posted"
+  if (c.frame === 'state' && !internal) {
+    if (/^(?:no|nothing|none)\b/.test(t)) return false;
+    if (rx(String.raw`\b(?:is|are|be|been|being|has\s+been|have\s+been|goes|went|gone|go)\s+(?:now\s+|already\s+|fully\s+)?(?:live|public|published|posted|tweeted|deployed|released|launched|shipped|up\s+on|out\s+on|on\s+(?:the\s+|our\s+)?${PUBLIC_PLACE}|visible\s+to\s+(?:everyone|anyone|the\s+public|visitors))\b`).test(t)) return true;
+    if (rx(String.raw`^(?:it|the\s+[\w-]+(?:\s+[\w-]+)?)(?:\s+(?:is|are)|'s|'re)\s+(?:now\s+)?(?:up\s+|live\s+)?on\s+(?:the\s+|our\s+)?${PUBLIC_PLACE}`).test(t)) return true;
+    if (/\b(?:visitors|anyone|everyone|the\s+public|customers|users|people)\b.{0,40}\bcan\s+(?:see|view|access|read|find|download)\b/.test(t)) return true;
+    if (/^(?:posted|published|live|tweeted|shipped|deployed|released|launched|up)\s*$/.test(t)) return true;
+    if (/\b(?:in|on)\s+production\b/.test(t) && /\b(?:is|are|runs?|running)\b/.test(t)) return true;
+  }
+  return false;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+export const MONEY: Rule = { label: 'spending money', key: 'spending', test: (c) => moneyTest(c) };
+export const CONTACT: Rule = { label: 'contacting anyone outside the team', key: 'contacting', test: (c, ctx) => contactTest(c, ctx) };
+export const DELETE: Rule = { label: 'deleting anything', key: 'deleting', test: (c) => deleteTest(c) };
+export const SHARE: Rule = { label: 'sharing anything outside the project', key: 'sharing', test: (c, ctx) => shareTest(c, ctx) };
+
+export const RULES: Rule[] = [MONEY, CONTACT, DELETE, SHARE];
+
+/** For the clause splitter: a run-a-job clause carries its own act ("Run the script that deletes all staging data"). */
+export function jobAct(text: string): string | null {
+  const m = /^(?:run|trigger|kick\s+off|execute|start|launch|fire)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?(?:job|task|script|workflow|cron|pipeline|migration|automation|zap|sequence|command)\s+(?:that|which)\s+(.*)$/.exec(text);
+  if (!m) return null;
+  return m[1].replace(/^(\w+?)(ches|shes|xes|sses|zes)\b/, (_w, a: string, b: string) => a + b.slice(0, -2)).replace(/^(\w+[^s])s\b/, '$1');
+}
+
+export { CONTENT_HEADS };

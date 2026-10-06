@@ -71,6 +71,11 @@ export function roomPeople(db: DB, roomId: string): PersonRow[] {
     .all(roomId) as PersonRow[];
 }
 
+/** Names of the room's people and agents: who counts as the team for the limits check. */
+export function roomTeamNames(db: DB, roomId: string): string[] {
+  return [...roomPeople(db, roomId).map((p) => p.name), ...roomAgents(db, roomId).map((a) => a.name)];
+}
+
 export function isAgentInRoom(db: DB, agentId: string, roomId: string): boolean {
   return !!db
     .prepare(

@@ -51,7 +51,7 @@ export function scriptedDecide(s: StructuredRoom): ConductorOutputT {
   for (const ev of s.feed) {
     if (ev.actor_kind !== 'agent') continue;
     const text = String(ev.data?.text ?? ev.data?.working_on ?? ev.text ?? '');
-    const concern = limitConcern(text, askFirst);
+    const concern = limitConcern(text, askFirst, [...s.agents.map((a) => a.name), ...s.people]);
     if (concern && /\b(may i|can i|should i|i want to|i'd like to|i plan to|plan to|going to|let me)\b/i.test(text) && mode !== 'relay') {
       out.instructions.push({
         agent: ev.actor_name,

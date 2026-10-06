@@ -39,9 +39,9 @@ describe('the limits safety net', () => {
 });
 
 /**
- * Sentences written by three rounds of independent reviewers (DECISIONS.md items 45 to 47): 1,205
- * from seven reviewers who aimed at the first rewrite's weak spots, then 559 and 557 from fourteen
- * more who wrote ordinary sentences without seeing the code. Every claimed mistake was checked by a
+ * Sentences written by four rounds of independent reviewers (DECISIONS.md items 45 to 48): 1,205
+ * from seven reviewers who aimed at the first rewrite's weak spots, then 559, 557 and 560 from
+ * twenty-one more who wrote ordinary sentences without seeing the code. Every claimed mistake was checked by a
  * separate judge against the written policy. Sharing a file with an outsider, or giving an outsider
  * access, may be called contacting them or sharing outside the project; both count.
  */
@@ -53,8 +53,8 @@ describe('sentences from the independent review', () => {
   }[];
 
   it('has them all', () => {
-    expect(reviewed.length).toBeGreaterThanOrEqual(2320);
-    expect(reviewed.filter((c) => c.expected === null).length).toBeGreaterThanOrEqual(1160);
+    expect(reviewed.length).toBeGreaterThanOrEqual(2875);
+    expect(reviewed.filter((c) => c.expected === null).length).toBeGreaterThanOrEqual(1440);
   });
 
   it.each(reviewed.map((c) => [c.text.replace(/\n/g, ' / '), c.expected ?? 'nothing', c] as const))('%s → %s', (_text, _label, c) => {

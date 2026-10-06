@@ -10,7 +10,7 @@
  * client"), and a done-when line that describes a finished act is a request for it ("The deposit is
  * paid"). The rules (limits-rules.ts) then look for spending, contacting someone outside the team,
  * deleting, or sharing outside the project. When a case is truly unclear they lean toward asking a
- * person. See DECISIONS.md (items 39 and 45) and tests/limits.test.ts.
+ * person. See DECISIONS.md (items 39 and 45 to 48) and tests/limits.test.ts.
  */
 import { clausesOf } from './limits-text.js';
 import { RULES, jobAct, type RuleContext } from './limits-rules.js';

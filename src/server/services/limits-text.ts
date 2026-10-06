@@ -78,6 +78,18 @@ const WRAPPERS: RegExp[] = [
   /^(?:i|we)\s+(?:want|need|plan|intend|hope|mean|ought|have|got)\s+to\s+/,
   /^(?:i'm|i\s+am|we're|we\s+are)\s+(?:going\s+to|about\s+to|planning\s+to|planning\s+on|thinking\s+of|thinking\s+about|ready\s+to|happy\s+to|keen\s+to)\s+/,
   /^(?:planning|going|hoping|intending|about|ready|happy|keen|aiming)\s+to\s+/,
+  /^(?:perhaps\s+|maybe\s+)?it\s+(?:might|may|could|would|will)\s+(?:also\s+)?(?:be\s+(?:worth|good|nice|kind|wise|sensible|helpful|useful|best|better|time|tidier|cleaner|simpler|easier|smart|ideal|great|fine|a\s+good\s+idea|an\s+idea|polite|prudent)|make\s+sense|help)\s+(?:to\s+|if\s+(?:we|i)\s+)?/,
+  /^(?:it(?:'s|\s+is)\s+)?(?:probably\s+)?(?:(?:worth|a\s+good\s+idea|best)\s+(?:to\s+)?|time\s+to\s+)(?=[a-z])/,
+  /^might\s+it\s+be\s+(?:worth|an\s+idea|a\s+good\s+idea|best|sensible|wise)\s+(?:to\s+)?/,
+  /^might\s+i\s+suggest\s+(?:that\s+)?(?:we|i)?\s*/,
+  /^(?:suggest|recommend|propose)\s+(?:that\s+)?(?:we|i)\s+(?:should\s+)?/,
+  /^(?:i'd|i\s+would|we'd|we\s+would)\s+(?:gently\s+|just\s+|strongly\s+)?(?:suggest|recommend|propose|advise)\s+(?:that\s+)?(?:we|i)?\s*(?:should\s+)?/,
+  /^(?:i|we)\s+(?:was|were|am|are|'m|'re)\s+(?:thinking|wondering)\s+(?:of\s+|about\s+|whether\s+|if\s+)?(?:(?:i|we)\s+)?(?:might\s+|could\s+|should\s+|ought\s+to\s+|would\s+)?/,
+  /^i\s+wonder\s+(?:whether|if)\s+(?:we|i)\s+(?:ought\s+to|should|could|might)\s+/,
+  /^would\s+(?:anyone|anybody|you|everyone)\s+mind\s+if\s+(?:i|we)\s+/,
+  /^(?:perhaps|maybe|possibly)\s+(?:we|i)\s+(?:could|can|should|might|ought\s+to)\s+/,
+  /^(?:perhaps|maybe|possibly)\s+/,
+  /^that\s+(?:we|i)\s+(?:should\s+)?(?=[a-z])/,
   /^(?:in|on|for|from|at|within|inside|under)\s+(?:the|our|this|that|a|an|each|every|last|next|tomorrow's|today's)\s+[^,]{1,40},\s*/,
   /^(?:i'm\s+|i\s+am\s+|we're\s+|we\s+are\s+)?thinking\s+(?:we\s+should|i\s+should|of|about|i'll|we'll|i\s+could|we\s+could)\s+/,
   /^(?:i|we)\s+think\s+(?:we|i)\s+should\s+/,
@@ -171,7 +183,7 @@ function stripWrapping(text: string): { text: string; conditional: boolean } {
     for (const w of WRAPPERS) {
       const m = w.exec(t);
       if (m && m[0]) {
-        if (/\bif\s+(?:i|we)\s+$/.test(m[0])) conditional = true;
+        if (/\bif\s+(?:i|we)\s+$|\b(?:of|about)\s+$|\bworth\s+$/.test(m[0])) conditional = true;
         t = t.slice(m[0].length);
       }
     }
@@ -213,6 +225,17 @@ function normaliseHead(text: string, conditional: boolean): string {
 
 /** "Muse Henry email the client", "@Ada email the vendor": a team member addressed by name. */
 function stripAddressee(lower: string, team: Set<string>): string {
+  // "could Bo message the journalist", "Muse Sam could reply to the customer": a teammate asked to
+  // act. "Henry can publish it" is what a person may do, so "can" only counts as a question.
+  {
+    const words = lower.split(/\s+/);
+    for (const n of [2, 1]) {
+      let rest: string[] | null = null;
+      if (/^(?:could|can|should|might|would)$/.test(words[0] ?? '') && words.slice(1, 1 + n).every((w) => team.has(w))) rest = words.slice(1 + n);
+      else if (words.slice(0, n).every((w) => team.has(w)) && /^(?:could|should|might)$/.test(words[n] ?? '')) rest = words.slice(n + 1);
+      if (rest && rest.length && new RegExp(`^${VERBISH}\\b`).test(rest.join(' '))) return rest.join(' ');
+    }
+  }
   for (const take of [2, 1]) {
     const words = lower.split(/\s+/);
     if (words.length < take + 2) continue;
@@ -331,6 +354,10 @@ export function clausesOf(input: string, team: Set<string> = new Set()): Clause[
         if (CONTENT_HEADS.has(head)) copyBlock = true;
       }
       body = body
+        // "I'd suggest, if it's alright, that we...": a polite aside is not a clause
+        .replace(/,\s*(?:if\s+(?:it's|that's|it\s+is|that\s+is)\s+(?:alright|all\s+right|ok|okay|fine)(?:\s+with\s+\w+)?|if\s+possible|if\s+you\s+(?:agree|don't\s+mind)|perhaps|maybe|please)\s*,\s*/gi, ' ')
+        // "Shopify Payments, Stripe and PayPal": "and" inside a list of names joins them
+        .replace(/(\b[A-Z][\w'-]*),?\s+and\s+(?=[A-Z][a-z])/g, (m, name: string, at: number) => (at === 0 ? m : `${name} \u0026 `))
         .replace(/\b((?:how|what|when|where|why|which|whether)\s+(?:to|[\w']+\s+(?:can|could|should|will|would|may|might|must|do|does|did))\s+\w+)\s+and\s+/gi, '$1 \u0026 ')
         .replace(/\b((?:he|she|they|[A-Z][\w'-]*)\s+(?:will|can|could|should|would|may|might|must|'ll|is\s+going\s+to|are\s+going\s+to)\s+\w+)\s+and\s+/g, '$1 \u0026 ');
       for (const part of body.split(CLAUSE_SPLIT)) {

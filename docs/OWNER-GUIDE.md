@@ -752,7 +752,10 @@ key.
   headline" are ordinary work, while "Email the draft to the client", "Buy the stock photo for $29",
   "Delete the old folder" and "Post the announcement on LinkedIn" each wait for you. A done-when line
   that describes such an act ("the deposit is paid") counts as asking for it. Anyone named who is not
-  in the room counts as outside the team. When a sentence could go either way, it asks you.
+  in the room counts as outside the team. When a sentence could go either way, it asks you. It is a
+  safety net, not a guarantee: in independent tests with sentences it had never seen, it caught about
+  85 to 90 of every 100 risky requests, so unusually worded ones can slip past it. The Conductor's own
+  reading of the limits, and your decisions, remain the main check.
 * **Reported cards can be corrected for 2 hours.** If an agent sends the same card's report again, Tempo
   updates the report instead of making a copy. After about 2 hours it must start with a fresh card.
 * **Sign-in is protected.** Passwords need 10 characters or more. One address may try 20 times in 10

@@ -591,6 +591,35 @@ below has a test that fails on the code before the fix and passes after it.
     it is part of the ask. The 557 sentences joined the test: 2,321 reviewed sentences, 1,172 of them
     harmless, all passing.
 
+48. **A fourth blind review, and where the limits check stands.** Seven more reviewers (an online
+    shop, a client agency, a nonprofit, a solo founder's day, security and privacy chores, long
+    multi-line instructions, and very polite, indirect wording) wrote 560 new sentences without
+    seeing the code, and five judges checked every claimed mistake. The item 47 rules decided
+    correctly on 91.1%: 5 false alarms out of 278 harmless sentences, 45 misses out of 282 risky
+    ones, and 5 flagged under the wrong limit. Over half the misses were requests wrapped in
+    politeness: "It might be worth cancelling...", "Might I suggest we...", "I was thinking I might...",
+    "Would anyone mind if I...", "Perhaps Muse Sam could reply to the customer". These wrappings are
+    now stripped like the plainer ones, and a teammate asked to act ("could Bo message...", "Ada
+    should email...") counts as the act; "Henry can publish it" stays a person's own step. The rest
+    were fixed too: replying to customers' comments and reviews, uploading files to a supplier's
+    portal, "drop Priya at Hollis & Co a note", reordering stock from the supplier, ads with a daily
+    budget ("$50/day"), donations, covering the pizza, moving proceeds to a bank account, a paid
+    trial that asks for a card, upgrading to the next plan, "take it off the portfolio site", "and
+    dropping the rest", Dribbble, Behance and Pinterest as public places, "make it visible on the
+    website", and "schedule it to go live". A "posted" goal now needs a public place or public content
+    nearby ("the commitments list is posted" is not sharing). "Shopify Payments, Stripe and PayPal"
+    is one list, not a request to PayPal. The 560 sentences joined the test (2,879 in all, 1,450 of
+    them harmless), and every earlier sentence still passes.
+
+    Where this leaves the check, honestly: the three blind rounds scored 92.1%, 92.3% and 91.1% on
+    sentences the rules had never seen. False alarms stay low (between 1 and 5 in every 100 harmless
+    sentences), but each round, 11 to 16 in every 100 risky requests were worded in a way no rule
+    covered yet. Each round fixes those and the next finds new wording at about the same rate, so
+    more rounds would not change the picture much. The check is a safety net behind the Conductor,
+    which is told the limits and reads meaning, not patterns; the people approving decisions are the
+    final check. Rejected again: a model call per sentence (it costs money on every check-in, and the
+    net must work without an API key).
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

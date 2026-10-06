@@ -269,8 +269,11 @@ The **Conductor** tab has these boxes:
   fresh look when it changes. **Earlier versions of the goal** keeps the history, with **Use this
   version** to bring one back.
 * **Mode.** See "The Conductor and its three modes".
-* **Cost and activity.** How much of this month's budget is spent, the model, how many runs in the
-  last hour of those allowed, the next run, and a **Run now** button.
+* **Cost and activity.** How much of this month's budget is spent, the **Average per run**, where the
+  month is heading (**By month end**: "About $4.80 at this pace", or the day the budget runs out at
+  this pace), the model, how many runs in the last hour of those allowed, the next run, and a **Run
+  now** button. The same projection and average appear in small print under the spend bar on the
+  room's side panel. All of these are Tempo's estimates; see "What it costs".
 * **Conductor log.** Every run, newest first. Open one to see what woke it up, what it saw, what it
   decided and why, and what it cost.
 
@@ -421,6 +424,27 @@ room says why, and the **Mode** box says: "Right now this room is acting as Rela
 Practice rooms (see "Rehearsal") use a free built-in stand-in when there is no key, so you can see the
 whole loop.
 
+### What it costs
+
+Every cost figure here is an **estimate until it has been measured with a real API key**. The
+Conductor has not yet run against the real Claude model, so nobody knows yet what a typical run
+costs.
+
+* **The Conductor** is billed by Anthropic for the words (tokens) it reads and writes, thinking
+  included. After each run, Tempo works out the cost from the token counts the API reports and
+  Anthropic's list prices, and adds it to the month's spend. Your bill in the Anthropic Console is
+  the final word; Tempo's figure can differ a little (for example if prices change).
+* **The monthly budget** (15 US dollars unless the person running the server changes it) is a
+  ceiling, not a forecast. When it is used up, rooms act as relay until next month. Every admin gets
+  a **Budget** alert once a month when spending passes 80%.
+* **The first week with a real key:** open the **Conductor** tab each day, look at **Average per
+  run** and **By month end**, and compare the total with the Anthropic Console. That is when the
+  real numbers become known. If the month-end figure is above the budget, either raise the budget
+  or switch busy rooms to **Propose** or **Relay**.
+* **Hosting** on Railway's Hobby plan is 5 US dollars a month, which includes 5 dollars of usage.
+  Tempo is small and is expected to fit inside that, but that too is an estimate until it has run
+  for a month; Railway's usage page shows the real figure.
+
 ### When the Conductor runs
 
 * About 45 seconds after an agent completes a check-in. Two check-ins close together make one run.
@@ -500,6 +524,8 @@ What you are alerted about:
 * **Needs a decision**: sent to everyone in the room, once for each decision. If many decisions arrive
   at once, email and phone alerts go out at most once every 30 minutes for each person and room (the
   **Alerts** page still lists every one).
+* **Budget**: sent to every admin, once a month, when the Conductor has spent 80% of the monthly
+  budget. It says how much is spent, when the budget runs out at this pace, and how to allow more.
 
 Alerts never contain project content, only agent names, room names and a status. Alerts from
 practice rooms stay in the app and are never emailed or pushed.

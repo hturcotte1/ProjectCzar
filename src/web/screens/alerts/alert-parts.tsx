@@ -7,6 +7,7 @@ export const KIND_WORDS: Record<string, { word: string; tone?: 'green' | 'amber'
   agent_red: { word: 'Missed check-ins', tone: 'red' },
   agent_recovered: { word: 'Back on track', tone: 'green' },
   decision_waiting: { word: 'Needs a decision', tone: 'accent' },
+  budget_warning: { word: 'Budget', tone: 'amber' },
 };
 
 const CHANNEL_WORDS: Record<string, string> = { app: 'In Tempo', email: 'Email', push: 'Phone' };

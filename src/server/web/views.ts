@@ -15,7 +15,7 @@ import type {
   RoomSummary,
   RoomView,
 } from '../../shared/app-types.js';
-import { effectiveMode, modelForRoom, modelRunsLastHour, monthSpend } from '../conductor/budget.js';
+import { effectiveMode, modelForRoom, modelRunsLastHour, spendOutlook } from '../conductor/budget.js';
 import { feedEventId } from '../services/feed.js';
 import { agentRooms, getAgent, getPerson, roomAgents } from '../services/repo.js';
 import type { AgentRow, DecisionRow, FeedRow, InstructionRow, PersonRow, PlaybookRow, QuestionRow, RoomRow } from '../services/rows.js';
@@ -263,6 +263,8 @@ export function conductorSummary(ctx: AppContext, room: RoomRow): ConductorSumma
   const model = modelForRoom(ctx, room);
   const last = ctx.db.prepare('SELECT * FROM conductor_runs WHERE room_id = ? ORDER BY started_at DESC, rowid DESC LIMIT 1').get(room.id) as Record<string, any> | undefined;
   const state = ctx.db.prepare('SELECT pending_run_at FROM conductor_state WHERE room_id = ?').get(room.id) as { pending_run_at: string | null } | undefined;
+  const outlook = spendOutlook(ctx);
+  const round4 = (n: number) => Math.round(n * 10000) / 10000;
   return {
     mode: room.conductor_mode,
     effective_mode: eff.mode,
@@ -270,8 +272,12 @@ export function conductorSummary(ctx: AppContext, room: RoomRow): ConductorSumma
     model: model?.name ?? ctx.config.conductorModel,
     scripted: !!model?.scripted,
     has_key: !!ctx.integrations.conductorModel,
-    month_spent_usd: Math.round(monthSpend(ctx) * 10000) / 10000,
+    month_spent_usd: round4(outlook.spent),
     month_budget_usd: ctx.config.conductorMonthlyBudgetUsd,
+    month_paid_runs: outlook.paidRuns,
+    month_avg_run_usd: outlook.avgPerRun === null ? null : round4(outlook.avgPerRun),
+    month_projected_usd: outlook.projected === null ? null : round4(outlook.projected),
+    budget_runs_out_on: outlook.runsOutOn,
     runs_last_hour: modelRunsLastHour(ctx, room.id),
     max_runs_per_hour: ctx.config.conductorMaxRunsPerHour,
     pending_run_at: state?.pending_run_at ?? null,

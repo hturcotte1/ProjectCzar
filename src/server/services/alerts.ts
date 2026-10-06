@@ -11,7 +11,7 @@ import { getPerson } from './repo.js';
  *
  * Alert text never includes project content: only agent names, room names and status.
  */
-export type AlertKind = 'agent_red' | 'agent_recovered' | 'decision_waiting';
+export type AlertKind = 'agent_red' | 'agent_recovered' | 'decision_waiting' | 'budget_warning';
 
 export interface AlertRow {
   id: string;

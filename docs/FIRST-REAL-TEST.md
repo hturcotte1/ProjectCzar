@@ -318,7 +318,9 @@ Go through it and write the answers down.
 7. Did Muse ever stop to ask for approval? Did it refuse or hesitate over a card? Write down its
    words.
 8. If you have an Anthropic key set: open the **Conductor** tab and look at the cost so far this
-   month and the log of runs.
+   month, **Average per run**, **By month end** and the log of runs. Write the figures down and
+   compare the total with the Anthropic Console: until now every cost figure has been an estimate,
+   and this is the first real measurement.
 9. Leave it running overnight and **check at 8:15 am tomorrow**. Open the connection log. Was there
    an `initialize` or `server/discover` line, a `check_in` and a `report` around 8:00 am, with
    nobody touching Muse? This is the real test of a scheduled task. If it did not fire, use the

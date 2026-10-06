@@ -109,9 +109,9 @@ ones you will most likely touch:
 ## Putting it online
 
 For real agents, Tempo has to be on the public internet over https and must never go to sleep,
-because the scheduler runs inside it. The plan is Railway on its Hobby plan (about 5 US dollars a
-month): one service built from the `Dockerfile`, one disk mounted at `/data`, and a health check on
-`/healthz`. Fly.io is the fallback.
+because the scheduler runs inside it. The plan is Railway on its Hobby plan: one service built from
+the `Dockerfile`, one disk mounted at `/data`, and a health check on `/healthz`. Fly.io is the
+fallback.
 
 * Railway: the setup is written as code in `.railway/railway.ts`. The comment at the top of that
   file lists the exact steps.
@@ -119,6 +119,20 @@ month): one service built from the `Dockerfile`, one disk mounted at `/data`, an
 
 We will do the deploy together with Claude: Claude walks you through creating the account and
 signing in, then sets the variables, attaches the disk, gets the public address, and tests it.
+
+## What it costs
+
+These are estimates until Tempo has run with a real API key; nobody has measured them yet.
+
+* **Hosting:** Railway's Hobby plan is 5 US dollars a month and includes 5 dollars of usage. Tempo is
+  small and is expected to fit inside that; Railway's usage page shows the real figure.
+* **The Conductor:** Anthropic bills it by the token, thinking included. It has not yet run against
+  the real model, so the cost of a typical run is not known. Tempo stops it at the monthly budget
+  (`CONDUCTOR_MONTHLY_BUDGET_USD`, 15 US dollars by default), which is a ceiling, not a forecast, and
+  warns every admin once a month when spending passes 80%.
+* **How to find out:** in the first week with a key, compare the **Conductor** tab's **Average per
+  run** and **By month end** figures with the Anthropic Console. Tempo's figures are its own estimate
+  from the token counts the API reports and Anthropic's list prices; the Console is the final word.
 
 ## Commands
 

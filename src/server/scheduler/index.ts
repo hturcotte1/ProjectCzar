@@ -1,6 +1,7 @@
 import type { AppContext } from '../context.js';
 import { withTx } from '../context.js';
 import { iso } from '../lib/time.js';
+import { alertBudgetWarning } from '../conductor/budget.js';
 import { createAlert, deliverPendingAlerts } from '../services/alerts.js';
 import { markCardIncomplete } from '../services/checkin.js';
 import { roomPeople } from '../services/repo.js';
@@ -95,6 +96,7 @@ export class Scheduler {
             this.ctx.log.error({ job: job.name, err: (e as Error).message }, 'scheduled job failed');
           }
         }
+        alertBudgetWarning(this.ctx);
         pruneLogs(this.ctx);
         // In the background: a slow mail server must never hold up the tick.
         this.track(deliverPendingAlerts(this.ctx)).catch((e) => this.ctx.log.error({ err: (e as Error).message }, 'alert delivery failed'));

@@ -2,7 +2,7 @@ import type { RoomDetail } from '../../../shared/app-types';
 import { linkProps } from '../../lib/router';
 import { Pill, Time } from '../../components/ui';
 import { SafeText } from '../../components/SafeText';
-import { MODE_WORDS, NextRun, RunNowButton, STATUS_WORDS, SpendBar, forcedModeLabel, sentence, spentText } from './conductor-common';
+import { MODE_WORDS, NextRun, RunNowButton, STATUS_WORDS, SpendBar, averageText, forcedModeLabel, projectionText, sentence, spentText } from './conductor-common';
 import { money } from '../../lib/format';
 import './room-c.css';
 
@@ -67,6 +67,11 @@ export function ConductorCompact({ detail, onChanged }: { detail: RoomDetail; on
           </span>
         </div>
         <SpendBar spent={c.month_spent_usd} budget={c.month_budget_usd} />
+        {(projectionText(c) || averageText(c)) && (
+          <p className="tiny muted c-outlook" data-testid="spend-outlook">
+            {[projectionText(c), averageText(c)].filter(Boolean).join(' · ')}
+          </p>
+        )}
       </div>
 
       <div>

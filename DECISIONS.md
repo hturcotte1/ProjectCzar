@@ -420,6 +420,36 @@ below has a test that fails on the code before the fix and passes after it.
     that needs changing), and lowering effort automatically on a retry (it would quietly change the
     quality of the Conductor's answers).
 
+41. **Honest cost: an average, a projection, an 80% alert, and "estimate" written plainly.** The
+    budget used to be a single "spent so far" number, and the guides gave hosting and Conductor
+    costs without saying nobody had measured them.
+    * The Conductor's **Cost and activity** box shows **Average per run** (paid Conductor runs this
+      month across all rooms; briefs count toward the spend but are not runs) and **By month end**:
+      a straight-line projection at this month's pace, or the day the budget runs out at that pace.
+      The room's side panel shows the same two figures in small print under the spend bar.
+    * The pace is this month's spend divided by the time it covers: from the start of the month, or
+      from the first paid call ever when Tempo started spending mid-month (otherwise the first month
+      after deploy would look far cheaper than it is), and never less than one day (so a busy first
+      hour does not project wildly). Weekends are not modeled; the panel says the figure assumes
+      the rest of the month goes like it has so far.
+    * Every admin gets one **Budget** alert a month when spending passes 80% of the budget: in the
+      app, and by email and phone like any other alert. It says the amount, the share, when the
+      budget runs out at this pace, and how to allow more; no room names or project content. If
+      spending jumps past 100% in one go, the same alert says the budget is used up. Checked on
+      every scheduler tick (cheap: one sum, and nothing more once every admin has this month's
+      alert). Rejected: also alerting at 50% and 100% (the relay banner already covers 100%, and
+      more alerts get ignored).
+    * README.md, docs/OWNER-GUIDE.md and docs/FIRST-REAL-TEST.md now say that every cost figure is
+      an estimate until measured with a real key: the Conductor has never run against the real
+      model, the budget is a ceiling and not a forecast, Railway's Hobby plan is $5 a month
+      including $5 of usage (Tempo is expected to fit, unmeasured), and the Anthropic Console is the
+      final word. The first real test now asks for the figures to be written down and compared.
+
+    `tests/cost-outlook.test.ts` checks the average and projection (including a mid-month start and
+    a first busy hour), the panel fields, the alert (once per admin per month, admins only, not
+    disabled accounts, email and phone sent, no project content, again next month) and an alert
+    caused by a real Conductor run.
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

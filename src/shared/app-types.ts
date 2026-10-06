@@ -255,6 +255,14 @@ export interface ConductorSummary {
   has_key: boolean;
   month_spent_usd: number;
   month_budget_usd: number;
+  /** Conductor runs this month (every room) that called a paid model. */
+  month_paid_runs: number;
+  /** Their average cost; null before the first one. Briefs are counted in the spend, not here. */
+  month_avg_run_usd: number | null;
+  /** Straight-line month-end total at this month's pace; null before any spending. */
+  month_projected_usd: number | null;
+  /** The day (yyyy-mm-dd) the budget would run out at this pace, when that is before the month ends. */
+  budget_runs_out_on: string | null;
   runs_last_hour: number;
   max_runs_per_hour: number;
   pending_run_at: string | null;

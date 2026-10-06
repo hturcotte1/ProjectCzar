@@ -20,23 +20,13 @@ import {
   type FeedFilters,
 } from './feed-model';
 import './feed.css';
+import { useMediaQuery } from '../../lib/media';
 
 type Intent = { type: 'bottom' } | { type: 'keep'; height: number; top: number };
 interface Unseen {
   key: string;
   /** The changed row is above what the person is looking at. */
   up: boolean;
-}
-
-function useMediaQuery(query: string): boolean {
-  const [on, setOn] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const m = window.matchMedia(query);
-    const fn = () => setOn(m.matches);
-    m.addEventListener('change', fn);
-    return () => m.removeEventListener('change', fn);
-  }, [query]);
-  return on;
 }
 
 function findRow(scroller: HTMLElement, key: string): HTMLElement | null {

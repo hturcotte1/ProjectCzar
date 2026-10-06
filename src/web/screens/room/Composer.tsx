@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type FormEvent, type KeyboardEvent } from 'react';
 import type { AgentView, RoomDetail } from '../../../shared/app-types';
 import { api } from '../../lib/api';
 import { useToast } from '../../components/ui';
@@ -9,6 +9,9 @@ import './feed.css';
 /**
  * Where people write to the room: a note for everyone, a question, or an instruction for one agent
  * (or for every agent). Type "@" to mention an agent. Ctrl or Cmd + Enter sends.
+ *
+ * It sits as one line under the feed until someone taps or tabs into it; then To, Type and the rest
+ * open. It folds back to one line when focus leaves it with nothing written or chosen.
  */
 
 type Kind = 'note' | 'question' | 'instruction';
@@ -27,6 +30,11 @@ interface Draft {
 }
 
 const EMPTY: Draft = { text: '', kind: 'note', to: 'room', toManual: false, doneWhen: '', priority: 'normal', due: '' };
+
+/** Nothing written and nothing chosen: safe to fold the composer back to one line. */
+function isBlank(d: Draft): boolean {
+  return !d.text.trim() && !d.doneWhen.trim() && d.kind === 'note' && d.to === 'room' && d.priority === 'normal' && !d.due;
+}
 const MAX_TEXT = 2000;
 
 /** Unsent drafts survive switching tabs inside the room (the composer unmounts). */
@@ -69,6 +77,7 @@ export function Composer({ detail }: { detail: RoomDetail }) {
   const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState<number | null>(null);
   const [more, setMore] = useState(() => (drafts.get(roomId)?.priority ?? 'normal') !== 'normal' || !!drafts.get(roomId)?.due);
+  const [open, setOpen] = useState(() => !isBlank(drafts.get(roomId) ?? EMPTY));
   const taRef = useRef<HTMLTextAreaElement>(null);
   const pendingCaret = useRef<number | null>(null);
 
@@ -81,6 +90,7 @@ export function Composer({ detail }: { detail: RoomDetail }) {
 
   useEffect(() => {
     setDraftState(drafts.get(roomId) ?? EMPTY);
+    setOpen(!isBlank(drafts.get(roomId) ?? EMPTY));
     setError(null);
   }, [roomId]);
 
@@ -126,7 +136,7 @@ export function Composer({ detail }: { detail: RoomDetail }) {
     // grow with the text, up to the height set in CSS
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight + 2, 200)}px`;
-  }, [draft.text, kind]);
+  }, [draft.text, kind, open]);
 
   // ---------------------------------------------------------------- sending
 
@@ -186,6 +196,17 @@ export function Composer({ detail }: { detail: RoomDetail }) {
         return;
       }
     }
+    // Escape with nothing written folds the composer back to one line.
+    if (e.key === 'Escape' && open && isBlank(draft)) {
+      e.preventDefault();
+      setOpen(false);
+    }
+  };
+
+  // Fold back to one line when focus leaves the composer and nothing was written or chosen.
+  const onFormBlur = (e: FocusEvent<HTMLFormElement>) => {
+    if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+    if (isBlank(draft) && !error && !busy) setOpen(false);
   };
 
   // Ctrl or Cmd + Enter sends from anywhere in the composer.
@@ -199,43 +220,52 @@ export function Composer({ detail }: { detail: RoomDetail }) {
   const listId = 'cmp-mention-list';
 
   return (
-    <form className="composer" onSubmit={onSubmit} onKeyDown={onFormKeyDown} aria-label="Write to the room">
-      {detail.room.paused && <div className="cmp-paused">This room is paused. Agents won't act on anything until it is resumed, but you can still write.</div>}
+    <form
+      className={`composer${open ? '' : ' composer-folded'}`}
+      onSubmit={onSubmit}
+      onKeyDown={onFormKeyDown}
+      onFocus={() => setOpen(true)}
+      onBlur={onFormBlur}
+      aria-label="Write to the room"
+    >
+      {open && detail.room.paused && <div className="cmp-paused">This room is paused. Agents won't act on anything until it is resumed, but you can still write.</div>}
 
-      <div className="cmp-row">
-        <div className="cmp-pick">
-          <label htmlFor="cmp-to">To</label>
-          <select
-            id="cmp-to"
-            className="select"
-            value={to}
-            onChange={(e) => {
-              const v = e.target.value;
-              setDraft({ to: v, toManual: true, kind: v === 'conductor' && draft.kind === 'instruction' ? 'note' : draft.kind });
-            }}
-          >
-            <option value="room">Whole room</option>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-            <option value="conductor">The Conductor</option>
-          </select>
+      {open && (
+        <div className="cmp-row">
+          <div className="cmp-pick">
+            <label htmlFor="cmp-to">To</label>
+            <select
+              id="cmp-to"
+              className="select"
+              value={to}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDraft({ to: v, toManual: true, kind: v === 'conductor' && draft.kind === 'instruction' ? 'note' : draft.kind });
+              }}
+            >
+              <option value="room">Whole room</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+              <option value="conductor">The Conductor</option>
+            </select>
+          </div>
+          <div className="cmp-pick">
+            <label htmlFor="cmp-kind">Type</label>
+            <select id="cmp-kind" className="select" value={kind} onChange={(e) => setDraft({ kind: e.target.value as Kind })}>
+              {(Object.keys(KIND_WORDS) as Kind[]).map((k) => (
+                <option key={k} value={k} disabled={k === 'instruction' && to === 'conductor'}>
+                  {KIND_WORDS[k]}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div className="cmp-pick">
-          <label htmlFor="cmp-kind">Type</label>
-          <select id="cmp-kind" className="select" value={kind} onChange={(e) => setDraft({ kind: e.target.value as Kind })}>
-            {(Object.keys(KIND_WORDS) as Kind[]).map((k) => (
-              <option key={k} value={k} disabled={k === 'instruction' && to === 'conductor'}>
-                {KIND_WORDS[k]}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      )}
 
-      {kind === 'instruction' && (
+      {open && kind === 'instruction' && (
         <div className="cmp-extra">
           <div className="cmp-inline cmp-done">
             <label htmlFor="cmp-done">Done when</label>
@@ -286,10 +316,11 @@ export function Composer({ detail }: { detail: RoomDetail }) {
           id="cmp-text"
           ref={taRef}
           className="textarea"
-          rows={2}
+          rows={open ? 2 : 1}
           value={draft.text}
           maxLength={MAX_TEXT}
-          placeholder={PLACEHOLDERS[kind]}
+          placeholder={open ? PLACEHOLDERS[kind] : 'Write to the room…'}
+          onClick={() => setOpen(true)}
           onChange={(e) => {
             setDraft({ text: e.target.value });
             setCaret(e.target.selectionStart);
@@ -315,10 +346,12 @@ export function Composer({ detail }: { detail: RoomDetail }) {
       )}
 
       <div className="cmp-foot">
-        <div className="cmp-hint" aria-live="polite">
-          {hint(kind, to, toAgent, agents.length, !!autoTarget)}
-          {draft.text.length > MAX_TEXT - 300 && <span className="cmp-count"> {draft.text.length.toLocaleString()} of {MAX_TEXT.toLocaleString()} characters.</span>}
-        </div>
+        {open && (
+          <div className="cmp-hint" aria-live="polite">
+            {hint(kind, to, toAgent, agents.length, !!autoTarget)}
+            {draft.text.length > MAX_TEXT - 300 && <span className="cmp-count"> {draft.text.length.toLocaleString()} of {MAX_TEXT.toLocaleString()} characters.</span>}
+          </div>
+        )}
         <div className="cmp-send">
           <button type="submit" className="btn btn-primary" disabled={!canSend}>
             {busy ? 'Sending…' : 'Send'}

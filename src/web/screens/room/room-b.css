@@ -3,6 +3,30 @@
  * Tokens only (var(--...)), so light and dark themes both work.
  */
 
+/* ------------------------------------------------------------ relay banner */
+.room-banner {
+  margin: 10px 16px 0;
+  align-items: center;
+}
+.room-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+.room-banner-short {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.room-banner-short .room-banner-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.room-banner-more {
+  flex: none;
+  min-height: 30px;
+  padding: 2px 10px;
+}
+
 /* ------------------------------------------------------------ agent strip */
 .agent-strip {
   scroll-snap-type: x proximity;
@@ -15,14 +39,25 @@
 }
 .strip-item {
   display: flex;
-  flex: 0 0 auto;
+  flex: 1 0 232px;
+  min-width: 0;
+  max-width: 300px;
   scroll-snap-align: start;
 }
+.strip-chips .strip-item {
+  flex: 0 0 auto;
+  max-width: none;
+}
+.agent-strip:not(.strip-empty) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
 .strip-tile {
-  width: 232px;
+  width: 100%;
   max-width: none;
   min-width: 0;
-  gap: 4px;
+  gap: 2px;
+  padding: 6px 12px;
   color: var(--text);
   text-decoration: none;
 }
@@ -44,27 +79,105 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+/* The name keeps its room; the "Your Muse" label gives way first. */
+.strip-name {
+  flex: 0 1 auto;
+  min-width: 4em;
+}
 .strip-type {
   margin-left: auto;
-  flex: none;
+  flex: 0 4 auto;
+  min-width: 2.5em;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.7rem;
 }
-.strip-reason {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+/* One line each, so the strip stays short and the feed keeps the screen; the tooltip has the reason. */
+.strip-reason,
+.strip-times {
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
   line-height: 1.35;
 }
 .strip-times {
+  color: var(--text-muted);
+}
+
+/* Phones: one row of chips; the one tapped opens its details underneath. */
+.strip-chips {
+  padding: 7px 12px;
+  gap: 8px;
+}
+.strip-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 230px;
+  min-height: 38px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.strip-chip[data-light='amber'] {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+}
+.strip-chip[data-light='red'] {
+  border-color: color-mix(in srgb, var(--red) 50%, var(--border));
+}
+.strip-chip.open {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.strip-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.strip-chip-name {
+  font-weight: 650;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.strip-chip-due {
+  flex: none;
+}
+.strip-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 14px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+.strip-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.strip-detail-head .name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.strip-detail-reason {
+  margin: 0;
+}
+.strip-detail-times {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  color: var(--text-muted);
-}
-.strip-owner {
-  margin-top: auto;
-  padding-top: 2px;
+  margin: 0;
 }
 
 /* ------------------------------------------------------------ lanes */

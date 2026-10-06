@@ -5,6 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
  * Browser checks for the control room (definition of done #10 and #14):
  *  - new events reach an open control room within about two seconds, without a refresh;
  *  - the layout is usable at 380 px wide;
+ *  - the feed gets most of the screen, and what is folded away is one tap away;
  *  - agent-written script shows as harmless text;
  *  - light and dark themes both render.
  * The server is the seeded throwaway Tempo started by playwright.config.ts.
@@ -98,6 +99,86 @@ test('is usable at 380 px wide', async ({ page }) => {
   const send = page.getByRole('button', { name: /^Pause all$/ });
   expect((await send.boundingBox())!.height).toBeGreaterThanOrEqual(28);
 });
+
+/** The share of the window the feed's list of items takes (the part people read). */
+async function feedShare(page: Page): Promise<number> {
+  await expect(page.locator('.feed')).toBeVisible();
+  return page.evaluate(() => {
+    const b = document.querySelector('.feed')!.getBoundingClientRect();
+    const visible = Math.max(0, Math.min(b.bottom, window.innerHeight) - Math.max(b.top, 0));
+    return visible / window.innerHeight;
+  });
+}
+
+for (const size of [
+  { width: 1280, height: 860, least: 0.55 },
+  { width: 380, height: 800, least: 0.45 },
+]) {
+  test(`the feed gets at least ${Math.round(size.least * 100)}% of a ${size.width}x${size.height} screen`, async ({ page }) => {
+    const s = seed();
+    await page.setViewportSize({ width: size.width, height: size.height });
+    await signIn(page);
+    await page.goto(`/rooms/${s.room_id}`);
+    // The first time, the relay banner is shown in full.
+    const banner = page.locator('.room-banner');
+    await expect(banner).toContainText('Relay mode: the Conductor is off');
+    await expect(banner.getByRole('button', { name: 'More', exact: true })).toHaveCount(0);
+    const first = await feedShare(page);
+    // After it has been seen, it is one line.
+    await page.reload();
+    await expect(banner.getByRole('button', { name: 'More', exact: true })).toBeVisible();
+    const share = await feedShare(page);
+    console.log(`feed share at ${size.width}x${size.height}: ${(first * 100).toFixed(1)}% on the first visit, ${(share * 100).toFixed(1)}% after`);
+    expect(share).toBeGreaterThanOrEqual(size.least);
+    expect(first).toBeGreaterThanOrEqual(size.least - 0.05);
+    // No sideways scrolling of the page.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+
+    // Everything folded away is still there.
+    // The banner's whole text, one tap away.
+    await banner.getByRole('button', { name: 'More', exact: true }).click();
+    await expect(banner.getByRole('button', { name: 'Less', exact: true })).toBeVisible();
+    await expect(banner).not.toHaveClass(/room-banner-short/);
+
+    // The composer: one line until tapped; then To and Type; it folds back with Escape when empty.
+    const composer = page.locator('form.composer');
+    await expect(composer).toHaveClass(/composer-folded/);
+    await expect(page.getByLabel('To', { exact: true })).toHaveCount(0);
+    await composer.locator('textarea').click();
+    await expect(page.getByLabel('To', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Type', { exact: true })).toBeVisible();
+    await page.getByLabel('Type', { exact: true }).selectOption('instruction');
+    await expect(page.getByLabel('Done when')).toBeVisible();
+    // Something chosen: it stays open when focus leaves.
+    await page.locator('.feed').click({ position: { x: 5, y: 5 } });
+    await expect(composer).not.toHaveClass(/composer-folded/);
+    await page.getByLabel('Type', { exact: true }).selectOption('note');
+    await composer.locator('textarea').focus();
+    await page.keyboard.press('Escape');
+    await expect(composer).toHaveClass(/composer-folded/);
+
+    const muse = s.agents.find((a) => a.name === 'Muse Henry')!;
+    if (size.width < 600) {
+      // Phones: one row per agent; a tap shows the rest, including the way to the agent's page.
+      const chip = page.getByRole('button', { name: /Muse Henry/ });
+      expect((await chip.boundingBox())!.height).toBeLessThanOrEqual(44);
+      await chip.click();
+      const detail = page.getByRole('region', { name: 'About Muse Henry' });
+      await expect(detail).toContainText('Owner: Henry (you)');
+      await expect(detail).toContainText(/Next due|Was due/);
+      await expect(detail.getByRole('link', { name: "Open Muse Henry's page" })).toHaveAttribute('href', `/agents/${muse.id}`);
+      await detail.getByRole('button', { name: 'Close' }).click();
+      await expect(detail).toHaveCount(0);
+    } else {
+      // Wide screens: a short tile per agent, with whose it is, why its light is that colour, and times.
+      const tile = page.locator('.strip-tile', { hasText: 'Muse Henry' }).first();
+      await expect(tile).toContainText('Your Muse');
+      await expect(tile).toContainText('On time.');
+      await expect(tile).toHaveAttribute('href', `/agents/${muse.id}`);
+      await expect(page.locator('.strip-tile', { hasText: 'Muse Sam' }).first()).toContainText("Sam's Muse");
+    }
+  });
+}
 
 test('agent-written script is shown as harmless text', async ({ page }) => {
   const s = seed();

@@ -203,8 +203,8 @@ At 10:00 am (or a few minutes after) watch for these, in this order:
 
 1. **The connection log** shows a `check_in` and then a `report`, which you did not trigger. This is
    the real proof. Muse's scheduler may start a minute or two late. That is normal.
-2. **The agent's tile** in the strip at the top of the room shows "Last check-in" a few minutes ago
-   and "Next due" in about an hour.
+2. **The agent's tile** in the strip at the top of the room shows "last check-in" a few minutes ago
+   and "Next due" in about an hour. (On a phone, tap Muse's row in the strip to see both.)
 3. **The light** stays green. Here are the exact rules for the light:
    * Green: the last completed check-in was on time. A check-in counts for a scheduled time if it
      arrives from 30 minutes before to 15 minutes after.
@@ -223,7 +223,8 @@ before `check_in`. Muse's software may reconnect for every run. That is normal.
 
 ## Step 6: Give Muse something to do (10:30 am)
 
-1. In the room, click the **Feed** tab. At the bottom is the composer.
+1. In the room, click the **Feed** tab. At the bottom is the composer: click the line that says
+   "Write to the room…" to open it.
 2. In **To**, choose Muse. In **Type**, choose **Instruction**.
 3. Write one clear, small instruction. Fill in **Done when** with a line that says how you will know
    it is finished. For example: "Draft a one-page outline of the launch email." Done when: "The

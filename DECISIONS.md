@@ -475,6 +475,37 @@ below has a test that fails on the code before the fix and passes after it.
     and lesson through the web-request door, adds a multi-line instruction from a person, reads the
     other agent's page as plain text, and checks that no line of it starts with the agent's words.
 
+44. **The feed gets most of the screen.** Measured on the seeded demo room (four agents, relay
+    banner showing, as the review saw it), the feed's list of items had 34% of a 1280x860 window
+    and 28% of a 380x800 phone; the agent tiles (148 px), the composer (170 to 190 px) and the
+    banner took the rest. Now:
+    * **Phones (600 px wide or less):** each agent is a one-row chip (light, name, "due in 34 min").
+      Tapping a chip opens its details underneath (why the light is that colour, last check-in,
+      next due, owner and, for your own agent, a link to its page); tapping again or **Close**
+      folds it. Chips are buttons, so they work from the keyboard too.
+    * **Wider screens:** tiles are three short lines instead of five. Owner and kind share one
+      label ("Your Muse", "Sam's Instinct"); the reason and the times are one line each, cut short
+      with "…" when long, and the tooltip holds the whole line. Due time comes first on the times
+      line, so the more useful half is the one that survives. Tiles widen to fill the row.
+    * **Composer:** one line ("Write to the room…" and **Send**) until someone clicks, taps or tabs
+      into it; then To, Type, Done when, the hint and the shortcut appear. It is the same text box
+      either way, so focus and a half-typed message are never lost. It folds back when focus
+      leaves it with nothing written or chosen, or on Escape in an empty box; anything chosen (an
+      instruction, an agent, a due date) keeps it open.
+    * **Relay banner:** shown in full the first time each browser sees a given banner; after that
+      it is one line with **More** (and **Less**). Remembered per browser in local storage (a
+      convenience: if storage is blocked, the banner simply stays in full). A different banner,
+      such as "budget used up", is shown in full once again. The paused-room banner is unchanged:
+      it is rare and important.
+
+    Result, measured by the browser test `the feed gets at least ...` (it fails on the old build):
+    1280x860, 55.5% on the first visit and 58.5% once the banner has been seen; 380x800, 54.2% and
+    60.0%. The test asserts the review's targets (55% and 45%) once the banner has been seen, no more
+    than 5 points below on the first visit, no sideways scrolling, and that everything folded
+    away (the whole banner, To and Type, the agent details and the link to the agent's page) is one
+    tap away. Rejected: hiding the strip or the filter bar behind a toggle (the lights are the
+    point of the room page), and a smaller font (harder to read for the people this is for).
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

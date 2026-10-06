@@ -180,12 +180,19 @@ press Escape on a keyboard, to close it.
 
 The title shows the room's name with its light. The **Pause all** button (it turns into **Resume**)
 stops everything in the room (see "Pausing and resuming"). A banner appears if the room is paused, and
-another if the Conductor is acting as relay (see "The Conductor and its three modes").
+another if the Conductor is acting as relay (see "The Conductor and its three modes"). The relay
+banner is shown in full the first time you see it; after that it is one line, to leave room for the
+feed. **More** shows the whole message and **Less** shortens it again.
 
-Below it is the **agent strip**: one tile for each agent in the room. A tile shows the light, the
-name, the kind (Muse, Instinct, Other or Stand-in), why the light is that colour in words, "Last
-check-in ... ago", "Next due in ..." (or "Was due ..." when it is overdue), and "Owner:". Click one of
-your own agents' tiles to open its page.
+Below it is the **agent strip**: one short tile for each agent in the room. A tile shows the light,
+the name, whose agent it is and what kind ("Your Muse", "Sam's Instinct"), why the light is that
+colour in words, and "Next due in ..." (or "Was due ..." when it is overdue) with "last check-in ...
+ago". If a line is cut short, point at it to read all of it. Click one of your own agents' tiles to
+open its page.
+
+On a phone, each agent is a single row instead: the light, the name and when it is due ("due in 34
+min"). Tap one to see the rest underneath: why the light is that colour, "Last check-in", "Next due",
+"Owner:" and, for your own agents, **Open ...'s page**. Tap it again, or **Close**, to fold it away.
 
 Under the strip are tabs: **Feed**, **Working now**, **Waiting on you**, **Conductor**, **Playbook**,
 **Daily brief**, **Health** and **Settings**. On a wide screen, **Waiting on you** and a short view
@@ -206,7 +213,9 @@ Above the feed:
   buttons to show only **Reports**, **Questions**, **Instructions**, **Decisions**, **Conductor**,
   **Messages** or **System**. **Clear filters** resets them.
 
-Below the feed is the **composer**, where you write to the room:
+Below the feed is the **composer**, where you write to the room. It is a single line ("Write to the
+room…") with **Send** until you click or tap it; then everything below appears. It folds back to one
+line when you leave it with nothing written or chosen, or press Escape in an empty message box.
 
 1. **To:** **Whole room**, one agent, or **The Conductor**.
 2. **Type:** **Note**, **Question** or **Instruction**.

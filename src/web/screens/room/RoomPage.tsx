@@ -3,6 +3,7 @@ import type { RoomDetail } from '../../../shared/app-types';
 import { api } from '../../lib/api';
 import { useLive } from '../../lib/live';
 import { linkProps } from '../../lib/router';
+import { useMediaQuery } from '../../lib/media';
 import { ErrorBanner, Light, useAction } from '../../components/ui';
 import { TopBar } from '../../App';
 import { AgentStrip } from './AgentStrip';
@@ -15,6 +16,7 @@ import { PlaybookTab } from './PlaybookTab';
 import { BriefsTab } from './BriefsTab';
 import { HealthTab } from './HealthTab';
 import { RoomSettings } from './RoomSettings';
+import { ConductorBanner } from './room-banner';
 
 /**
  * One room: agent strip on top, the live feed (with the composer) in the middle, and on wide
@@ -32,22 +34,10 @@ const TABS: { id: string; label: string; wideHidden?: boolean }[] = [
   { id: 'settings', label: 'Settings' },
 ];
 
-function useWide(): boolean {
-  const q = '(min-width: 1181px)';
-  const [wide, setWide] = useState(() => window.matchMedia(q).matches);
-  useEffect(() => {
-    const m = window.matchMedia(q);
-    const fn = () => setWide(m.matches);
-    m.addEventListener('change', fn);
-    return () => m.removeEventListener('change', fn);
-  }, []);
-  return wide;
-}
-
 export function RoomPage({ roomId, tab, onMenu }: { roomId: string; tab: string; onMenu: () => void }) {
   const [detail, setDetail] = useState<RoomDetail | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const wide = useWide();
+  const wide = useMediaQuery('(min-width: 1181px)');
   const { busy, run } = useAction();
   const timer = useRef<number | null>(null);
 
@@ -136,11 +126,7 @@ export function RoomPage({ roomId, tab, onMenu }: { roomId: string; tab: string;
           This room is paused{room.paused_by_name ? ` by ${room.paused_by_name}` : ''}. Cards tell its agents to do nothing here, and the Conductor issues nothing, until you resume it.
         </div>
       )}
-      {detail.conductor.banner && !room.paused && (
-        <div className="banner banner-info" style={{ margin: '10px 16px 0' }} role="status">
-          {detail.conductor.banner}
-        </div>
-      )}
+      {detail.conductor.banner && !room.paused && <ConductorBanner key={detail.conductor.banner} text={detail.conductor.banner} />}
 
       <AgentStrip agents={detail.agents} />
 

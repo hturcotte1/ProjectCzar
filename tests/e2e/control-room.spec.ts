@@ -70,10 +70,24 @@ test('is usable at 380 px wide', async ({ page }) => {
   const box = page.locator('.composer textarea');
   await expect(box).toBeVisible();
   expect((await box.boundingBox())!.width).toBeGreaterThan(250);
-  // The room list opens from the menu button.
-  await page.getByRole('button', { name: 'Open the room list' }).click();
+  // The room list opens from the menu button, and closes on a tap on the dimmed area beside it.
+  // The tap must land where the menu does not cover the dimmed area: the menu sits on top of the
+  // left part, so a tap in the middle of the screen would hit the menu, not the dimmed area.
+  const menuButton = page.getByRole('button', { name: 'Open the room list' });
+  await menuButton.click();
   await expect(page.locator('.sidebar.open')).toBeVisible();
-  await page.locator('.scrim').click();
+  const menuRight = await page.locator('.sidebar').evaluate((el) => el.getBoundingClientRect().width);
+  expect(menuRight).toBeLessThan(370);
+  await page.locator('.scrim').click({ position: { x: Math.round((menuRight + 380) / 2), y: 400 } });
+  await expect(page.locator('.sidebar.open')).toHaveCount(0);
+  await expect(page.locator('.scrim')).toHaveCount(0);
+  // Escape closes it too, and puts the keyboard focus back on the menu button.
+  await menuButton.click();
+  await expect(page.locator('.sidebar.open')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.sidebar.open')).toHaveCount(0);
+  await expect(page.locator('.scrim')).toHaveCount(0);
+  await expect(menuButton).toBeFocused();
   // Tabs work: "Working now" shows one lane per agent.
   await page.getByRole('tab', { name: 'Working now' }).click();
   for (const a of s.agents) await expect(page.getByText(a.name).first()).toBeVisible();

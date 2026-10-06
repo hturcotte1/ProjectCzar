@@ -173,7 +173,8 @@ agent** so its own repeating task matches.
 * A small dot next to "Tempo" at the top: green means live updates are on, amber means live updates
   are unavailable and the page is refreshing every few seconds, gray means it is connecting.
 
-On a phone, the list opens from the menu button at the top left.
+On a phone, the list opens from the menu button at the top left. Tap the dimmed area beside it, or
+press Escape on a keyboard, to close it.
 
 ### A room: the top
 

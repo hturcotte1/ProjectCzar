@@ -450,6 +450,17 @@ below has a test that fails on the code before the fix and passes after it.
     disabled accounts, email and phone sent, no project content, again next month) and an alert
     caused by a real Conductor run.
 
+42. **The phone menu closes on Escape, and the 380 px browser test taps where the menu is not.**
+    The test tapped the middle of the dimmed area (the scrim), but on a 380 px screen the room list
+    covers the left 300 px, so the middle of the scrim sits under the menu. The tap only worked
+    when it happened during the menu's 0.18-second slide-in; on a busier machine Playwright found
+    the menu in the way and timed out. Reproduced by waiting for the slide to finish before the old
+    tap: it fails every time with "nav intercepts pointer events". The test now measures the menu and
+    taps halfway between its right edge and the screen's edge, then checks the menu and scrim are
+    gone. Escape now closes the menu too and puts the keyboard focus back on the button that opened
+    it; the same test presses Escape and checks both (that part fails on the old build). The
+    browser tests ran ten times in a row on this test alone without a failure.
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

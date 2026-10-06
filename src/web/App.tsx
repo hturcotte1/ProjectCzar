@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { MeResponse, RoomSummary } from '../shared/app-types';
 import { api, onSignedOut, setCsrfToken } from './lib/api';
 import { live, useLive, useLiveStatus } from './lib/live';
@@ -71,6 +71,24 @@ function Shell({ me, path, reload }: { me: MeResponse; path: string; reload: () 
   useEffect(() => setUnread(me.unread_alerts), [me.unread_alerts]);
   useEffect(() => setMenuOpen(false), [path]);
 
+  // On phones the room list slides over the page. It closes on a tap beside it or on Escape, and
+  // Escape puts the keyboard focus back on the button that opened it.
+  const opener = useRef<HTMLElement | null>(null);
+  const openMenu = useCallback(() => {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setMenuOpen(true);
+  }, []);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setMenuOpen(false);
+      opener.current?.focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
   const refreshRooms = useCallback(async () => {
     try {
       setRooms(await api.get<RoomSummary[]>('/rooms'));
@@ -91,13 +109,13 @@ function Shell({ me, path, reload }: { me: MeResponse; path: string; reload: () 
   const agentMatch = match('/agents/:id', path);
 
   let content: ReactNode;
-  if (roomMatch) content = <RoomPage key={roomMatch.id} roomId={roomMatch.id} tab={roomMatch.tab ?? 'feed'} onMenu={() => setMenuOpen(true)} />;
-  else if (path === '/agents') content = <Page title="Agents" onMenu={() => setMenuOpen(true)}><AgentsPage /></Page>;
-  else if (agentMatch) content = <Page title="Agent" onMenu={() => setMenuOpen(true)}><AgentDetailPage agentId={agentMatch.id} /></Page>;
-  else if (path.startsWith('/settings')) content = <Page title="Settings" onMenu={() => setMenuOpen(true)}><SettingsPage /></Page>;
-  else if (path === '/alerts') content = <Page title="Alerts" onMenu={() => setMenuOpen(true)}><AlertsPage /></Page>;
-  else if (path === '/rehearsal') content = <Page title="Rehearsal" onMenu={() => setMenuOpen(true)}><RehearsalPage /></Page>;
-  else content = <Home rooms={rooms} onMenu={() => setMenuOpen(true)} />;
+  if (roomMatch) content = <RoomPage key={roomMatch.id} roomId={roomMatch.id} tab={roomMatch.tab ?? 'feed'} onMenu={openMenu} />;
+  else if (path === '/agents') content = <Page title="Agents" onMenu={openMenu}><AgentsPage /></Page>;
+  else if (agentMatch) content = <Page title="Agent" onMenu={openMenu}><AgentDetailPage agentId={agentMatch.id} /></Page>;
+  else if (path.startsWith('/settings')) content = <Page title="Settings" onMenu={openMenu}><SettingsPage /></Page>;
+  else if (path === '/alerts') content = <Page title="Alerts" onMenu={openMenu}><AlertsPage /></Page>;
+  else if (path === '/rehearsal') content = <Page title="Rehearsal" onMenu={openMenu}><RehearsalPage /></Page>;
+  else content = <Home rooms={rooms} onMenu={openMenu} />;
 
   return (
     <div className="shell">

@@ -27,13 +27,27 @@ function stem(word: string): string {
   return word.replace(/(?:ing|ed|es|s)$/, '');
 }
 
+/** What a flag says if the check itself fails: it asks a person rather than letting the text through. */
+export const UNREADABLE = 'something the limits check could not read';
+
 /**
  * Returns the limit the text appears to cross (e.g. "spending money"), or null.
  * `team` is the names of the room's people and agents: anyone else the text names is outside the
  * team ("Email Dana at Acme"). Without it, only roles and companies count as outsiders.
+ * It never throws: a check-in or a Conductor run must not fail because of it.
  */
 export function limitConcern(text: string, askFirst: string[], team: string[] = []): string | null {
-  const ctx: RuleContext = { team: new Set(team.flatMap((n) => n.toLowerCase().split(/\s+/)).filter(Boolean)) };
+  try {
+    return concernOf(text, askFirst, team);
+  } catch {
+    return UNREADABLE;
+  }
+}
+
+function concernOf(text: string, askFirst: string[], team: string[]): string | null {
+  // Names are words only: "Ada (stand-in 1)" gives "ada" and "stand-in", never a bracket.
+  const words = team.flatMap((n) => n.toLowerCase().split(/[^\p{L}\p{N}'-]+/u)).filter((w) => /\p{L}/u.test(w));
+  const ctx: RuleContext = { team: new Set(words) };
   const clauses = clausesOf(text, ctx.team);
   // "Run the script that deletes all staging data": the job's act is the act.
   for (const c of [...clauses]) {

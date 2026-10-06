@@ -620,6 +620,18 @@ below has a test that fails on the code before the fix and passes after it.
     final check. Rejected again: a model call per sentence (it costs money on every check-in, and the
     net must work without an API key).
 
+49. **Names with brackets or accents, and a check that cannot crash.** The final rehearsal caught a
+    bug the sentence tests could not: since item 45 the check knows the team's names, and one rule
+    built a pattern straight from a name, so a name with a bracket ("Ada (stand-in 1)", "Sam
+    (design)") made the check fail. The scripted Conductor's instructions then never went out, and an
+    agent's question in such a room could have failed its check-in. Names are now split into plain
+    words before use, and that rule escapes them. Accented names had a quieter bug: "Zoë" was read as
+    "Zo", so a teammate called Zoë counted as someone outside the team; names now keep every letter.
+    Finally, the check can no longer throw: if anything inside it goes wrong, it returns "something
+    the limits check could not read", so the text becomes a decision for a person instead of being
+    let through or stopping the check-in. Tests cover odd names (brackets, symbols, accents) against
+    the whole table, and a deliberately broken rule.
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

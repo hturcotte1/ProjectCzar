@@ -1,6 +1,7 @@
 import fs from 'node:fs';
-import { describe, expect, it } from 'vitest';
-import { limitConcern } from '../src/server/services/limits.js';
+import { describe, expect, it, vi } from 'vitest';
+import { UNREADABLE, limitConcern } from '../src/server/services/limits.js';
+import { SHARE as SHARE_RULE } from '../src/server/services/limits-rules.js';
 import { DEFAULT_LIMITS_ASK_FIRST } from '../src/server/services/repo.js';
 import { CONTACT, HARMLESS, MONEY, RISKY, TEAM } from './limits-cases.js';
 
@@ -30,6 +31,31 @@ describe('the limits safety net', () => {
     // A default limit is matched by its rule, never by loose words ("sharing" in "keep sharing updates").
     expect(limitConcern('Keep sharing updates in Tempo as you go.', DEFAULT_LIMITS_ASK_FIRST)).toBeNull();
     expect(limitConcern('Avoid contacting the team after hours.', DEFAULT_LIMITS_ASK_FIRST)).toBeNull();
+  });
+
+  it('is not thrown by names with brackets or symbols in them (the rehearsal names agents "Ada (stand-in 1)")', () => {
+    const odd = [...TEAM, 'Ada (stand-in 1)', 'Bo (stand-in 1)', 'C++ Bot', 'Zoë [ops]', 'Sam | design', 'Dee *', '\\', '?', '$(x)', '((('];
+    for (const text of HARMLESS) expect(limitConcern(text, DEFAULT_LIMITS_ASK_FIRST, odd)).toBeNull();
+    for (const [text, limit] of RISKY) expect(limitConcern(text, DEFAULT_LIMITS_ASK_FIRST, odd)).toBe(limit);
+    const handOff = 'Leave "the pricing table" to Ada (stand-in 1). Instead, review Ada (stand-in 1)\'s work on it and post a list of gaps.';
+    expect(limitConcern(`${handOff}\nA list of gaps in Ada (stand-in 1)'s work is posted in Tempo.`, DEFAULT_LIMITS_ASK_FIRST, odd)).toBeNull();
+    expect(limitConcern('Share the draft with Zoë [ops] for review.', DEFAULT_LIMITS_ASK_FIRST, odd)).toBeNull();
+    // Accented names are whole names: a teammate called Zoë is on the team, José at Acme is not.
+    expect(limitConcern('Email Zoë the outline.', DEFAULT_LIMITS_ASK_FIRST, odd)).toBeNull();
+    expect(limitConcern('Email José at Acme the contract.', DEFAULT_LIMITS_ASK_FIRST, odd)).toBe(CONTACT);
+    expect(limitConcern('Send the contract to José.', DEFAULT_LIMITS_ASK_FIRST, odd)).toBe(CONTACT);
+  });
+
+  it('asks a person, and never throws, if the check itself goes wrong', () => {
+    const broken = vi.spyOn(SHARE_RULE, 'test').mockImplementation(() => {
+      throw new SyntaxError('Invalid regular expression');
+    });
+    try {
+      expect(limitConcern('Draft the outline for the launch post.', DEFAULT_LIMITS_ASK_FIRST, TEAM)).toBe(UNREADABLE);
+    } finally {
+      broken.mockRestore();
+    }
+    expect(limitConcern('Draft the outline for the launch post.', DEFAULT_LIMITS_ASK_FIRST, TEAM)).toBeNull();
   });
 
   it('looks at one sentence at a time, and joins an instruction with its done-when line safely', () => {

@@ -89,11 +89,11 @@ const PUBLIC_WORDS = new Set(
 );
 
 function outsideNames(c: Clause, ctx: RuleContext, humanVerb: boolean, includeFirst = false): string[] {
-  const words = c.raw.replace(/[^\w'@.&-]+/g, ' ').trim().split(/\s+/);
+  const words = c.raw.replace(/[^\p{L}\p{N}_'@.&-]+/gu, ' ').trim().split(/\s+/);
   const out: string[] = [];
   words.forEach((w, i) => {
     const bare = w.replace(/'s$|'$/, '').replace(/[.]+$/, '');
-    if (!/^[A-Z][a-z]/.test(bare) && !/^[A-Z][A-Z]?[a-z]+[A-Z]/.test(bare)) return;
+    if (!/^\p{Lu}\p{Ll}/u.test(bare) && !/^\p{Lu}\p{Lu}?\p{Ll}+\p{Lu}/u.test(bare)) return;
     if (i === 0 && !includeFirst) return;
     if (PUBLIC_WORDS.has(bare.toLowerCase())) return;
     const lower = bare.toLowerCase();
@@ -106,7 +106,7 @@ function outsideNames(c: Clause, ctx: RuleContext, humanVerb: boolean, includeFi
 }
 
 function namePattern(names: string[]): string {
-  return names.length ? String.raw`(?:${DET}\s+)?(?:${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?:\s*(?:&|and)\s*co\b\.?|\s+(?:inc|ltd|llc|gmbh|plc|co)\b\.?)?(?:${ROLE_AFTER}|(?:'s|s')?\b)` : String.raw`(?!x)x`;
+  return names.length ? String.raw`(?:${DET}\s+)?(?:${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?:\s*(?:&|and)\s*co\b\.?|\s+(?:inc|ltd|llc|gmbh|plc|co)\b\.?)?(?:${ROLE_AFTER}|(?:'s|s')?(?![\wÀ-ɏ]))` : String.raw`(?!x)x`;
 }
 
 /** "to check", "to review": what the thing is for, not who gets it. */
@@ -329,7 +329,7 @@ function personObject(t: string, ctx: RuleContext): boolean {
   if (/^(?:call|ring|ping|tell)\s+(?:out|off|it|me|us)\b|^ask\s+(?:for|about|around|yourself|whether|if)\b|^text\s+(?:size|color|colour|field|box|wrap)\b|^message\s+(?:queue|bus|broker|format)\b/.test(t)) return false;
   const rest = t.slice(m[0].length).replace(/^(?:back\s+|again\s+|directly\s+|quickly\s+|personally\s+)/, '');
   if (TEAM_WORDS.test(rest) || THING_OBJECT.test(rest)) return false;
-  const first = rest.split(/\s+/).slice(0, 4).map((w) => w.replace(/[^\w@'.-]/g, '').replace(/'s$/, ''));
+  const first = rest.split(/\s+/).slice(0, 4).map((w) => w.replace(/[^\p{L}\p{N}_@'.-]/gu, '').replace(/'s$/, ''));
   if (first.some((w, i) => i < 2 && (ctx.team.has(w) || /^(?:henry|sam|ada|bo|muse|instinct)$/.test(w)))) return false;
   if (/^(?:it|them|him|her|this|that|these|those)\b/.test(rest)) return false;
   return rest.length > 0;
@@ -347,13 +347,13 @@ function contactTest(c: Clause, ctx: RuleContext): boolean {
   if (personObject(t, ctx)) return true;
   {
     const m = /^(?:send|resend|forward|e-?mail|mail|deliver|pass\s+along|hand\s+over|hand|report)\b.{0,60}?\s+to\s+(.+)$/.exec(t);
-    const first = m?.[1].split(/\s+/)[0]?.replace(/[^\w'-]/g, '').replace(/'s$/, '') ?? '';
-    const capital = c.raw.split(/\s+/).some((w) => /^[A-Z]/.test(w) && w.replace(/[^\w'-]/g, '').replace(/'s$/, '').toLowerCase() === first);
+    const first = m?.[1].split(/\s+/)[0]?.replace(/[^\p{L}\p{N}_'-]/gu, '').replace(/'s$/, '') ?? '';
+    const capital = c.raw.split(/\s+/).some((w) => /^\p{Lu}/u.test(w) && w.replace(/[^\p{L}\p{N}_'-]/gu, '').replace(/'s$/, '').toLowerCase() === first);
     if (m && !capital && PURPOSE_VERB.test(m[1])) {
       // "send him the list of accounts to check": a purpose, nobody named
     } else if (m) {
       const np = m[1];
-      const words = np.split(/\s+/).slice(0, 3).map((w) => w.replace(/[^\w'-]/g, '').replace(/'s$/, ''));
+      const words = np.split(/\s+/).slice(0, 3).map((w) => w.replace(/[^\p{L}\p{N}_'-]/gu, '').replace(/'s$/, ''));
       const teamish = TEAM_WORDS.test(np) || words.some((w) => ctx.team.has(w) || /^(?:henry|sam|ada|bo|muse|instinct|me|us|you|yourself|them|him|her|it)$/.test(w));
       const thing = /^(?:the\s+|our\s+|a\s+|an\s+|this\s+|my\s+|your\s+)?(?:[\w\/.-]+\s+){0,2}?(?:folder|drive|doc|docs|document|room|tempo|channel|board|tracker|sheet|spreadsheet|repo|repository|server|service|api|endpoint|queue|bucket|inbox|printer|archive|trash|bin|backlog|pipeline|staging|production|prod|dashboard|crm|wiki|playbook|thread|draft|deck|file|list|top|bottom|end|front|back|start|review|approval|next|last|later|tomorrow|monday|tuesday|wednesday|thursday|friday)\b/.test(np) || /^(?:\d|[$€£])/.test(np);
       const toolName = outsideNames(c, ctx, false).length === 0 && /^[a-z0-9.-]+$/.test(words[0] ?? '') && TOOL_NAMES.has(words[0] ?? '');
@@ -533,7 +533,7 @@ function shareTest(c: Clause, ctx: RuleContext): boolean {
   const t = c.text;
   const publicHere = rx(String.raw`\b${PUBLIC}`).test(t);
   if (c.pressed.some((p) => /\b(?:publish|post|share|tweet|go\s+live|make\s+public|deploy|release|launch)\b/.test(p))) return true;
-  const internal = INTERNAL.test(t) || [...ctx.team].some((n) => n.length > 1 && new RegExp(String.raw`\b(?:for|with)\s+${n}\b`).test(t) && /\b(?:posted|shared|post|share|for\s+review)\b/.test(t));
+  const internal = INTERNAL.test(t) || [...ctx.team].some((n) => n.length > 1 && new RegExp(String.raw`\b(?:for|with)\s+${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\b`).test(t) && /\b(?:posted|shared|post|share|for\s+review)\b/.test(t));
   // project data into an outside tool: "Upload our customer list to Canva", "Paste the tickets into an online AI tool"
   // Data about people: customers, users, contacts, support tickets, interview recordings.
   const dataThing = /\b(?:(?:customer|client|user|contact|subscriber|lead|member|candidate|employee|patient|donor|personal|private|support|sales|billing|crm|e-?mail|interview|survey|payroll|hr|attendee|participant|guest|staff|vendor|device|applicant|volunteer)s?\s+(?:[\w-]+\s+)?(?:list|lists|data|database|db|records|e-?mails|addresses|contacts|tickets|events|exports?|recordings?|transcripts?|logs|spreadsheet|sheet|csv|responses|details|info|table)|(?:customer|client|user|contact|subscriber|lead|member)\s+(?:list|lists|base|data|database|db)|(?:exported|full|our|the|all)\s+(?:support\s+)?tickets|(?:the|our)\s+(?:customer|user|production)\s+(?:database|db)|^(?:connect|sync)\s+(?:the\s+|our\s+)?(?:[\w-]+\s+)?(?:database|db|warehouse|data\s+warehouse|crm)|leads|subscribers|contacts|customers|(?:full\s+)?(?:response|responses|survey)\s+exports?|including\s+(?:their\s+|the\s+)?(?:e-?mails|e-?mail\s+addresses|names|phone\s+numbers|addresses|personal\s+(?:data|details|info)))\b/;

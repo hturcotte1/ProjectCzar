@@ -570,6 +570,27 @@ below has a test that fails on the code before the fix and passes after it.
     characters built to make patterns slow) is answered in well under a second; the slowest takes
     about 0.1 s, and ordinary texts about 1 ms.
 
+47. **A third blind review, and a fairer default for contact.** Seven more reviewers (events and
+    travel, hiring, community and social media, product research, partnerships and legal, terse and
+    messy chat text, office IT) wrote 557 new sentences without seeing the code. The item 46 rules
+    decided correctly on 92.3%: only 4 false alarms out of 278 harmless sentences (down from 13), but
+    39 misses out of 279 risky ones. Most misses were contact with people no word list named:
+    speakers, illustrators, YouTubers, giveaway winners, subreddit moderators, a shuttle driver,
+    "@lena_k", "jordan from northwind". A list of outsider words will never be complete, so for verbs
+    that can only mean reaching a person (message, text, DM, ping, invite, tell, warn, remind, ask,
+    reach out to, follow up with, meet, let ... know, and "send ... to" someone) the default is now
+    the other way round: whoever is not on the team counts as outside, unless the object is plainly a
+    thing ("call the /users endpoint", "send the export to the shared drive"). This leans toward
+    asking, as the review asked. The other misses were fixed too: booking flights and technicians,
+    signing agreements, agreeing to a fee, getting a refund, switching to annual billing, uploading
+    an attendee list to Mailchimp or anything to a free online tool, giving anyone outside the team
+    access, a feature flag on for all users, "so the site goes live", taking a video down, factory
+    resets, and shorthand ("acct", "w/", "+", "rm the old env"). The false alarms ("drop it in Tempo",
+    "remove the stray console.log on line 40", a venue quote copied into a comparison table) were
+    fixed as well. A statement that only sits next to work about it is a fact; next to any request
+    it is part of the ask. The 557 sentences joined the test: 2,321 reviewed sentences, 1,172 of them
+    harmless, all passing.
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

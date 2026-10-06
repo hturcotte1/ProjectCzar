@@ -40,6 +40,10 @@ export function limitConcern(text: string, askFirst: string[], team: string[] = 
     const act = c.frame === 'act' || c.frame === 'content' ? jobAct(c.text) : null;
     if (act) clauses.push({ ...c, text: act, frame: 'act' });
   }
+  // Statements around nothing but work about them are facts: "The venue quote came in at €4,200.
+  // Add it to the comparison table." A request anywhere in the text makes them part of the ask.
+  const asks = clauses.some((c) => c.frame === 'act' || c.frame === 'state');
+  for (const c of clauses) if (c.frame === 'report') c.factOnly = !asks;
   const live = clauses.filter((c) => c.frame !== 'negated');
   for (const rule of RULES) {
     if (live.some((c) => rule.test(c, ctx))) {

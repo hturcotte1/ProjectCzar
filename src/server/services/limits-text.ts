@@ -29,6 +29,8 @@ export interface Clause {
   pressed: string[];
   /** Every quoted text in the sentence, lower case ("anyone with the link"). */
   quoted: string[];
+  /** A statement in a text that asks for nothing but work about it (set by limits.ts). */
+  factOnly?: boolean;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -107,6 +109,16 @@ const THIRD_PERSON_VERB = /^(?:\w+s|is|are|was|were|has|have|had|did|does|will|w
 
 function normalise(text: string): string {
   return text
+    // shorthand: "w/ the client", "the old acct", "fix typos + delete the folder"
+    .replace(/\bw\/o\b/gi, 'without')
+    .replace(/\bw\//gi, 'with ')
+    .replace(/\baccts\b/gi, 'accounts')
+    .replace(/\bacct\b/gi, 'account')
+    .replace(/\benvs\b/gi, 'environments')
+    .replace(/\benv\b/gi, 'environment')
+    .replace(/\bmsgs?\b/gi, 'message')
+    .replace(/\bre:?\s+(?=the\b|our\b|a\b|your\b)/gi, 'about ')
+    .replace(/\s\+\s/g, ' and ')
     // "Do not, for now, email the client": the aside does not end the negation.
     .replace(/\b(do\s+not|don't|dont|never|please\s+do\s+not|please\s+don't)\s*,\s*([^,.;]{1,40}?)\s*,\s*/gi, '$1 ')
     .replace(/[‘’‛′`]/g, "'")
@@ -144,9 +156,9 @@ function quotes(sentence: string): { text: string; pressed: string[] } {
 
 /** Clause boundaries: "and" or "then" before another verb, "but", "so", a comma before a request. */
 const VERBISH =
-  String.raw`(?:email|e-mail|mail|send|resend|forward|reply|respond|answer|call|phone|text|message|dm|ping|contact|reach|tell|let|ask|invite|pay|buy|purchase|order|get|grab|book|hire|renew|upgrade|subscribe|sign|delete|remove|wipe|drop|clear|purge|destroy|erase|empty|publish|post|tweet|share|upload|launch|deploy|ship|push|release|make|put|go|take|turn|open|give|add|start|run|set|switch|move|cancel|close|confirm|accept|approve|charge|bill|invoice|refund|transfer|wire|spend|place|loop|cc|follow|check|draft|write|review|edit|fix|finish|polish|prepare|update|use|create|keep|announce|present|show|demo|pitch|meet|schedule|book|notify|inform|introduce|intro|forward|top|expense|tip|donate|pledge|back|bid|register|enroll|enrol|onboard|offboard|archive|restore|merge|kick|trigger|flip|roll|promote|list|submit|stream|livestream|reveal|unveil|paste|commit|expose|leak|disclose|announce|queue|drop|shoot|circle|touch|sync|loop|line|do|hop|jump|lock|settle|cover|treat|bring|commission|rent|reserve|lease|order|pre-order|preorder|re-order|reorder|venmo|paypal|zelle|recharge|reload|bump|raise|increase|up|double|allocate|throw|boost|promote|sponsor|fund|invest|bin|trash|scrap|nuke|prune|flush|truncate|tear|shut|terminate|deactivate|overwrite|replace|force-push|unpublish|unlist|take|negotiate|reschedule|cancel|decline|reply|deploying|bin)`;
+  String.raw`(?:email|e-mail|mail|send|resend|forward|reply|respond|answer|call|phone|text|message|dm|ping|contact|reach|tell|let|ask|invite|pay|buy|purchase|order|get|grab|book|hire|renew|upgrade|subscribe|sign|delete|remove|wipe|drop|clear|purge|destroy|erase|empty|publish|post|tweet|share|upload|launch|deploy|ship|push|release|make|put|go|take|turn|open|give|add|start|run|set|switch|move|cancel|close|confirm|accept|approve|charge|bill|invoice|refund|transfer|wire|spend|place|loop|cc|follow|check|draft|write|review|edit|fix|finish|polish|prepare|update|use|create|keep|announce|present|show|demo|pitch|meet|schedule|book|notify|inform|introduce|intro|forward|top|expense|tip|donate|pledge|back|bid|register|enroll|enrol|onboard|offboard|archive|restore|merge|kick|trigger|flip|roll|promote|list|submit|stream|livestream|reveal|unveil|paste|commit|expose|leak|disclose|announce|queue|drop|shoot|circle|touch|sync|loop|line|do|hop|jump|lock|settle|cover|treat|bring|commission|rent|reserve|lease|order|pre-order|preorder|re-order|reorder|venmo|paypal|zelle|recharge|reload|bump|raise|increase|up|double|allocate|throw|boost|promote|sponsor|fund|invest|bin|trash|scrap|nuke|prune|flush|truncate|tear|shut|terminate|deactivate|overwrite|replace|force-push|unpublish|unlist|take|negotiate|reschedule|cancel|decline|reply|deploying|bin|rm|factory|warn|thank|remind|point|agree|countersign|invite|dm|text|ping|proceed)`;
 const CLAUSE_SPLIT = new RegExp(
-  String.raw`\s*(?:,\s*(?:and\s+)?then\s+|\s+and\s+then\s+|\s+then\s+(?=${VERBISH}\b)|,?\s+but\s+(?:also\s+)?|,\s+so\s+|\s+so\s+(?!that\b|far\b|much\b|many\b|long\b|we\s+can\b)(?=(?:we|i|you|they|it|henry|sam|${VERBISH})\b)|,?\s+and\s+(?:also\s+)?(?=${VERBISH}\b(?!\s+(?:list|copy|page|form|button|link|draft|template|address|tracking|events?|flow)\b))|,?\s+and\s+(?=(?:no|nothing|none|never)\b)|,\s+(?!(?:up|down)\s+(?:from|to|by)\b)(?=(?:${VERBISH}|can|could|should|shall|may|is\s+it|would|ok|okay|go\s+ahead|please|don't|do\s+not|never)\b))`,
+  String.raw`\s*(?:,\s*(?:and\s+)?then\s+|\s+and\s+then\s+|\s+then\s+(?=${VERBISH}\b)|,?\s+but\s+(?:also\s+)?|,\s+so\s+|\s+so\s+(?!that\b|far\b|much\b|many\b|long\b|we\s+can\b)(?=(?:we|i|you|they|it|henry|sam|${VERBISH})\b)|,?\s+and\s+(?:also\s+)?(?=${VERBISH}\b(?!\s+(?:list|copy|page|form|button|link|draft|template|address|tracking|events?|flow)\b))|,?\s+and\s+(?=(?:no|nothing|none|never)\b)|,\s+(?!(?:up|down)\s+(?:from|to|by)\b)(?![\w-]+\s+or\s+[\w-]+\b)(?=(?:${VERBISH}|can|could|should|shall|may|is\s+it|would|ok|okay|go\s+ahead|please|don't|do\s+not|never)\b))`,
   'i',
 );
 

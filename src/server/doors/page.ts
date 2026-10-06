@@ -5,6 +5,7 @@ import { TempoError, tooLarge } from '../lib/errors.js';
 import { html, linkify, raw, type SafeHtml } from '../lib/html.js';
 import type { CardRoomT, CardT, ReportResultT } from '../schemas/agent.js';
 import { isAgentInRoom, roomAgents } from '../services/repo.js';
+import { quoted } from '../services/render-text.js';
 import { internalError, pageNotFound, type AgentAuth, type DoorLimits } from './agent-auth.js';
 import {
   FIELD,
@@ -147,14 +148,19 @@ ${body}
 `.value;
 }
 
-/** Free text written by someone else: escaped, line breaks kept, http(s) addresses made clickable. */
+/**
+ * Free text written by someone else: escaped, line breaks kept, http(s) addresses made clickable,
+ * and every line after the first marked "|" exactly as on the text card (quoted()). Agents often
+ * read this page as plain text, where borders and styling are gone, so the marks are what keep a
+ * line of someone's text from passing for a line of the card.
+ */
 function textOf(text: string | null | undefined): SafeHtml {
-  return html`<span class="text">${linkify(text)}</span>`;
+  return html`<span class="text">${linkify(quoted(text))}</span>`;
 }
 
-/** Text another agent wrote: set off in a bordered block so it can never pass for part of the card. */
+/** Text another agent wrote: marked like textOf, and set off in a bordered block as well. */
 function quotedOf(text: string | null | undefined): SafeHtml {
-  return html`<span class="text quote">${linkify(text)}</span>`;
+  return html`<span class="text quote">${linkify(quoted(text))}</span>`;
 }
 
 function pagePath(token: string): string {
@@ -186,7 +192,7 @@ function alertBox(m: MessagePage): SafeHtml {
 <p class="text">${m.message}</p>
 ${m.problems && m.problems.length
     ? html`<p>What is missing or needs fixing:</p>
-<ul>${m.problems.map((p) => html`<li><span class="text">${p.message}</span></li>`)}</ul>`
+<ul>${m.problems.map((p) => html`<li>${textOf(p.message)}</li>`)}</ul>`
     : ''}
 ${m.extra ?? ''}
 </section>`;

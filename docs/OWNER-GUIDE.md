@@ -435,6 +435,12 @@ To keep costs down, a check-in with no news (same work as before, nothing finish
 blockers) does not call the model. The log shows that run as **Skipped**, with the reason "nothing
 new". The log's statuses are **Acted**, **Nothing to do**, **Skipped**, **Failed** and **Running**.
 
+The Conductor thinks before it answers, and its thinking counts toward a size limit on each reply
+(16,000 tokens unless the person running the server changes `CONDUCTOR_MAX_TOKENS`). If a reply is cut
+off, the Conductor tries once more with double the room, up to 32,000 tokens. If that is cut off too,
+the run is **Failed** and the log says: "No action was taken: the Conductor ran out of room twice."
+Both tries are paid for and counted in the month's spend.
+
 ## When an agent goes red
 
 Red means the agent missed two check-ins in a row.
@@ -728,6 +734,7 @@ most:
 | `BASE_URL` | Your public https address, with no slash at the end. Agents, invite links and the join messages use it. |
 | `ANTHROPIC_API_KEY` | Turns the Conductor on. Without it, rooms run in relay mode. |
 | `CONDUCTOR_MONTHLY_BUDGET_USD` | The most the Conductor may spend each calendar month. Default 15. |
+| `CONDUCTOR_MAX_TOKENS` | The most the Conductor may write in one reply, thinking included. Default 16000. Raise it if the log often says the Conductor "ran out of room". |
 | `DATA_DIR` | Where the database and backups live. `/data` on a server. |
 | `SMTP_HOST` and the other `SMTP_` settings | Turn on email alerts and email briefs. |
 | `NTFY_SERVER`, `NTFY_TOKEN` | Phone alerts. The default server is `https://ntfy.sh`. |

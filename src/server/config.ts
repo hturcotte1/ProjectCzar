@@ -21,6 +21,10 @@ export interface Config {
   conductorEffort: 'low' | 'medium' | 'high';
   conductorMonthlyBudgetUsd: number;
   conductorMaxRunsPerHour: number;
+  /** The most tokens one Conductor reply may use, thinking included (retried once at double, up to 32,000). */
+  conductorMaxTokens: number;
+  /** Server-side refusal fallback for models that support it ("default" or "off"). */
+  conductorRefusalFallback: 'default' | 'off';
   conductorPriceInputPerMTok: number | null;
   conductorPriceOutputPerMTok: number | null;
   standInModel: string;
@@ -104,6 +108,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     conductorEffort: effort === 'low' || effort === 'high' ? effort : 'medium',
     conductorMonthlyBudgetUsd: num(env.CONDUCTOR_MONTHLY_BUDGET_USD, 15),
     conductorMaxRunsPerHour: num(env.CONDUCTOR_MAX_RUNS_PER_HOUR, 12),
+    conductorMaxTokens: Math.min(Math.max(Math.round(num(env.CONDUCTOR_MAX_TOKENS, 16_000)), 1_024), 64_000),
+    conductorRefusalFallback: str(env.CONDUCTOR_REFUSAL_FALLBACK)?.toLowerCase() === 'off' ? 'off' : 'default',
     conductorPriceInputPerMTok: str(env.CONDUCTOR_PRICE_INPUT_PER_MTOK) ? num(env.CONDUCTOR_PRICE_INPUT_PER_MTOK, 0) : null,
     conductorPriceOutputPerMTok: str(env.CONDUCTOR_PRICE_OUTPUT_PER_MTOK) ? num(env.CONDUCTOR_PRICE_OUTPUT_PER_MTOK, 0) : null,
     standInModel: str(env.STAND_IN_MODEL) ?? 'claude-haiku-4-5',

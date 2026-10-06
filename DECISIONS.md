@@ -384,6 +384,42 @@ below has a test that fails on the code before the fix and passes after it.
     a model call per sentence (costs money on every check-in, and the safety net must work with no
     API key), and a single list of "risky words" with exceptions (it is how the old bug happened).
 
+40. **Thinking counts toward the reply limit, so the limits went up and a cut-off reply gets one
+    bigger retry.** Checked against the current Claude API docs (2026-10-06) before changing
+    anything; the review's facts were right. On claude-sonnet-5-5 thinking is on unless turned
+    off, it counts toward `max_tokens` and is billed as output, and a reply that hits the limit
+    stops with `stop_reason: "max_tokens"`, usually before its JSON is finished. The old limits
+    (6,000 for the Conductor, 2,000 for the brief) were set before thinking was on, and the
+    Conductor has never run against the real model, so this would first have shown up in
+    production as runs that fail for no visible reason.
+    * The Conductor's limit is now a setting, `CONDUCTOR_MAX_TOKENS`, default 16,000 (kept between
+      1,024 and 64,000). The brief's limit is 8,000.
+    * A reply cut off at its limit is retried once with double the limit, capped at 32,000 (never
+      lower than the first limit, so a setting above 32,000 retries at the same size). The retry
+      prompt asks for a shorter reply. Both tries are paid for and counted in the run's cost.
+    * When both tries are cut off, the run is **Failed** and the log says so in plain words: "No
+      action was taken: the Conductor ran out of room twice. Its replies, thinking included, hit
+      the limit of 16,000 and then 32,000 tokens. If this keeps happening, raise
+      CONDUCTOR_MAX_TOKENS or lower CONDUCTOR_EFFORT." A brief that runs out of room twice falls
+      back to the rules-based brief with a one-line note saying why.
+    * Found while checking: the client had a 120-second timeout and made non-streamed requests, so
+      a long thinking reply could also fail by timing out. The call is now streamed (the SDK's
+      `finalMessage()`), with a 10-minute ceiling for the whole reply. The thinking-token count
+      the API reports is kept on each call's usage.
+    * Also turned on: the API's server-side refusal fallback (`fallbacks: "default"`, beta
+      `server-side-fallback-2026-07-01`) for the models that accept it. If the model declines a
+      request on safety grounds, the API retries it on a fallback model inside the same call
+      instead of the run failing. It changes nothing for ordinary requests. Set
+      `CONDUCTOR_REFUSAL_FALLBACK=off` to turn it off.
+
+    `tests/conductor-limits.test.ts` drives the runner with a stand-in model whose first reply stops
+    for `max_tokens` and whose second succeeds, checks the plain-words failure when both stop, checks
+    the brief the same way, and runs the real adapter against a local stand-in for the API to check
+    the limit, the streaming, the fallback switch and the reported stop reason. Rejected: retrying
+    more than once (each try costs money; a reply that runs out of room twice points to a setting
+    that needs changing), and lowering effort automatically on a retry (it would quietly change the
+    quality of the Conductor's answers).
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

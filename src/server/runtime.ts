@@ -15,7 +15,7 @@ import { TempoError } from './lib/errors.js';
  */
 export function wireRuntime(ctx: AppContext, scheduler: Scheduler, internalUrl: () => string): AppApiHooks {
   if (ctx.config.anthropicApiKey && !ctx.integrations.conductorModel) {
-    ctx.integrations.conductorModel = new AnthropicConductorModel(ctx.config.anthropicApiKey, ctx.config.conductorModel, ctx.config.conductorEffort);
+    ctx.integrations.conductorModel = new AnthropicConductorModel(ctx.config.anthropicApiKey, ctx.config.conductorModel, ctx.config.conductorEffort, ctx.config.conductorRefusalFallback);
   }
   ctx.integrations.scriptedConductor ??= new ScriptedConductorModel();
   scheduler.addJob(conductorJob(scheduler));

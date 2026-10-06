@@ -4,9 +4,23 @@
  */
 export interface ModelUsage {
   input_tokens: number;
+  /** All output, thinking included (thinking is billed as output). */
   output_tokens: number;
   cache_read_input_tokens: number;
   cache_creation_input_tokens: number;
+  /** The part of output_tokens spent thinking, when the API reports it. */
+  thinking_tokens?: number;
+}
+
+/** The highest limit a retry may use. */
+export const MAX_TOKENS_RETRY_CAP = 32_000;
+
+/**
+ * The limit for the one retry after a reply was cut off (stop reason "max_tokens"): double the
+ * first limit, capped at 32,000, and never lower than the first.
+ */
+export function retryMaxTokens(first: number): number {
+  return Math.max(first, Math.min(first * 2, MAX_TOKENS_RETRY_CAP));
 }
 
 export interface ModelCallResult {

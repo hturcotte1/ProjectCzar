@@ -25,6 +25,7 @@ import {
   type Actor,
 } from '../services/work.js';
 import { costUsd, effectiveMode, modelForRoom, modelRunsLastHour, priceFor } from './budget.js';
+import { retryMaxTokens } from './model.js';
 import type { ModelUsage } from './model.js';
 import { buildRunInput, SYSTEM_PROMPT } from './prompt.js';
 import { requestConductorRun, type Trigger } from './queue.js';
@@ -258,16 +259,26 @@ async function runLocked(ctx: AppContext, roomId: string): Promise<string | null
   const agentNames = new Set(roomAgents(ctx.db, roomId).map((a) => a.name.toLowerCase()));
   let userText = input.text;
   let modelName: string = model.name;
+  // Thinking counts toward the limit, so a reply can run out of room; the one retry then gets
+  // double the room (up to 32,000 tokens).
+  let maxTokens = ctx.config.conductorMaxTokens;
+  const limitsTried: number[] = [];
+  let cutOff = 0;
   try {
     while (attempts < 2 && !output) {
       attempts++;
-      const res = await model.call({ system: SYSTEM_PROMPT, user: userText, schema: CONDUCTOR_JSON_SCHEMA, maxTokens: 6000, structuredInput: input.structured, purpose: 'conductor' });
+      limitsTried.push(maxTokens);
+      const res = await model.call({ system: SYSTEM_PROMPT, user: userText, schema: CONDUCTOR_JSON_SCHEMA, maxTokens, structuredInput: input.structured, purpose: 'conductor' });
       modelName = res.model;
       usage.input_tokens += res.usage.input_tokens;
       usage.output_tokens += res.usage.output_tokens;
       usage.cache_read_input_tokens += res.usage.cache_read_input_tokens;
       usage.cache_creation_input_tokens += res.usage.cache_creation_input_tokens;
-      if (res.stopReason) {
+      if (res.stopReason === 'max_tokens') {
+        cutOff++;
+        lastProblem = `its reply was cut off at the ${maxTokens.toLocaleString('en-US')}-token limit (its thinking counts toward the limit)`;
+        maxTokens = retryMaxTokens(maxTokens);
+      } else if (res.stopReason) {
         lastProblem = res.stopReason === 'refusal' ? 'the model declined to answer' : `the reply stopped early (${res.stopReason})`;
       } else {
         const parsed = ConductorOutput.safeParse(res.output);
@@ -280,7 +291,10 @@ async function runLocked(ctx: AppContext, roomId: string): Promise<string | null
         }
       }
       if (!output) {
-        userText = `${input.text}\n\nYour previous reply could not be used (${lastProblem}). Reply again, following the required JSON format exactly and using only agent names from the roster.`;
+        userText =
+          res.stopReason === 'max_tokens'
+            ? `${input.text}\n\nYour previous reply was cut off before it finished. Reply again in the required JSON format, and keep it short.`
+            : `${input.text}\n\nYour previous reply could not be used (${lastProblem}). Reply again, following the required JSON format exactly and using only agent names from the roster.`;
       }
     }
   } catch (e) {
@@ -294,7 +308,14 @@ async function runLocked(ctx: AppContext, roomId: string): Promise<string | null
         .prepare(
           `UPDATE conductor_runs SET status = 'failed', finished_at = ?, error = ?, summary = ?, attempts = ?, input_tokens = ?, output_tokens = ?, cache_read_tokens = ?, cache_write_tokens = ?, cost_usd = ?, model = ? WHERE id = ?`,
         )
-        .run(iso(ctx.clock.now()), lastProblem, 'No action was taken because the Conductor did not produce a usable answer after one retry.', attempts, usage.input_tokens, usage.output_tokens, usage.cache_read_input_tokens, usage.cache_creation_input_tokens, cost, modelName, runId);
+        .run(
+          iso(ctx.clock.now()),
+          lastProblem,
+          cutOff > 0 && cutOff === attempts
+            ? `No action was taken: the Conductor ran out of room ${cutOff === 1 ? 'once' : 'twice'}. Its replies, thinking included, hit the limit of ${limitsTried.map((n) => n.toLocaleString('en-US')).join(' and then ')} tokens. If this keeps happening, raise CONDUCTOR_MAX_TOKENS or lower CONDUCTOR_EFFORT.`
+            : 'No action was taken because the Conductor did not produce a usable answer after one retry.',
+          attempts,
+          usage.input_tokens, usage.output_tokens, usage.cache_read_input_tokens, usage.cache_creation_input_tokens, cost, modelName, runId);
       emit({ type: 'conductor', roomId, runId });
     });
     done(seqAtStart);

@@ -49,7 +49,7 @@ export function renderCardText(card: CardT, opts: { replyHint?: string } = {}): 
     }
     if (r.playbook.length) {
       out.push('', 'Playbook (lessons saved by the team):');
-      for (const p of r.playbook) out.push(`- ${p.id} ${quoted(p.title)}: ${quoted(p.text)}`);
+      for (const p of r.playbook) out.push(`- ${p.id}, saved by ${p.from}: ${quoted(p.title)}: ${quoted(p.text)}`);
     }
   }
   if (card.left_out) out.push('', `Left out: ${quoted(card.left_out)}`);

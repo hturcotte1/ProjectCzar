@@ -21,6 +21,7 @@ import {
   createQuestion,
   getInstruction,
   getQuestion,
+  personDecisionFor,
   postConductorNote,
   quote,
   rewordInstruction,
@@ -652,6 +653,13 @@ export function applyOutput(
     const q = getQuestion(db, a.question_id);
     if (!q || q.room_id !== room.id || q.status !== 'open' || q.target_kind !== 'conductor') {
       skip(`${a.question_id} is not an open question for the Conductor.`);
+      continue;
+    }
+    // A question the limits check sent to a person is the person's to answer, even after they
+    // dismissed the decision: the Conductor never says "go ahead" in their place.
+    const forPerson = personDecisionFor(db, q.id);
+    if (forPerson) {
+      skip(`${q.id} waits for a person's decision (${forPerson}), so the Conductor did not answer it.`);
       continue;
     }
     // An answer reaches the asker's card when an agent asked; a person reads it themselves.

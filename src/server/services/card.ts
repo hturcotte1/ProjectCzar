@@ -99,6 +99,14 @@ function relevantForCard(ev: FeedRow, agentId: string): boolean {
   }
 }
 
+
+/** Who saved a playbook lesson, so an agent can tell another agent's lesson from the team's. */
+function playbookAuthor(ctx: AppContext, e: { author_kind: string; author_id: string | null }): string {
+  if (e.author_kind === 'agent') return getAgent(ctx.db, e.author_id ?? '')?.name ?? 'another agent';
+  if (e.author_kind === 'person') return getPerson(ctx.db, e.author_id ?? '')?.name ?? 'a person';
+  return 'the Conductor';
+}
+
 function questionFrom(ctx: AppContext, q: QuestionRow): string {
   if (q.asker_kind === 'agent') return getAgent(ctx.db, q.asker_id ?? '')?.name ?? 'another agent';
   if (q.asker_kind === 'person') return getPerson(ctx.db, q.asker_id ?? '')?.name ?? 'a person';
@@ -256,9 +264,9 @@ export function buildCard(ctx: AppContext, agent: AgentRow, cardId: string): Bui
     // Playbook: the few most relevant lessons (word overlap with current work), newest first on ties.
     const entries = db
       .prepare(
-        `SELECT id, title, body, updated_at FROM playbook_entries WHERE room_id = ? AND archived_at IS NULL ORDER BY updated_at DESC LIMIT 50`,
+        `SELECT id, title, body, updated_at, author_kind, author_id FROM playbook_entries WHERE room_id = ? AND archived_at IS NULL ORDER BY updated_at DESC LIMIT 50`,
       )
-      .all(room.id) as { id: string; title: string; body: string; updated_at: string }[];
+      .all(room.id) as { id: string; title: string; body: string; updated_at: string; author_kind: string; author_id: string | null }[];
     const context = words(`${lastWork} ${instructions.map((i) => i.text).join(' ')} ${room.goal}`);
     const scored = entries
       .map((e, idx) => {
@@ -270,7 +278,7 @@ export function buildCard(ctx: AppContext, agent: AgentRow, cardId: string): Bui
       .sort((a, b) => b.score - a.score)
       .slice(0, 3);
     section.playbook = scored.map(
-      ({ e }): z.infer<typeof CardPlaybookEntry> => ({ id: e.id, title: e.title, text: clip(e.body, 300, e.id) }),
+      ({ e }): z.infer<typeof CardPlaybookEntry> => ({ id: e.id, from: playbookAuthor(ctx, e), title: e.title, text: clip(e.body, 300, e.id) }),
     );
     roomSections.push(section);
   });

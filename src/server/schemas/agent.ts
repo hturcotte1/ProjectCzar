@@ -162,6 +162,8 @@ export const CardInstruction = z.object({
 
 export const CardPlaybookEntry = z.object({
   id: z.string(),
+  /** Who saved the lesson: an agent's or a person's name, or "the Conductor". */
+  from: z.string(),
   title: z.string(),
   text: z.string(),
 });

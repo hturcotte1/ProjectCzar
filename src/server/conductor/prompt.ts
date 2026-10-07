@@ -7,7 +7,7 @@ import type { DecisionRow, FeedRow, InstructionRow, QuestionRow, RoomRow } from 
 import { OPEN_INSTRUCTION_STATUSES } from '../services/rows.js';
 import { computeAgentStatus } from '../services/status.js';
 import { feedFullText } from '../services/agent-actions.js';
-import type { ProposedInstruction } from '../services/work.js';
+import { personDecisionFor, type ProposedInstruction } from '../services/work.js';
 import type { Trigger } from './queue.js';
 
 /**
@@ -210,7 +210,9 @@ export function buildRunInput(ctx: AppContext, room: RoomRow, mode: string, sinc
   for (const q of questions) {
     const to = q.target_kind === 'agent' ? (getAgent(db, q.target_agent_id ?? '')?.name ?? '?') : q.target_kind === 'people' ? 'people' : 'you (the Conductor)';
     const t = q.asker_kind === 'person' || q.asker_kind === 'conductor' ? oneLine(clipItem(q.text)) : wrap(who(q.asker_kind, q.asker_id), clipItem(q.text));
-    L.push(`- ${q.id} from ${who(q.asker_kind, q.asker_id)} to ${to}, asked ${relative(now, ms(q.created_at))}: ${t}`);
+    const forPerson = q.target_kind === 'conductor' ? personDecisionFor(db, q.id) : null;
+    const waits = forPerson ? ` (waits for a person's decision (${forPerson}); do not answer it)` : '';
+    L.push(`- ${q.id} from ${who(q.asker_kind, q.asker_id)} to ${to}, asked ${relative(now, ms(q.created_at))}${waits}: ${t}`);
   }
   L.push('', `OPEN INSTRUCTIONS${instructionsTotal > instructions.length ? ` (oldest ${instructions.length} of ${instructionsTotal} shown)` : ''}`);
   if (!instructions.length) L.push('- None.');

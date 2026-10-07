@@ -91,7 +91,10 @@ export function createQuestion(db: DB, a: NewQuestionArgs, emit: Emit): Question
       | QuestionRow
       | undefined;
     if (existing) {
-      if (existing.text !== a.text && existing.status === 'open') {
+      // A re-sent report may correct an open question, but not one a person is deciding on: the
+      // person approves exactly the words they were shown (DECISIONS.md item 53).
+      const decided = db.prepare('SELECT 1 FROM decisions WHERE source_key = ?').get(`limits:${existing.id}`);
+      if (existing.text !== a.text && existing.status === 'open' && !decided) {
         db.prepare('UPDATE questions SET text = ? WHERE id = ?').run(a.text, existing.id);
         if (existing.feed_seq)
           updateFeed(db, existing.feed_seq, { text: questionFeedText(a, existing.id), at: a.at, data: questionData(a, existing.id) }, emit);
@@ -461,6 +464,12 @@ export interface HeldPlaybook {
   title: string;
   text: string;
   run_id: string | null;
+}
+
+/** The decision the limits check raised for a question, if any: only a person answers such a question. */
+export function personDecisionFor(db: DB, questionId: string): string | null {
+  const d = db.prepare(`SELECT id FROM decisions WHERE source = 'limits' AND source_ref = ? ORDER BY rowid LIMIT 1`).get(questionId) as { id: string } | undefined;
+  return d?.id ?? null;
 }
 
 export interface NewDecisionArgs {

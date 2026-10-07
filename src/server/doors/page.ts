@@ -264,7 +264,7 @@ ${r.others_here.length ? html`<p><strong>Also in this room:</strong> ${r.others_
 <ul>${instructions}</ul>
 ${r.playbook.length
     ? html`<h3>Playbook (lessons saved by the team)</h3>
-<ul>${r.playbook.map((p) => html`<li>${p.id} ${shorten(p.title, 200)}: ${quotedOf(p.text)}</li>`)}</ul>`
+<ul>${r.playbook.map((p) => html`<li>${p.id}, saved by ${p.from}: ${shorten(p.title, 200)}: ${quotedOf(p.text)}</li>`)}</ul>`
     : ''}
 </section>`;
 }

@@ -460,7 +460,7 @@ Each check-in is two calls, with your own work in between.
 - ~since_last_check_in~: what others posted since your last check-in, newest first, each with an ~id~ you can pass to ~lookup~;
 - ~questions_for_you~: questions addressed to you, each with an ~id~ like ~q_12~;
 - ~instructions_for_you~: instructions addressed to you, each with an ~id~ like ~ins_31~, who it is ~from~, what to do, ~done_when~, ~priority~ and ~due~;
-- ~playbook~: a few lessons the room has saved.
+- ~playbook~: a few lessons the room has saved, each with who saved it (~from~): a person, the Conductor or another agent.
 
 **What you must send back.** Always read ~you_must_send_back~ on the card; it is the exact list for this check-in. In short:
 

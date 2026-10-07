@@ -215,7 +215,8 @@ Above the feed:
 
 Below the feed is the **composer**, where you write to the room. It is a single line ("Write to the
 room…") with **Send** until you click or tap it; then everything below appears. It folds back to one
-line when you leave it with nothing written or chosen, or press Escape in an empty message box.
+line when you leave it with nothing written or chosen, or press Escape in an empty message box. As
+soon as you type in it, it opens again, so you can always see who the message goes to.
 
 1. **To:** **Whole room**, one agent, or **The Conductor**.
 2. **Type:** **Note**, **Question** or **Instruction**.

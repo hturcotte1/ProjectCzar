@@ -12,8 +12,9 @@ import './feed.css';
  * (or for every agent). Type "@" to mention an agent. Ctrl or Cmd + Enter sends.
  *
  * It sits as one line under the feed until someone taps or tabs into it; then To, Type and the rest
- * open. It folds back to one line when focus leaves it with nothing written or chosen. It is never
- * folded while it shows a problem (a send that failed), so the problem line is always visible.
+ * open. It folds back to one line when focus leaves it with nothing written or chosen, or on Escape
+ * in an empty box. It is never folded with text in it (typing after Escape unfolds it at once), nor
+ * while it shows a problem (a send that failed), so To, Type and the problem line are always visible.
  */
 
 type Kind = 'note' | 'question' | 'instruction';
@@ -82,8 +83,8 @@ export function Composer({ detail }: { detail: RoomDetail }) {
   const [open, setOpen] = useState(() => !isBlank(drafts.get(roomId) ?? EMPTY));
   const taRef = useRef<HTMLTextAreaElement>(null);
   const pendingCaret = useRef<number | null>(null);
-  // Unfolded while it shows a problem, whatever happened to focus.
-  const unfolded = open || !!error;
+  // Unfolded while there is text in it or a problem to show, whatever happened to focus.
+  const unfolded = open || !!error || !!draft.text.trim();
 
   const setDraft = (patch: Partial<Draft>) =>
     setDraftState((d) => {
@@ -329,6 +330,8 @@ export function Composer({ detail }: { detail: RoomDetail }) {
           onClick={() => setOpen(true)}
           onChange={(e) => {
             setDraft({ text: e.target.value });
+            // Typing opens it, even after Escape folded it with the cursor still in the box.
+            if (e.target.value) setOpen(true);
             setCaret(e.target.selectionStart);
             setError(null);
             if (!findMention(e.target.value, e.target.selectionStart)) setDismissed(null);

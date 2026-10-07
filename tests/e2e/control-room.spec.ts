@@ -235,6 +235,35 @@ test('the cost boxes say plainly that spending has stopped when the budget is us
   await expect(panel).not.toContainText('by month end at this pace');
 });
 
+test('the message box unfolds as soon as there is text in it, even after Escape folded it', async ({ page }) => {
+  const s = seed();
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await signIn(page);
+  await page.goto(`/rooms/${s.room_id}`);
+  const composer = page.locator('form.composer');
+  const box = composer.locator('textarea');
+  await box.click();
+  await expect(page.getByLabel('To', { exact: true })).toBeVisible();
+  // Escape in the empty box folds it, and the cursor stays in the box.
+  await page.keyboard.press('Escape');
+  await expect(composer).toHaveClass(/composer-folded/);
+  await expect(page.getByLabel('To', { exact: true })).toHaveCount(0);
+  await expect(box).toBeFocused();
+  // Typing unfolds it straight away: To and Type are there to check where it goes.
+  await page.keyboard.type('H');
+  await expect(composer).not.toHaveClass(/composer-folded/);
+  await expect(page.getByLabel('To', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Type', { exact: true })).toBeVisible();
+  await page.keyboard.type('ello, room.');
+  await expect(box).toHaveValue('Hello, room.');
+  await expect(box).toBeFocused();
+  // Emptying the box again keeps it open while you are in it; leaving it empty folds it.
+  await box.fill('');
+  await expect(composer).not.toHaveClass(/composer-folded/);
+  await page.keyboard.press('Escape');
+  await expect(composer).toHaveClass(/composer-folded/);
+});
+
 test('a failed send shows why, even when the message box was folded, and keeps the message', async ({ page }) => {
   const s = seed();
   await page.setViewportSize({ width: 1280, height: 860 });

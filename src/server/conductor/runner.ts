@@ -495,7 +495,7 @@ export function applyOutput(
       skip(`"${quote(ins.text, 60)}" for ${agent.name} is already waiting for a person as ${waiting.id}.`);
       continue;
     }
-    const concern = concernOf(`${ins.text}\n${ins.done_when}`);
+    const concern = concernOf(`${ins.text}\nDone when: ${ins.done_when}`);
     const due = ins.due && !Number.isNaN(Date.parse(ins.due)) ? new Date(ins.due).toISOString() : null;
     if (ins.needs_approval || concern) {
       const reason = ins.approval_reason ?? (concern ? `it involves ${concern}` : 'it needs a person to approve it');
@@ -602,7 +602,7 @@ export function applyOutput(
         skip(`${ins.id} already has that wording.`);
         continue;
       }
-      const concern = concernOf(`${c.new_text}\n${doneWhen}`);
+      const concern = concernOf(`${c.new_text}\nDone when: ${doneWhen}`);
       // A proposal nobody has approved yet is not on any card, so it may change in place.
       const seen = ins.status !== 'proposed';
       if (concern || (mode === 'propose' && seen)) {

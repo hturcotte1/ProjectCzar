@@ -12,8 +12,8 @@
  * deleting, or sharing outside the project. When a case is truly unclear they lean toward asking a
  * person. See DECISIONS.md (items 39 and 45 to 48) and tests/limits.test.ts.
  */
-import { clausesOf, teamOf } from './limits-text.js';
-import { RULES, jobAct, limitPatterns, type RuleContext } from './limits-rules.js';
+import { TooMuchWork, clausesOf, teamOf, type Clause } from './limits-text.js';
+import { NOT_TEAM_WORDS, RULES, jobAct, limitPatterns, type RuleContext } from './limits-rules.js';
 
 /** Words that tie a room's own limit to one of the built-in rules. */
 const BUILT_IN_WORDS: Record<string, RegExp> = {
@@ -52,6 +52,47 @@ const DEFAULT_LABELS = new Set(RULES.map((r) => r.label));
 const plainWords = (limit: string) => limit.toLowerCase().replace(/[^a-z]+/g, ' ').trim();
 const isDefault = (limit: string) => DEFAULT_LABELS.has(plainWords(limit));
 
+/**
+ * A teammate asked to do it: "Ask Bo to delete the old records", "Have Sam send the contract to the
+ * client", "Would Ada be able to email the client?". The act is still the act (the text is read with
+ * teammates as qm-words, see limits-text.ts).
+ */
+const DELEGATED = /^(?:please\s+)?(?:(?:ask|tell|have|get|remind|let|instruct|need)\s+(?:@?qm+\s+){1,3}(?:to\s+)?|(?:would|could|can|will)\s+(?:@?qm+\s+){1,3}be\s+able\s+to\s+)(?=\S)/;
+
+/** The clauses of what a teammate is asked to do, read on their own, or none. */
+function delegated(c: Clause, team: RuleContext['team'], deadline: number): Clause[] {
+  const m = c.frame === 'negated' ? null : DELEGATED.exec(c.text);
+  if (!m) return [];
+  const rest = c.raw.split(/\s+/).slice(m[0].trim().split(/\s+/).length).join(' ');
+  return rest ? clausesOf(rest, team, deadline).map((d) => ({ ...d, before: c.before, beforeRaw: c.beforeRaw, beforeParts: c.beforeParts })) : [];
+}
+
+/**
+ * "Share the deck with Henry and Dana", "CC Henry and the client": a teammate in a list of people
+ * does not make the others teammates. The clause is read again without the teammate.
+ */
+function withoutTeammates(c: Clause): Clause[] {
+  const words = c.text.split(' ');
+  const raws = c.raw.split(/\s+/);
+  if (words.length !== raws.length || !words.some((w) => /^@?qm+,?$/.test(w))) return [];
+  const keep = words.map(() => true);
+  for (let i = 0; i < words.length - 1; i++) {
+    if (!/^@?qm+,?$/.test(words[i])) continue;
+    const joined = /,$/.test(words[i]) ? 0 : /^(?:&|and|\+|\/|,)$/.test(words[i + 1]) ? 1 : -1;
+    const next = words[i + 1 + Math.max(joined, 0)];
+    if (joined < 0 || !next || /^@?qm+/.test(next)) continue;
+    // "Priya, the former contractor, ...": a comma before a description is the same person.
+    if (joined === 0 && /^(?:the|a|an|our|my|your|his|her|their)$/.test(next)) continue;
+    keep[i] = false;
+    if (joined) keep[i + 1] = false;
+  }
+  if (keep.every(Boolean)) return [];
+  return [{ ...c, text: words.filter((_, i) => keep[i]).join(' '), raw: raws.filter((_, i) => keep[i]).join(' ') }];
+}
+
+/** A room's own limit about doing something ("Emailing candidates") is not crossed by work about it ("Draft the email to the candidates"). */
+const ACT_LIMIT = /^(?:e-?mail|pay|buy|spend|purchas|order|book|hire|sign|contact|messag|call|phon|text|dm|tweet|post|publish|shar|send|upload|delet|remov|eras|cancel|refund|invoic|bill|transfer|wire|charg|subscrib|renew)/;
+
 function stem(word: string): string {
   return word.replace(/(?:ing|ed|es|s)$/, '');
 }
@@ -67,8 +108,6 @@ export const UNREADABLE = 'something the limits check could not read';
  */
 export const MAX_CLAUSES = 400;
 export const MAX_CHECK_MS = 250;
-
-class TooMuchWork extends Error {}
 
 /**
  * Returns the limit the text appears to cross (e.g. "spending money"), or null.
@@ -89,9 +128,13 @@ export function limitConcern(text: string, askFirst: string[], team: string[] = 
 function concernOf(text: string, askFirst: string[], team: string[], deadline: number): string | null {
   // Who is on the team comes only from the names passed in (see teamOf): "Ada (stand-in 1)" gives
   // the name "ada stand-in 1" and the word "Ada", never a bracket.
-  const ctx: RuleContext = { team: teamOf(team) };
-  const clauses = clausesOf(text, ctx.team);
+  const ctx: RuleContext = { team: teamOf(team, NOT_TEAM_WORDS) };
+  const clauses = clausesOf(text, ctx.team, deadline);
   if (clauses.length > MAX_CLAUSES || performance.now() > deadline) throw new TooMuchWork();
+  // "Ask Bo to delete the old records": what the teammate is asked to do is the act.
+  for (const c of [...clauses]) clauses.push(...delegated(c, ctx.team, deadline));
+  for (const c of [...clauses]) clauses.push(...withoutTeammates(c));
+  if (clauses.length > 2 * MAX_CLAUSES) throw new TooMuchWork();
   // "Run the script that deletes all staging data": the job's act is the act.
   for (const c of [...clauses]) {
     const act = c.frame === 'act' || c.frame === 'content' ? jobAct(c.text) : null;
@@ -121,13 +164,16 @@ function concernOf(text: string, askFirst: string[], team: string[], deadline: n
   // limit is matched by its own words even when it shares one with them (budget, remove, share).
   for (const limit of askFirst) {
     if (isDefault(limit)) continue;
+    const words = limit.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+    const acts = ACT_LIMIT.test(words[0] ?? '');
     const keyWords = limit
       .toLowerCase()
       .split(/[^a-z]+/)
       .filter((w) => w.length > 4 && !['anything', 'anyone', 'outside', 'project', 'before', 'without', 'person'].includes(w))
       .map(stem);
     if (!keyWords.length) continue;
-    if (live.some((c) => keyWords.every((w) => wordsOf(c.raw).some((x) => x.startsWith(w))))) return limit;
+    const crossed = (c: Clause) => !(acts && c.frame === 'content') && keyWords.every((w) => wordsOf(c.raw).some((x) => x.startsWith(w)));
+    if (live.some(crossed)) return limit;
   }
   return null;
 }

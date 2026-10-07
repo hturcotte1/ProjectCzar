@@ -822,6 +822,54 @@ below has a test that fails on the code before the fix and passes after it.
       `tests/composer-words.test.ts`, `tests/api-errors.test.ts`, browser.
     * A room's own limits: item 55.
 
+57. **A second look at the rewritten limits check, before the first deploy.** Items 50 to 52 changed
+    how the check reads names and formatting, so before deploying I had it reviewed again: separate
+    reviewers each tried one angle (speed, names, formatting, and anything the rewrite answered
+    differently from the old check), and a second reviewer tried to disprove each finding. 46
+    findings held up. I reproduced each one before changing anything.
+    * One was serious: a long run of unusual spaces inside brackets ("Draft it (email" followed by
+      2,000 ideographic spaces) took 7 to 23 seconds, because the work grew with the cube of the
+      run's length, and the quarter-second ceiling was only checked after the text had been read.
+      Runs of spaces are now collapsed first, and the ceiling is checked while the text is read, line
+      by line and sentence by sentence. Those texts now take under 16 ms.
+    * Missed requests, now caught: a teammate in a list of people ("Send the contract to Sam and the
+      client", "Tell Sam and Dana", "CC Henry and the client"), each recipient being checked on its
+      own; a teammate asked to do it ("Ask Bo to delete the old customer records", "Have Sam send
+      the contract to the client"); full names, e-mail addresses, "O'Brien", "Dr. Patel", "Jean-Luc"
+      and a teammate's own contacts ("Ada's lawyer", "Henry's old manager"); a teammate's first name
+      that is also a verb at the start of a request ("Bill Acme", "Chase the client" when the team has
+      a Bill and a Chase; "Bill has had a look" still reads as the person); a public place named
+      together with a teammate ("Post the job ad on LinkedIn for Henry", "... on the team's LinkedIn
+      page"); lists under "Plan for today:" or "Question:"; emoji numbers and emoji between words;
+      "+", "Step 1 -" and "1)Email" list markers; a label, "+", a teammate or "done when" inside
+      brackets, and a bracket inside a bracket; table rows; "Draft/send"; and command-line deletes
+      ("gh repo delete", "aws s3 rm", "kubectl delete").
+    * Ordinary work no longer flagged: teammates written as "@Ada", "Henry/Sam", "Henry&Sam",
+      "Muse_Henry" or "@MuseHenry", or with accents ("İlker"); a fact reported after the work ("The
+      shortlist has been emailed to Henry"); examples of copy in brackets ("Write three CTA options
+      (Buy now, Get started, Start your trial)") unless they refer to the thing written ("... (send
+      it to the client)") or come next ("(then ...)"); a bracket that states a fact ("(pay button does
+      nothing on mobile)", where "drafts" is no longer mistaken for a verb); short labels in backticks
+      ("`Buy now` should be green"); a command that is only the topic ("Add a lint rule that blocks
+      `rm -rf`"); code ("$order->pay()"); and a room's own limit about an act ("Emailing
+      candidates") is crossed by the act, not by drafting about it.
+    * The Conductor's instruction and its done-when line are now checked as "text, then Done when:
+      goal", so an instruction ending with a label for copy ("Use this wording:") no longer hides the
+      goal after it ("The reply has been emailed to the client").
+    * Left as it is: names written in capitals ("Email DANA the contract", "Email AJ") are not
+      recognised, because capitals are also how acronyms are written (QA, HR, PDF); names that are
+      also months ("Send April the contract"); and a name that becomes an ordinary word without its
+      accent ("Thé" reads as "The"). "Test: send the survey" is still read as a label for copy.
+    * Same answers otherwise: the check before and after these fixes was run side by side on every
+      reviewed sentence, the four review rounds, copies with new made-up names and generated
+      sentences, each with four teams (46,224 checks, two seeds). Every difference was one of the
+      fixes above or a team that really does not include the person named; all 2,879 reviewed
+      sentences and the 109-sentence table pass unchanged.
+    * Tests: `tests/limits-second-look.test.ts` (111 sentences with the team each was found with: 110
+      of them are answered wrongly by the check before these fixes, and the four slow texts take 0.3
+      to 23 seconds there; plus controls that were already right and must stay so), and two tests in
+      `tests/conductor-gates.test.ts` for the done-when line (both fail on the old joining).
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |
@@ -835,4 +883,7 @@ below has a test that fails on the code before the fix and passes after it.
 | Dockerfile, Railway and Fly config, container smoke script | Sonnet | Ran the smoke script (build, restart, data survives) |
 | README, owner guide, first real test plan | Sonnet | Read all three against the code; fixed what had changed since (sign-out, schedule defaults, banner text); its fresh-clone run of the README steps is in its report |
 | Security review: five finders plus a skeptic per finding | Inherited model (finders), skeptics | Read every finding and its proof-of-concept; the lead fixed each and wrote a test for it |
+| Round 2, fix 2 (Conductor gates, held decisions in the control room) | Helper agent in its own worktree | Read every change; ran its tests and the full suite; audited the paths to an agent's card myself and closed the last ones (item 53) |
+| Round 2, fixes 5 and 6 (fixed clock for browser tests, cost box, message box) | Helper agent in its own worktree | Read every change; corrected wording and the "would have cost" figure; ran the browser tests, also outside working hours |
+| Round 2, second look at the limits check (item 57): finders by angle plus a skeptic per finding | Helper agents | Reproduced each of the 46 findings; the lead wrote the fixes and the tests |
 | Kept by the lead | — | Database, check-in service and validation, sign-in/keys/isolation, MCP door, scheduler, Conductor, brief, rehearsal driver, integration, this file |

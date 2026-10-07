@@ -86,6 +86,8 @@ const NOT_NAMES = new Set(
   ).split(' '),
 );
 
+const EMAIL_ADDRESS = /^[\w.+-]+@[\w-]+(?:\.[\w-]+)+$/;
+
 /** Capitalised names in the clause that are not on the team (people and companies outside). */
 const PUBLIC_WORDS = new Set(
   'hacker news product hunt indie hackers slideshare chrome web store app play apple podcasts stack overflow show hn reddit gumroad arxiv wellfound indeed dev.to hashnode medium substack twitch spotify youtube vimeo instagram facebook tiktok linkedin twitter threads mastodon bluesky discord g2 capterra trustpilot pastebin gist github'.split(' '),
@@ -97,7 +99,12 @@ function outsideNames(c: Clause, ctx: RuleContext, humanVerb: boolean, includeFi
   const out: string[] = [];
   words.forEach((w, i) => {
     const bare = w.replace(/'s$|'$/, '').replace(/[.]+$/, '');
-    if (!/^\p{Lu}\p{Ll}/u.test(bare) && !/^\p{Lu}\p{Lu}?\p{Ll}+\p{Lu}/u.test(bare)) return;
+    // An e-mail address is someone ("Email dana@acme.com the contract").
+    if (EMAIL_ADDRESS.test(bare)) {
+      out.push(bare.toLowerCase());
+      return;
+    }
+    if (!/^\p{Lu}\p{Ll}/u.test(bare) && !/^\p{Lu}\p{Lu}?\p{Ll}+\p{Lu}/u.test(bare) && !/^\p{Lu}'\p{Lu}\p{Ll}/u.test(bare)) return;
     if (i === 0 && !includeFirst) return;
     if (PUBLIC_WORDS.has(bare.toLowerCase())) return;
     const lower = bare.toLowerCase();
@@ -126,31 +133,42 @@ interface NameView {
   has: boolean;
   /** A capitalised first word that may be a name. */
   first: boolean;
-  tok(s: string, withFirst: boolean): string;
+  /**
+   * Copies of `s` to try: one with every name swapped, and one per name with only that name
+   * swapped. The second kind keeps every other word as written, so a name that is also a word a
+   * rule needs ("Book a Zoom with Daniel Okafor", "Add Lena Fischer to the Newsletter", "Pitch it
+   * to Inc.") still works as that word.
+   */
+  copies(s: string, withFirst: boolean): string[];
 }
 
+/** At most this many names get a copy of their own (each copy is a few pattern tests). */
+const MAX_NAME_COPIES = 12;
 const views = new WeakMap<Clause, NameView>();
-const COMPANY_ENDING = new Set(['co', 'inc', 'ltd', 'llc', 'gmbh', 'plc']);
 
 function namesOf(c: Clause, ctx: RuleContext): NameView {
   const cached = views.get(c);
   if (cached) return cached;
-  // "Hollis & Co": the company ending stays a word, so the name rule can read it as part of the name.
-  const human = outsideNames(c, ctx, true).filter((n) => !COMPANY_ENDING.has(n));
+  const human = outsideNames(c, ctx, true);
   const strict = new Set(outsideNames(c, ctx, false));
   const kinds = new Map<string, string>();
   for (const n of human) kinds.set(n, strict.has(n) ? 'n' : 't');
   const withFirst = new Map(kinds);
-  for (const n of outsideNames(c, ctx, true, true)) if (!withFirst.has(n) && !COMPANY_ENDING.has(n)) withFirst.set(n, 'f');
-  const memo = new Map<string, string>();
+  for (const n of outsideNames(c, ctx, true, true)) if (!withFirst.has(n)) withFirst.set(n, 'f');
+  const memo = new Map<string, string[]>();
   const view: NameView = {
     has: kinds.size > 0,
     first: withFirst.size > kinds.size,
-    tok(s, first) {
+    copies(s, first) {
       const key = (first ? '1' : '0') + s;
       let out = memo.get(key);
       if (out === undefined) {
-        out = swapWords(s, first ? withFirst : kinds);
+        const all = first ? withFirst : kinds;
+        out = [swapWords(s, all)];
+        if (all.size > 1) {
+          for (const [n, k] of [...all].slice(0, MAX_NAME_COPIES)) out.push(swapWords(s, new Map([[n, k]])));
+        }
+        out = [...new Set(out)];
         memo.set(key, out);
       }
       return out;
@@ -162,7 +180,9 @@ function namesOf(c: Clause, ctx: RuleContext): NameView {
 
 /** A name in a rule: "Dana", "the Acme team", "Hollis & Co", "Northwind's CTO". */
 const namePlaceholder = (tok: string) =>
-  String.raw`(?:${DET}\s+)?${tok}(?:\s*(?:&|and)\s*co\b\.?|\s+(?:inc|ltd|llc|gmbh|plc|co)\b\.?)?(?:${ROLE_AFTER}|(?:'s|s')?(?![\wÀ-ɏ]))`;
+  String.raw`(?:${DET}\s+)?${tok}(?:(?:\s+|\s*(?:,|&)\s*)${tok}){0,3}(?:\s*(?:&|and)\s*co\b\.?|\s+(?:inc|ltd|llc|gmbh|plc|co)\b\.?)?(?:${ROLE_AFTER}|(?:'s|s')?(?![\wÀ-ɏ]))`;
+/** A teammate's own outside contacts: "Ada's lawyer", "Henry's accountant". */
+const TEAMMATES_OUTSIDER = String.raw`(?:${DET}\s+)?qm+(?:'s|s'|')\s+(?:[\w-]+\s+)?(?:lawyers?|attorneys?|accountants?|bookkeepers?|bankers?|landlords?|doctors?|clients?|customers?|contacts?|investors?|partners?|friends?|family|wife|husband|mother|father|brother|sister|son|daughter|parents?|neighbou?rs?|boss|managers?|mentors?|colleagues?|co-?workers?|recruiters?|vendors?|suppliers?|contractors?|freelancers?|agents?|printers?|photographers?)\b`;
 const OUTSIDE_NAME = 'q(?:n+|t+)';
 const OUTSIDE_NAME_NOT_TOOL = 'qn+';
 const OUTSIDE_NAME_OR_FIRST = 'q(?:n+|t+|f+)';
@@ -175,15 +195,15 @@ const OUTSIDE_NAME_OR_FIRST = 'q(?:n+|t+|f+)';
  */
 const SLOTS = {
   human: {
-    words: String.raw`(?:${OUTSIDER}|${AUDIENCE})`,
+    words: String.raw`(?:${OUTSIDER}|${AUDIENCE}|${TEAMMATES_OUTSIDER})`,
     names: String.raw`(?:${namePlaceholder(OUTSIDE_NAME)}|(?:\w+\s+){0,2}(?:at|from)\s+${namePlaceholder(OUTSIDE_NAME)})`,
   },
   strict: {
-    words: String.raw`(?:${OUTSIDER}|${AUDIENCE})`,
+    words: String.raw`(?:${OUTSIDER}|${AUDIENCE}|${TEAMMATES_OUTSIDER})`,
     names: String.raw`(?:${namePlaceholder(OUTSIDE_NAME_NOT_TOOL)}|(?:\w+\s+){0,2}(?:at|from)\s+${namePlaceholder(OUTSIDE_NAME)})`,
   },
   who: {
-    words: String.raw`(?:${OUTSIDER}|${AUDIENCE}|every\s+(?:new\s+)?(?:customer|lead|user|subscriber|client|candidate)|each\s+(?:customer|lead|client|candidate))`,
+    words: String.raw`(?:${OUTSIDER}|${AUDIENCE}|${TEAMMATES_OUTSIDER}|every\s+(?:new\s+)?(?:customer|lead|user|subscriber|client|candidate)|each\s+(?:customer|lead|client|candidate))`,
     names: namePlaceholder(OUTSIDE_NAME_OR_FIRST),
   },
 };
@@ -200,7 +220,7 @@ function pair(kind: keyof typeof SLOTS, build: (slot: string) => string): Pair {
 function seen(p: Pair, s: string, nv: NameView): boolean {
   if (p.words.test(s)) return true;
   if (!nv.has && !(p.withFirst && nv.first)) return false;
-  return p.names.test(nv.tok(s, p.withFirst));
+  return nv.copies(s, p.withFirst).some((copy) => p.names.test(copy));
 }
 
 const REACHED = String.raw`(?:e-?mailed|messaged|texted|called|phoned|notified|informed|contacted|told|invited|cc'd|briefed|pitched|pinged|reached|thanked|replied\s+to|sent\s+(?:the|an?|our)\b)`;
@@ -222,7 +242,9 @@ const NOT_PUBLIC_AFTER = String.raw`(?:settings|config|configuration|file|files|
 const PUBLIC = String.raw`${PUBLIC_PLACE}\b(?!\s+(?:[\w-]+\s+)?${NOT_PUBLIC_AFTER}\b)`;
 
 /** Places inside the project: posting there is never sharing outside. */
-const INTERNAL = /\bposted\s+here\b|\bhere\s+(?:for|in|so)\b|\b(?:posted|shared|put|left)\s+(?:here|for\s+(?:qm+|the\s+team|review|approval))\b|\b(?:in|to|into|on|with)\s+(?:the\s+|our\s+|this\s+)?(?:room|tempo(?!\.)|team|shared\s+drive|drive|shared\s+folder|folder|doc|shared\s+doc|draft|outline|deck|channel|thread\s+here|feed|playbook|internal\s+\w+|private\s+\w+|staging)\b|\bwith\s+(?:qm+|the\s+team|everyone\s+here|the\s+conductor)\b/;
+const INTERNAL = /\bposted\s+here\b|\bhere\s+(?:for|in|so)\b|\b(?:posted|shared|put|left)\s+(?:here|for\s+(?:the\s+team|review|approval))\b|\b(?:in|to|into|on|with)\s+(?:the\s+|our\s+|this\s+)?(?:room|tempo(?!\.)|team|shared\s+drive|drive|shared\s+folder|folder|doc|shared\s+doc|draft|outline|deck|channel|thread\s+here|feed|playbook|internal\s+\w+|private\s+\w+|staging)\b(?!'s)|\bwith\s+(?:the\s+team|everyone\s+here|the\s+conductor|qm+(?!'s))\b/;
+/** "Posted for Sam", "with Henry's notes": for a teammate, unless a public place is named too. */
+const TEAMMATE_INTERNAL = /\b(?:(?:posted|shared|put|left)\s+for|with)\s+qm+\b/;
 
 // ------------------------------------------------------------------------------------------------
 // Money
@@ -416,14 +438,29 @@ const THING_OBJECT = /^(?:the\s+|our\s+|a\s+|an\s+|this\s+|that\s+|all\s+|every\
 /** Verbs that can only mean reaching a person: their object is someone, so anyone not on the team is outside. */
 const HUMAN_VERB = /^(?:reply\s+(?:back\s+)?to|respond\s+to|write\s+back\s+to|dm|pm|message|text|sms|whatsapp|call|phone|ring|ping|invite|tell|warn|remind|thank|congratulate|ask|nudge|chase|reach\s+out\s+to|reach|follow\s+up\s+with|check\s+in\s+with|touch\s+base\s+with|circle\s+back\s+with|get\s+back\s+to|get\s+in\s+touch\s+with|sync\s+(?:up\s+)?with|catch\s+up\s+with|talk\s+to|speak\s+to|speak\s+with|talk\s+with|chat\s+with|meet\s+with|meet|interview|brief|notify|inform|welcome|greet|get\s+on\s+(?:a\s+)?(?:quick\s+)?call\s+with|hop\s+on\s+(?:a\s+)?(?:quick\s+)?call\s+with|schedule\s+(?:a\s+|the\s+)?(?:[\w-]+\s+)?(?:calls?|meetings?|demos?|interviews?|chats?)\s+with|set\s+up\s+(?:a\s+)?(?:[\w-]+\s+)?(?:calls?|meetings?|demos?)\s+with)\s+/;
 
-function personObject(t: string, ctx: RuleContext): boolean {
+const TEAMMATE_OUTSIDE = re(`^${TEAMMATES_OUTSIDER}`);
+/** The rest of a list of people after a teammate: is anyone in it outside the team? */
+function reachesSomeoneElse(rest: string, names: ReadonlySet<string>): boolean {
+  const r = rest.trim();
+  // A name outside the team, as the clause's names found it ("Tell Sam and Dana that ...").
+  if (names.has((r.split(/\s+/)[0] ?? '').replace(/^@+/, '').replace(/[^\p{L}\p{N}_'.@+-]/gu, '').replace(/'s$/, ''))) return true;
+  if (!r || TEAM_WORDS.test(r) || THING_OBJECT.test(r) || /^@?qm+\b/.test(r) || /^(?:it|them|him|her|this|that|these|those|to|about|that|what|when|whether|if|how|why)\b/.test(r)) return false;
+  return /^(?:@?q[ntf]+|the\s+|our\s+|a\s+|an\s+|their\s+|all\s+|every\s+|some\s+|[\w.+-]+@)/.test(r) || OUTSIDER_START.test(r);
+}
+
+function personObject(t: string, names: ReadonlySet<string>): boolean {
   const m = HUMAN_VERB.exec(t);
   if (!m) return false;
   if (/^(?:call|ring|ping|tell)\s+(?:out|off|it|me|us)\b|^ask\s+(?:for|about|around|yourself|whether|if)\b|^text\s+(?:size|color|colour|field|box|wrap)\b|^message\s+(?:queue|bus|broker|format)\b/.test(t)) return false;
   const rest = t.slice(m[0].length).replace(/^(?:back\s+|again\s+|directly\s+|quickly\s+|personally\s+)/, '');
   if (TEAM_WORDS.test(rest) || THING_OBJECT.test(rest)) return false;
-  const first = rest.split(/\s+/).slice(0, 4).map((w) => w.replace(/[^\p{L}\p{N}_@'.-]/gu, '').replace(/'s$/, ''));
-  if (first.some((w, i) => i < 2 && /^qm+$/.test(w))) return false;
+  if (TEAMMATE_OUTSIDE.test(rest)) return true;
+  const first = rest.split(/\s+/).slice(0, 4).map((w) => w.replace(/[^\p{L}\p{N}_@'.-]/gu, '').replace(/^@+/, '').replace(/'s$/, ''));
+  if (first.some((w, i) => i < 2 && /^qm+$/.test(w))) {
+    // "Tell Sam and Dana that the launch moved": someone else is reached as well.
+    const more = /^@?qm+(?:\s+qm+)?\s*(?:,|\band\b|&|\+|\/)\s*(.+)$/.exec(rest);
+    return !!more && reachesSomeoneElse(more[1], names);
+  }
   if (/^(?:it|them|him|her|this|that|these|those)\b/.test(rest)) return false;
   return rest.length > 0;
 }
@@ -436,7 +473,8 @@ function contactTest(c: Clause, ctx: RuleContext): boolean {
   const recipientHere = seen(P1, t, nv);
   if (c.pressed.some((p) => /\b(?:send|reply|email|invite|call)\b/.test(p)) && (recipientHere || mentionsOutsider(c.before) || /\b(?:newsletter|campaign|blast|announcement|launch\s+e-?mail)\b/.test(t))) return true;
   // message the speakers, text the shuttle driver, invite jordan from northwind: anyone not on the team
-  if (personObject(t, ctx)) return true;
+  const names = new Set(outsideNames(c, ctx, true));
+  if (personObject(t, names)) return true;
   {
     const m = /^(?:send|resend|forward|e-?mail|mail|deliver|pass\s+along|hand\s+over|hand|report)\b.{0,60}?\s+to\s+(.+)$/.exec(t);
     const first = m?.[1].split(/\s+/)[0]?.replace(/[^\p{L}\p{N}_'-]/gu, '').replace(/'s$/, '') ?? '';
@@ -444,12 +482,17 @@ function contactTest(c: Clause, ctx: RuleContext): boolean {
     if (m && !capital && PURPOSE_VERB.test(m[1])) {
       // "send him the list of accounts to check": a purpose, nobody named
     } else if (m) {
-      const np = m[1];
-      const words = np.split(/\s+/).slice(0, 3).map((w) => w.replace(/[^\p{L}\p{N}_'-]/gu, '').replace(/'s$/, ''));
-      const teamish = TEAM_WORDS.test(np) || words.some((w) => /^(?:qm+|me|us|you|yourself|them|him|her|it)$/.test(w));
-      const thing = /^(?:the\s+|our\s+|a\s+|an\s+|this\s+|my\s+|your\s+)?(?:[\w\/.-]+\s+){0,2}?(?:folder|drive|doc|docs|document|room|tempo|channel|board|tracker|sheet|spreadsheet|repo|repository|server|service|api|endpoint|queue|bucket|inbox|printer|archive|trash|bin|backlog|pipeline|staging|production|prod|dashboard|crm|wiki|playbook|thread|draft|deck|file|list|top|bottom|end|front|back|start|review|approval|next|last|later|tomorrow|monday|tuesday|wednesday|thursday|friday)\b/.test(np) || /^(?:\d|[$€£])/.test(np);
-      const toolName = outsideNames(c, ctx, false).length === 0 && /^[a-z0-9.-]+$/.test(words[0] ?? '') && TOOL_NAMES.has(words[0] ?? '');
-      if (!teamish && !thing && !toolName) return true;
+      // Every recipient counts: "to Sam and the client", "to Henry/Sam" (both teammates).
+      const parts = m[1].split(/\s*(?:,|\band\b|&|\+|\/)\s*/).filter(Boolean).slice(0, 4);
+      const outside = (np: string) => {
+        if (TEAMMATE_OUTSIDE.test(np)) return true;
+        const words = np.split(/\s+/).slice(0, 3).map((w) => w.replace(/[^\p{L}\p{N}_'-]/gu, '').replace(/'s$/, ''));
+        const teamish = TEAM_WORDS.test(np) || words.some((w) => /^(?:qm+|me|us|you|yourself|them|him|her|it)$/.test(w));
+        const thing = /^(?:the\s+|our\s+|a\s+|an\s+|this\s+|my\s+|your\s+)?(?:[\w\/.-]+\s+){0,2}?(?:folder|drive|doc|docs|document|room|tempo|channel|board|tracker|sheet|spreadsheet|repo|repository|server|service|api|endpoint|queue|bucket|inbox|printer|archive|trash|bin|backlog|pipeline|staging|production|prod|dashboard|crm|wiki|playbook|thread|draft|deck|file|list|top|bottom|end|front|back|start|review|approval|next|last|later|tomorrow|monday|tuesday|wednesday|thursday|friday)\b/.test(np) || /^(?:\d|[$€£])/.test(np);
+        const toolName = outsideNames(c, ctx, false).length === 0 && /^[a-z0-9.-]+$/.test(words[0] ?? '') && TOOL_NAMES.has(words[0] ?? '');
+        return !teamish && !thing && !toolName;
+      };
+      if (outside(parts[0] ?? m[1]) || parts.slice(1).some((part) => reachesSomeoneElse(part, names))) return true;
     }
   }
   if (/^(?:dm|pm|message|text|ping|invite|tell|ask|e-?mail|follow\s+up\s+with|reach\s+out\s+to)\s+@[\w.]+/.test(t) && !/^\S+(?:\s+\S+)?\s+@qm+/.test(t)) return true;
@@ -496,7 +539,7 @@ function contactTest(c: Clause, ctx: RuleContext): boolean {
   // a pronoun or no object, with someone outside mentioned just before: "Send it to them today"
   if (!S8.test(t) && (PRONOUN_SEND.test(t) || PRONOUN_SEND_WHEN.test(t)) || S9.test(t)) {
     if (mentionsOutsider(c.before) || S10.test(t) && mentionsOutsider(c.before)) return true;
-    if (outsideNames({ ...c, raw: c.before.replace(/\b(\w)/g, (m) => m) }, ctx, true).length && /\b(?:at|from)\s+[a-z]/.test(c.before)) return true;
+    if (earlierNames(c, ctx).length && /\b(?:at|from)\s+[a-z]/.test(c.before)) return true;
   }
   // "Send it to them today" where they were named before; "Email her the signed copy"
   if (S11.test(t) && mentionsOutsiderOrName(c.before)) return true;
@@ -512,7 +555,7 @@ function contactTest(c: Clause, ctx: RuleContext): boolean {
     if (S13.test(t)) return true;
     // "the reply is sent", "the first email has gone out to this week's sign-ups", "it's in her inbox"
     const sent = /\b(?:has|have|is|are|'s|was|gets?|got)\s+(?:been\s+)?(?:all\s+)?(?:sent|delivered|forwarded|mailed|e-?mailed)\b/.test(t) || /\b(?:gone|go|goes|went)\s+out\b/.test(t) || /\b(?:in|reached)\s+(?:his|her|their)\s+inbox\b/.test(t);
-    const outsiderNear = seen(P17, t, nv) || S14.test(t) || mentionsOutsider(c.before) || outsideNames({ ...c, raw: 'x ' + c.beforeRaw }, ctx, true).length > 0;
+    const outsiderNear = seen(P17, t, nv) || S14.test(t) || mentionsOutsider(c.before) || earlierNames(c, ctx).length > 0;
     if (sent && outsiderNear) return true;
     // "it has been shared with Northwind's team"
     if (seen(P18, t, nv)) return true;
@@ -523,6 +566,11 @@ function contactTest(c: Clause, ctx: RuleContext): boolean {
   }
   if (seen(P20, t, nv)) return true;
   return false;
+}
+
+/** Names outside the team in the clauses before this one (each clause's first word is not a name). */
+function earlierNames(c: Clause, ctx: RuleContext): string[] {
+  return c.beforeParts.flatMap((raw) => outsideNames({ ...c, raw }, ctx, true));
 }
 
 function mentionsOutsiderOrName(before: string): boolean {
@@ -547,7 +595,10 @@ function deleteTest(c: Clause): boolean {
   if (c.pressed.some((p) => /\b(?:delete|remove|empty\s+trash|discard|destroy|wipe|purge|close\s+account|cancel\s+subscription)\b/.test(p))) return true;
   if (/\bwipe\s+the\s+slate\b|\bclean\s+slate\b/.test(t)) return false;
   // shell and database commands
-  if (/\bterraform\s+destroy\b|\bgit\s+branch\s+-d\b|\brm\s+-[a-z]*r|\bdrop\s+(?:table|database|schema|collection)\b|\btruncate\s+(?:table\s+)?(?!.*\b(?:name|names|title|text|string|label|to\s+\d)\b)\w+\s+on\s+(?:the\s+)?(?:prod|production)|\bdelete\s+from\b|\bgit\s+push\s+(?:-f|--force)\b|\bforce[- ]push\b|\bflushall\b|\bflushdb\b/.test(t)) return true;
+  // Shell and database commands, when run ("Run `rm -rf /data`"); a command that is only the topic of
+  // drafting or code work ("Add a lint rule that blocks `rm -rf`") is not an act.
+  const runs = c.frame !== 'content' || /^(?:run|execute|exec|type|enter|issue|fire)\b/.test(t);
+  if (runs && (/\bterraform\s+destroy\b|\bgit\s+branch\s+-d\b|\brm\s+-[a-z]*r|\bdrop\s+(?:table|database|schema|collection)\b|\btruncate\s+(?:table\s+)?(?!.*\b(?:name|names|title|text|string|label|to\s+\d)\b)\w+\s+on\s+(?:the\s+)?(?:prod|production)|\bdelete\s+from\b|\bgit\s+push\s+(?:-f|--force)\b|\bforce[- ]push\b|\bflushall\b|\bflushdb\b/.test(t) || CLI_DELETE.test(t))) return true;
   if (/^(?:run|trigger|execute|kick\s+off|start)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?(?:deletion|delete|cleanup|clean-?up|purge|wipe|teardown|destroy|reset)\s+(?:script|job|task|command|migration|workflow)\b/.test(t)) return true;
   if (/^(?:run|trigger|execute|kick\s+off|start)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?(?:job|task|script|workflow|cron|migration|automation|command)\s+(?:that|which|to)\s+(?:deletes?|wipes?|purges?|drops?|removes?|truncates?|clears?|destroys?)\b/.test(t)) return true;
   if (/^replace\s+(?:the\s+)?(?:prod|production|live)\s+(?:data|database|db)\b/.test(t)) return true;
@@ -623,7 +674,7 @@ function shareTest(c: Clause, ctx: RuleContext): boolean {
   const t = c.text;
   const publicHere = S30.test(t);
   if (c.pressed.some((p) => /\b(?:publish|post|share|tweet|go\s+live|make\s+public|deploy|release|launch)\b/.test(p))) return true;
-  const internal = INTERNAL.test(t) || (/\b(?:posted|shared|post|share|for\s+review)\b/.test(t) && FOR_TEAMMATE.test(t));
+  const internal = INTERNAL.test(t) || (!publicHere && (TEAMMATE_INTERNAL.test(t) || (/\b(?:posted|shared|post|share|for\s+review)\b/.test(t) && FOR_TEAMMATE.test(t))));
   // project data into an outside tool: "Upload our customer list to Canva", "Paste the tickets into an online AI tool"
   // Data about people: customers, users, contacts, support tickets, interview recordings.
   const dataThing = /\b(?:(?:customer|client|user|contact|subscriber|lead|member|candidate|employee|patient|donor|personal|private|support|sales|billing|crm|e-?mail|interview|survey|payroll|hr|attendee|participant|guest|staff|vendor|device|applicant|volunteer)s?\s+(?:[\w-]+\s+)?(?:list|lists|data|database|db|records|e-?mails|addresses|contacts|tickets|events|exports?|recordings?|transcripts?|logs|spreadsheet|sheet|csv|responses|details|info|table)|(?:customer|client|user|contact|subscriber|lead|member)\s+(?:list|lists|base|data|database|db)|(?:exported|full|our|the|all)\s+(?:support\s+)?tickets|(?:the|our)\s+(?:customer|user|production)\s+(?:database|db)|^(?:connect|sync)\s+(?:the\s+|our\s+)?(?:[\w-]+\s+)?(?:database|db|warehouse|data\s+warehouse|crm)|leads|subscribers|contacts|customers|(?:full\s+)?(?:response|responses|survey)\s+exports?|including\s+(?:their\s+|the\s+)?(?:e-?mails|e-?mail\s+addresses|names|phone\s+numbers|addresses|personal\s+(?:data|details|info)))\b/;
@@ -636,7 +687,7 @@ function shareTest(c: Clause, ctx: RuleContext): boolean {
   if (seen(P21, t, nv)) return true;
   {
     const m = /^(?:give|grant)\s+(.{1,60}?)\s+(?:edit|view|viewer|read|write|comment|full|admin|owner|editor|guest)?\s*(?:access|rights|permissions?)\b/.exec(t);
-    if (m && !TEAM_WORDS.test(m[1]) && !m[1].split(/\s+/).some((w) => /^(?:qm+|me|us|yourself)(?:'s)?$/.test(w))) return true;
+    if (m && !TEAM_WORDS.test(m[1]) && !m[1].split(/\s+/).some((w) => /^@?(?:qm+|me|us|yourself)(?:'s)?$/.test(w))) return true;
   }
   if (seen(P22, t, nv)) return true;
   if (seen(P23, t, nv)) return true;
@@ -705,6 +756,25 @@ export const SHARE: Rule = { label: 'sharing anything outside the project', key:
 
 export const RULES: Rule[] = [MONEY, CONTACT, DELETE, SHARE];
 
+/**
+ * Words that never count as a teammate on their own, though they may be part of a team name: days
+ * and small words, tools and public places ("LinkedIn" of "LinkedIn Muse"), and roles and outsiders
+ * ("Support", "Press"). See teamOf in limits-text.ts.
+ */
+export const NOT_TEAM_WORDS: ReadonlySet<string> = new Set([
+  ...NOT_NAMES,
+  ...TOOL_NAMES,
+  ...PUBLIC_WORDS,
+  ...(
+    'customer customers client clients vendor vendors supplier suppliers press journalist journalists reporter reporters media investor investors ' +
+    'prospect prospects lead leads influencer influencers creator creators user users subscriber subscribers candidate candidates applicant ' +
+    'applicants partner partners sponsor sponsors donor donors support sales billing outreach pilot social community public agency freelancer ' +
+    'freelancers contractor contractors consultant consultants accountant lawyer recruiter photographer printer venue legal finance marketing ' +
+    'growth success help helpdesk desk service services bot assistant agent agents team linkedin twitter x facebook instagram tiktok youtube ' +
+    'reddit discord slack email mail inbox newsletter blog website site store shop'
+  ).split(' '),
+]);
+
 /** For the clause splitter: a run-a-job clause carries its own act ("Run the script that deletes all staging data"). */
 export function jobAct(text: string): string | null {
   const m = /^(?:run|trigger|kick\s+off|execute|start|launch|fire)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?(?:job|task|script|workflow|cron|pipeline|migration|automation|zap|sequence|command)\s+(?:that|which)\s+(.*)$/.exec(text);
@@ -713,6 +783,10 @@ export function jobAct(text: string): string | null {
 }
 
 // Patterns used inside the rules above, built once when this module loads.
+/** "gh repo delete acme/old-site", "aws s3 rm s3://exports --recursive", "kubectl delete namespace staging". */
+const CLI_DELETE = re(String.raw`\b(?:gh|aws|gcloud|gsutil|az|kubectl|helm|heroku|fly|flyctl|vercel|netlify|docker|git|supabase|firebase|terraform|pulumi|doctl|railway|s3cmd|rclone)\b[^.;]{0,80}?(?:\s(?:delete|destroy|rm|rmdir|purge|prune|terminate|drop)\b|\s--delete\b|\s-d\s)`);
+/** The start of a list of people outside the team ("the client", "everyone who signed up"). */
+const OUTSIDER_START = re(String.raw`^(?:${OUTSIDER}|${AUDIENCE})`);
 /** "Send it to them today", but not "send it to Henry" (teammates are "qmmm" placeholders here). */
 const PRONOUN_SEND = re(String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL}|${CONTACT_SEND})\s+(?:${PRONOUN_OBJ})\b(?!\s+(?:to|with)\s+(?:the\s+team|me|us|qm+)\b)`);
 const PRONOUN_SEND_WHEN = re(String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL}|${CONTACT_SEND})\s+(?:back\b|today|now|tomorrow|asap|by\s+\w+|before\s+\w+|this\s+\w+)`);

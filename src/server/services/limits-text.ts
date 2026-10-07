@@ -25,6 +25,8 @@ export interface Clause {
   before: string;
   /** The same, in the original case (for names). */
   beforeRaw: string;
+  /** Each earlier clause on its own, in the original case: its first word is where a sentence starts. */
+  beforeParts: string[];
   /** Labels on buttons the text says to press: 'Click "Buy"' gives "buy". */
   pressed: string[];
   /** Every quoted text in the sentence, lower case ("anyone with the link"). */
@@ -62,17 +64,33 @@ const ORDINARY = new Set(
   ).split(' '),
 );
 
-export function teamOf(names: string[]): Team {
+/** Titles are never a name on their own ("Dr" of "Dr. Ada Lovelace"). */
+const TITLES = new Set('dr mr mrs ms mx miss prof sir dame lord lady rev st jr sr phd md'.split(' '));
+
+/** Letters without accents, as normalise() leaves the text ("José" is read as "jose"). */
+export function plainLetters(text: string): string {
+  return text.normalize('NFKD').replace(/\p{M}+/gu, '');
+}
+
+/**
+ * `notNames` are words that never count as a teammate on their own because they mean something
+ * else to the rules: places and tools ("LinkedIn" of an agent called "LinkedIn Muse"), roles and
+ * outsiders ("Support", "Press"), days and so on (limits-rules.ts passes them). A whole name still
+ * counts ("Support Bot").
+ */
+export function teamOf(names: string[], notNames: ReadonlySet<string> = new Set()): Team {
   const team: Team = { anyCase: new Set(), capitalOnly: new Set(), phrases: [] };
   for (const name of names) {
-    const words = name.toLowerCase().split(/[^\p{L}\p{N}'-]+/u).filter(Boolean);
-    const real = words.filter((w) => /\p{L}/u.test(w) && w.length > 1 && !ORDINARY.has(w));
+    const words = plainLetters(name).toLowerCase().split(/[^\p{L}\p{N}'-]+/u).filter(Boolean);
+    const real = words.filter((w) => /\p{L}/u.test(w) && w.length > 1 && !ORDINARY.has(w) && !TITLES.has(w) && !notNames.has(w));
     if (words.length === 1) {
       for (const w of real) team.anyCase.add(w);
       continue;
     }
     if (words.length > 1) team.phrases.push(words);
     for (const w of real) team.capitalOnly.add(w);
+    // Written as a handle: "Muse_Henry", "@MuseHenry", "muse-henry".
+    if (real.length) for (const joined of [words.join(''), words.join('_'), words.join('-')]) team.anyCase.add(joined);
   }
   team.phrases.sort((a, b) => b.join(' ').length - a.join(' ').length);
   return team;
@@ -83,8 +101,10 @@ export const NO_TEAM: Team = teamOf([]);
 /** A teammate's placeholder in clause text. */
 export const TEAMMATE = /^qm+$/;
 
-const WORD_CHAR = /[\p{L}\p{N}_]/u;
-const WORD_END = /^(?:s')|^(?![\wÀ-ɏ])/;
+/** A word starts after a character that cannot be part of a name ("jean-luc" holds no "luc"). */
+const WORD_CHAR = /[\p{L}\p{N}_'-]/u;
+/** A word ends where no letter or digit follows, also not after a hyphen or an apostrophe ("dana's" is "dana"). */
+const WORD_END = /^(?:s')|^(?![\wÀ-ɏ]|-[\p{L}\p{N}]|'(?!s\b)\p{L})/u;
 
 /**
  * Swaps each whole-word occurrence of the given words for a same-length placeholder: "q" and then
@@ -117,8 +137,11 @@ function nameWords(raw: string): string[] {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map((w) => w.replace(/'s$|'$/, '').replace(/[.]+$/, ''));
+    .map((w) => w.replace(/^@+/, '').replace(/'s$|'$/, '').replace(/[.]+$/, ''))
+    .filter(Boolean);
 }
+
+const CAPITALISED = /^\p{Lu}\p{Ll}/u;
 
 /** Where a teammate's longer name starts at word i, how many words it has (0 if none). */
 function phraseAt(words: string[], i: number, team: Team): number {
@@ -141,10 +164,27 @@ export function teammatesIn(raw: string, team: Team): Set<string> {
       continue;
     }
     const lower = words[i].toLowerCase();
-    if (team.anyCase.has(lower) || (team.capitalOnly.has(lower) && /^\p{Lu}/u.test(words[i]))) out.add(lower);
+    // A first name followed by another surname is someone else: "Priya Raman" when the team has
+    // Priya Nair, "Sam Altman" when it has Sam.
+    const next = words[i + 1];
+    if (next && CAPITALISED.test(next) && !team.anyCase.has(next.toLowerCase()) && !team.capitalOnly.has(next.toLowerCase()) && !notNameAfter(next)) continue;
+    // One word of a longer name counts when written as a name. As the first word of a clause it is
+    // the person only when it reads as the subject ("Henry has had a look"), not as a verb ("Bill
+    // Acme for the retainer", "Chase the client" when the team has Bill Chen and Chase Miller).
+    const subject = i > 0 || SUBJECT_NEXT.test(next ?? '') || (!IS_VERB.test(lower) && !OBJECT_NEXT.test(next ?? '') && !(next && CAPITALISED.test(next)));
+    if (team.anyCase.has(lower) || (team.capitalOnly.has(lower) && subject && /^\p{Lu}/u.test(words[i]))) out.add(lower);
   }
   return out;
 }
+
+/** After a first word that is a person: "Henry has had a look", "Sam will send it". */
+const SUBJECT_NEXT = /^(?:has|have|had|is|was|were|are|will|would|can|could|should|shall|may|might|must|did|does|do|said|says|wants|needs|thinks|asked|approved|agreed|signed|sent|wrote|already|just|also|still|and|or)$/i;
+/** After a first word that is a verb: "Chase the client", "Grant them access". */
+const OBJECT_NEXT = /^(?:the|a|an|our|my|your|their|his|her|its|them|him|it|this|that|these|those|all|every|everyone|anyone|each|any|some|up|out|in|back|[$€£]?\d.*)$/i;
+
+/** Capitalised words that are not a surname: "Priya Monday", "Henry FYI". */
+const NOT_SURNAME = new Set('monday tuesday wednesday thursday friday saturday sunday today tomorrow tonight please thanks fyi asap eod okay ok and or but so the a an to for from at in on with by of is are was will can could would should has have'.split(' '));
+const notNameAfter = (w: string) => NOT_SURNAME.has(w.toLowerCase()) || !/^[\p{L}'-]+$/u.test(w);
 
 /** The lower-case text with every teammate's name swapped for a "qmmm" placeholder. */
 export function swapTeammates(lower: string, raw: string, team: Team): string {
@@ -183,7 +223,13 @@ export function swapTeammates(lower: string, raw: string, team: Team): string {
   }
   const single = new Map<string, string>();
   for (const w of teammatesIn(raw, team)) if (team.anyCase.has(w) || team.capitalOnly.has(w)) single.set(w, 'm');
-  for (const w of team.anyCase) single.set(w, 'm');
+  // A clause that starts with a verb keeps it, even when someone on the team has that name ("Bill
+  // Acme for the March retainer" when the team has a Bill), unless it reads as the subject ("Bill
+  // has had a look").
+  const head = /^([\p{L}'-]+)(?![,:])\s*(\S*)/u.exec(s);
+  if (head && single.has(head[1]) && (IS_VERB.test(head[1]) || CONTENT_HEADS.has(head[1])) && !SUBJECT_NEXT.test(head[2])) {
+    return head[1] + swapWords(s.slice(head[1].length), single);
+  }
   return swapWords(s, single);
 }
 
@@ -193,6 +239,7 @@ function teammateAt(text: string, at: number, team: Team): boolean {
   if (!words.length) return false;
   if (phraseAt(words, 0, team)) return true;
   const lower = words[0].toLowerCase();
+  if (words[1] && CAPITALISED.test(words[1]) && !notNameAfter(words[1]) && !team.capitalOnly.has(words[1].toLowerCase())) return false;
   return team.anyCase.has(lower) || (team.capitalOnly.has(lower) && /^\p{Lu}/u.test(words[0]));
 }
 
@@ -282,14 +329,48 @@ const THIRD_PERSON_VERB = /^(?:\w+s|is|are|was|were|has|have|had|did|does|will|w
 // Normalising and splitting
 // ------------------------------------------------------------------------------------------------
 
+/** What follows an arrow or a slash that means "then": a request ("send it", "post the summary"). */
+const THEN_REQUEST = /^([\p{L}-]+)\s+(?:it|them|him|her|this|that|these|those|the|a|an|our|their|your|my|all|every|each|any|some|"[^"]*"|[$€£]|\d)/u;
+const thenRequest = (rest: string) => {
+  const m = THEN_REQUEST.exec(rest);
+  return !!m && (IS_VERB.test(m[1].toLowerCase()) || CONTENT_HEADS.has(m[1].toLowerCase()));
+};
+
 function normalise(text: string): string {
   return text
-    // Formatting is not meaning: "**publish**", "*delete*", "`Email the client`" read as plain words,
-    // and an arrow reads as "then" ("Draft the reply -> send it").
+    // A keycap number is a list number ("1️⃣ Draft the reply"), read before its marks are removed.
+    .replace(/(\d)\uFE0F?\u20E3/g, '$1. ')
+    // Accents and compatibility forms read as plain letters ("José", full-width letters), as team
+    // names do (teamOf); invisible characters never split or hide a word ("em\u200bail").
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[\u00AD\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g, '')
+    // Every kind of line break is a line break, and every other run of spaces is one space.
+    .replace(/\r\n?|[\u2028\u2029\u0085\v\f]/g, '\n')
+    .replace(/[^\S\n]+/g, ' ')
+    // Emoji and pictographs are decoration ("📧 Email the client"); between words one ends a clause,
+    // as a comma would ("Hi team 👋 can I publish the post?"). U+2063 is the clause mark (CLAUSE_SPLIT).
+    .replace(/^([^\S\n]*)[\p{Extended_Pictographic}\u2600-\u27BF\uFE0F\u20E3]+/gmu, '$1 ')
+    .replace(/[\p{Extended_Pictographic}\u2600-\u27BF\uFE0F\u20E3]+/gu, ' \u2063 ')
+    // A word that looks like one of the check's placeholders ("qmm", "QNNN") is escaped, so an agent
+    // cannot pass itself or anyone else off as a teammate (see swapTeammates and limits-rules.ts).
+    .replace(/\b(q)(?=([mntf])\2*\b)/gi, '$1$1')
+    // Formatting is not meaning: "**publish**", "*delete*", "`Email the client`" read as plain words.
+    // A short capitalised label in backticks is a label, as in quotes: "`Buy now` should be green".
+    .replace(/`([A-Z][A-Za-z]*(?: [A-Za-z]+){0,2})`/g, (m: string, label: string) => (/\b(?:the|a|an|my|our|your|their|it|them|this|that|all|every)\b/i.test(label) ? label : `"${label}"`))
     .replace(/`+/g, '')
+    // "Henry&Sam", "Henry+Sam": two names.
+    .replace(/(\p{Lu}\p{Ll}+)([&+])(?=\p{Lu}\p{Ll})/gu, '$1 $2 ')
     .replace(/(^|[\s(\[{"'])(?:\*{1,3}|_{1,3})(?=[^\s*_])/g, '$1')
     .replace(/(?<=[^\s*_])(?:\*{1,3}|_{1,3})(?=$|[\s)\]}.,;:!?"'])/gm, '')
-    .replace(/\s*(?:-{1,2}>|={1,2}>|[→⇒⟶➔➜⇨])\s*/g, ', then ')
+    // An arrow, or a spaced slash, before a request reads as "then" ("Draft the reply -> send it");
+    // not inside code ("$order->pay()") or a label change ("Save -> Publish").
+    .replace(/\s*(?:-{1,2}>|={1,2}>|[→⇒⟶➔➜⇨]|\s\/)\s*/g, (m: string, at: number, all: string) => (thenRequest(all.slice(at + m.length)) ? ', then ' : m))
+    // "Draft/send the reply": two verbs joined by a slash are two acts.
+    .replace(/\b([A-Za-z]+)\/([A-Za-z]+)\b/g, (m: string, a: string, b: string) => {
+      const verb = (w: string) => IS_VERB.test(w.toLowerCase()) || CONTENT_HEADS.has(w.toLowerCase());
+      return verb(a) && verb(b) && !/^w$/i.test(a) ? `${a} and ${b}` : m;
+    })
     // shorthand: "w/ the client", "the old acct", "fix typos + delete the folder"
     .replace(/\bw\/o\b/gi, 'without')
     .replace(/\bw\//gi, 'with ')
@@ -307,17 +388,29 @@ function normalise(text: string): string {
     .replace(/\s+[–—]\s+/g, ', ')
     .replace(/[–—]/g, '-')
     .replace(/\s&\s/g, ' and ')
-    .replace(/[ \t ]+/g, ' ');
+    .replace(/[^\S\n]+/g, ' ');
 }
 
-const LIST_MARKER = /^\s*(?:[-*•·>]+\s*|#{1,6}\s+|\[\s?[xX]?\s?\]\s*|\(?\d{1,2}[.)]\s+|\(?[a-hA-H][.)]\s+)+/;
+const LIST_MARKER = /^\s*(?:[-*•·>+]+\s*|#{1,6}\s+|\[[^\]\n]{0,24}\]\s*|\(?\d{1,2}[.)](?:\s+|(?=[A-Z]))|\(?[a-hA-H][.)]\s+|(?:[Ss]tep|[Tt]ask|[Ii]tem)\s+\d{1,2}\s*(?:[-.)]|,)\s+)+/;
+/** A row of a Markdown table: "| Pay the venue deposit ($500) | Sam |" (cells are read as sentences). */
+const TABLE_ROW = /^\s*\|.*\|\s*$/;
+const TABLE_RULE = /^\s*\|[\s:|-]+\|\s*$/;
 /** A list number or letter at the start of a sentence ("2) Email it to the client"). */
 const SENTENCE_MARKER = /^\(?(?:\d{1,2}|[a-hA-H])[.)]\s+/;
 /** Numbered items written on one line: "1) Draft the reply. 2) Email it to the client." */
 const INLINE_ITEMS = [/(?:^|\s)\(?\d{1,2}\)\s+/g, /(?:^|\s)\d{1,2}\.\s+(?=[A-Za-z])/g, /(?:^|\s)\(?[a-h]\)\s+(?=[A-Za-z])/g];
 function splitInlineItems(line: string): string {
   for (const re of INLINE_ITEMS) {
-    if ((line.match(re) ?? []).length >= 2) line = line.replace(re, (m) => (/^\s/.test(m) ? '. ' : ''));
+    const marks = [...line.matchAll(re)];
+    if (marks.length < 2) continue;
+    // Only items that are requests ("1) Draft the reply 2) Email it to the client"), not a numbered
+    // list inside one request ("Send Lena (1) the offer letter and (2) the benefits summary").
+    const items = marks.map((m) => (line.slice(m.index! + m[0].length).split(/\s+/)[0] ?? '').toLowerCase().replace(/[^a-z-]/g, ''));
+    if (!items.every((w) => IS_VERB.test(w) || CONTENT_HEADS.has(w))) continue;
+    // Not inside copy after a label ("Draft the FAQ answer: a) go to Settings b) delete your account").
+    const prefix = line.slice(0, marks[0].index).trim();
+    if (/:$/.test(prefix) && colonFrame(`${prefix} x`)?.copyFollows) continue;
+    line = line.replace(re, (m) => (/^\s/.test(m) ? '. ' : ''));
   }
   return line.replace(/^\.\s+/, '');
 }
@@ -332,10 +425,30 @@ function sentencesOf(line: string): string[] {
 }
 
 /** Does text in brackets ask for something ("then email it to the client", "don't post it yet")? */
-function bracketRequest(inner: string): boolean {
-  const t = stripWrapping(inner.toLowerCase().replace(/[.!?;:,]+$/, '')).text;
-  const head = t.split(/\s+/)[0] ?? '';
-  return IS_VERB.test(head) || IS_VERB.test(baseForm(head)) || NEGATED_START.test(t);
+/** A verb that makes a bracket a statement ("(pay button does nothing)"), never a plural noun ("drafts"). */
+const BRACKET_FACT = /^(?:is|are|was|were|has|had|did|does|doesn't|didn't|isn't|won't|will|went|got|came|said|told|sent|wrote|spoke|met|made|took|paid|bought|spent|left|asked|agreed|signed|approved)$/;
+
+function bracketRequest(inner: string, alone: boolean, team: Team): string | null {
+  // "(done when it has been emailed to the client)" is a goal, read like a done-when line.
+  if (/^done\s+when\b/i.test(inner)) return inner;
+  // "(Ada: delete the old exports)", "(old exports: delete them)", "(+ email it to the client)".
+  const body = (/^[^:]{1,40}:\s+(.+)$/.exec(inner)?.[1] ?? inner).replace(/^(?:\+|&|and)\s+/i, '');
+  const parts = body.replace(/\s+/g, ' ').split(CLAUSE_SPLIT);
+  const request = parts.some((part) => {
+    let t = stripWrapping(swapTeammates(part.toLowerCase(), part, team).replace(/[.!?;:,]+$/, '').trim()).text;
+    t = stripWrapping(stripAddressee(t)).text;
+    t = afterCondition(t) ?? t;
+    const words = t.split(/\s+/);
+    const head = baseForm(words[0] ?? '');
+    if (NEGATED_START.test(t)) return true;
+    if (!IS_VERB.test(head)) return false;
+    // Brackets that are the whole sentence: "(Buy the domain today.)"
+    if (alone) return true;
+    // "(pay button does nothing on mobile)", "(order 1042)", "(Buy now)": a fact, a number or a label.
+    if (words.slice(1, 4).some((w) => BRACKET_FACT.test(w))) return false;
+    return /^(?:it|them|him|her|us|this|that|these|those|the|a|an|our|their|your|my|all|every|each|any|some|both|"q"|[$€£]\d|to|on|out|up|down|back|over|off)\b/.test(words[1] ?? '');
+  });
+  return request ? body : null;
 }
 
 /** Labels on buttons to press, and the text with every other quote reduced to "q". */
@@ -486,11 +599,23 @@ const COPY_LABEL =
   /\b(?:headline|headlines|subhead|subheadline|subheading|tagline|taglines|slogan|cta|ctas|button|buttons|label|labels|tooltip|banner|copy|caption|captions|alt\s+text|subject\s+line|subject|preheader|title|heading|text|wording|line|lines|idea|ideas|option|options|test|variant|version|quote|testimonial|example|examples|faq|answer|question|table|comparison|pricing|price|prices|plans|tiers|report|research|notes|note|summary|finding|findings|data|stats|numbers|results|rules|policy|guidelines|template|snippet|placeholder|script|transcript|reply|draft|message\s+text|body|intro|outro|bio|description|hook|prompt|tweet\s+text|post\s+text|announcement\s+text)\s*$/;
 
 /** Splits "label: content". Returns what to read, or null to read the sentence as it is. */
+/**
+ * A label over requests, not copy: "Plan for today:", "Next steps:", "Question:", "Q:", "Note:",
+ * "Step 2:", "Update for Henry:". What follows is read.
+ */
+const TASK_LABEL =
+  /^(?:(?:my|our|the|your|today's|tomorrow's|this\s+week's|quick|urgent|one|small|final|work)\s+)*(?:plans?|work|tasks?|to-?dos?|todo\s+list|next(?:\s+steps?)?|steps?|action(?:\s+items?)?|actions|updates?|reminders?|agenda|checklist|review\s+checklist|priorities|question|questions|q|note|notes|answer|summary|request|ask|follow-?ups?|decision|status|heads\s+up|fyi|ps|nb|(?:step|task|item|point|phase|part)\s+\d+)(?:\s+(?:for|of|from|to|on)\s+.{1,40})?$/;
+
+/** Words for copy being written, whose bracketed examples are not requests. */
+const COPY_EXAMPLES = /\b(?:options?|ideas?|examples?|labels?|ctas?|headlines?|taglines?|slogans?|names?|variants?|versions?|copy|wording|buttons?|titles?|subject\s+lines?|lines?|suggestions?|alternatives?|choices?|captions?|hooks?|text|messages?|notifications?|scripts?|tutorials?|guides?|sections?|articles?|instructions|steps|faqs?|tooltips?|banners?|placeholders?|microcopy|prompts?)\b/;
+
 function colonFrame(sentence: string): { read: string; copyFollows: boolean } | null {
-  const m = /^(.{2,80}?):\s+(.*)$/.exec(sentence);
-  if (!m || /\d$/.test(m[1]) || /^\s*done\s+when\b/i.test(m[1])) return null;
+  const m = /^(.{1,80}?):\s+(.*)$/.exec(sentence);
+  if (!m || /^\s*done\s+when\b/i.test(m[1])) return null;
   const left = m[1].toLowerCase().trim();
   const right = m[2];
+  if (TASK_LABEL.test(left)) return { read: right, copyFollows: false };
+  if (/\d$/.test(m[1])) return null;
   const { text: leftStripped } = stripWrapping(left);
   const head = leftStripped.split(/\s+/)[0] ?? '';
   if (NEGATED_START.test(leftStripped) || /\b(?:rules?|don'ts|never|without\s+asking|off[- ]limits|avoid)\b/.test(leftStripped)) return { read: '', copyFollows: true };
@@ -505,18 +630,35 @@ function colonFrame(sentence: string): { read: string; copyFollows: boolean } | 
 // The clauses of a text
 // ------------------------------------------------------------------------------------------------
 
-export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
+/** Thrown when reading a text takes longer than the check allows (limits.ts turns it into "could not read"). */
+export class TooMuchWork extends Error {}
+
+export function clausesOf(input: string, team: Team = NO_TEAM, deadline = Infinity): Clause[] {
   const out: Clause[] = [];
   let before = '';
   let beforeRaw = '';
+  const beforeParts: string[] = [];
   let copyBlock = false;
-  const lines = normalise(input).split(/\r?\n/);
+  let copyIsList = false;
+  const lines = normalise(input).split('\n');
   lines.forEach((rawLine, lineNo) => {
-    let line = splitInlineItems(rawLine.trim()).replace(LIST_MARKER, '').trim();
+    if (performance.now() > deadline) throw new TooMuchWork();
+    let trimmed = rawLine.trim();
+    // A Markdown table: the rule row is skipped, each cell of the other rows is read as a sentence.
+    if (TABLE_ROW.test(trimmed)) {
+      if (TABLE_RULE.test(trimmed)) return;
+      trimmed = trimmed.replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim()).filter(Boolean).map((cell) => cell.replace(/[.!?;:,]*$/, '.')).join(' ');
+    }
+    const listed = LIST_MARKER.test(trimmed);
+    let line = splitInlineItems(trimmed).replace(LIST_MARKER, '').trim();
     if (!line) {
       copyBlock = false;
       return;
     }
+    // Copy written as a list ("Use these points:" then bullets) ends at the first line that is not a
+    // list item: "The reply has been sent to Dana" after the bullets is read again.
+    if (copyBlock && copyIsList && !listed) copyBlock = false;
+    if (copyBlock) copyIsList ||= listed;
     const doneWhen = /^done\s+when\b[:,]?\s*/i.test(line);
     if (doneWhen) {
       line = line.replace(/^done\s+when\b[:,]?\s*/i, '');
@@ -526,21 +668,32 @@ export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
       before += ' ' + swapTeammates(line.toLowerCase(), line, team);
       return;
     }
+    copyIsList = false;
     const quotedTexts = [...line.matchAll(/"([^"]*)"|(?:^|\s)'([^']{1,60})'(?=[\s.,;:!?]|$)/g)].map((m) => (m[1] ?? m[2] ?? '').toLowerCase());
     const { text: lineQuoted, pressed } = quotes(line);
     for (let sentence of sentencesOf(lineQuoted)) {
+      if (performance.now() > deadline) throw new TooMuchWork();
       const goal = doneWhen || lineNo > 0;
       sentence = sentence.replace(/^done\s+when\b[:,]?\s*/i, '').replace(SENTENCE_MARKER, '');
       // Text in brackets is set aside; a request in it ("(then email it to the client)") is read as a
       // clause of its own, after the sentence. Asides ("(e.g. Stripe)", "(it is $29)") are not.
       const inBrackets: string[] = [];
-      let body = sentence
-        .replace(/\s*\(([^()]*)\)/g, (_m: string, inner: string) => {
-          if (bracketRequest(inner)) inBrackets.push(inner);
-          return ' ';
-        })
-        .replace(/\s+/g, ' ')
-        .trim();
+      const alone = /^[(\[][^()[\]]*[)\]][.!?]?$/.test(sentence.trim());
+      // Examples of copy being written: "Write three CTA options (Buy now, Get started, Start your trial)".
+      const outside = stripWrapping(sentence.replace(/\s*[([][^()[\]]*[)\]]/g, ' ').toLowerCase().trim()).text;
+      const examples = CONTENT_HEADS.has(outside.split(/\s+/)[0] ?? '') && COPY_EXAMPLES.test(outside);
+      const aside = (_m: string, inner: string) => {
+        const plain = inner.replace(/\s+/g, ' ').trim();
+        // Unless it is a next step ("then send it") or about the thing written ("send it to the client").
+        if (examples && !/^(?:and\s+)?(?:then|once|after|when|if)\b/i.test(plain) && !/^\S+\s+(?:it|them|this|that|these|those)\b/i.test(plain)) return ' ';
+        const request = bracketRequest(plain, alone, team);
+        if (request) inBrackets.push(request);
+        return ' ';
+      };
+      // Twice, for a bracket inside a bracket: "(then email it to the client (Dana at Acme))".
+      let body = sentence.replace(/\s*[([]([^()[\]]*)[)\]]/g, aside);
+      if (/[([][^()[\]]*[)\]]/.test(body)) body = body.replace(/\s*[([]([^()[\]]*)[)\]]/g, aside);
+      body = body.replace(/\s+/g, ' ').trim();
       const colon = colonFrame(body);
       if (colon) {
         if (colon.copyFollows && /:\s*$/.test(body)) copyBlock = true;
@@ -551,8 +704,9 @@ export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
         }
       }
       if (/:\s*$/.test(sentence) && !colon) {
-        const head = stripWrapping(sentence.toLowerCase()).text.split(/\s+/)[0] ?? '';
-        if (CONTENT_HEADS.has(head)) copyBlock = true;
+        const label = stripWrapping(sentence.toLowerCase().replace(/:\s*$/, '')).text;
+        // "Plan for today:" over a list is a list of requests; "Draft three subject lines:" is copy.
+        if (CONTENT_HEADS.has(label.split(/\s+/)[0] ?? '') && !TASK_LABEL.test(label.trim())) copyBlock = true;
       }
       const prepare = (b: string) =>
         b
@@ -566,7 +720,10 @@ export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
         .replace(/\s+so\s+(?=\S)/g, (m: string, at: number, all: string) => (teammateAt(all, at + m.length, team) ? ' \u2063 ' : m));
       const parts = [...prepare(body).split(CLAUSE_SPLIT), ...inBrackets.flatMap((b) => prepare(b.trim()).split(CLAUSE_SPLIT))];
       for (const part of parts) {
-        const raw = part.trim().replace(/[.!?;:,]+$/, '');
+        let raw = part.trim().replace(/[.!?;:,]+$/, '');
+        // A done-when goal set in brackets: "(done when it has been emailed to the client)".
+        const partGoal = /^done\s+when\b[:,]?\s*/i.test(raw);
+        if (partGoal) raw = raw.replace(/^done\s+when\b[:,]?\s*/i, '');
         if (!raw) continue;
         const lower = swapTeammates(raw.toLowerCase(), raw, team);
         let { text, conditional } = stripWrapping(lower);
@@ -580,11 +737,12 @@ export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
         const proceed = PROCEED.exec(text);
         if (proceed) text = 'proceed ' + text.slice(proceed[0].length);
         let frame = frameOf(text);
-        if (goal && (frame === 'report' || frame === 'content') && !FACT_QUESTION.test(text) && !CONTENT_HEADS.has(text.split(/\s+/)[0] ?? '')) frame = 'state';
+        if ((goal || partGoal) && (frame === 'report' || frame === 'content') && !FACT_QUESTION.test(text) && !CONTENT_HEADS.has(text.split(/\s+/)[0] ?? '')) frame = 'state';
         if (!text) continue;
-        out.push({ text, raw, frame, before: before.trim(), beforeRaw: beforeRaw.trim(), pressed, quoted: quotedTexts });
+        out.push({ text, raw, frame, before: before.trim(), beforeRaw: beforeRaw.trim(), beforeParts: [...beforeParts], pressed, quoted: quotedTexts });
         before += ' ' + lower;
         beforeRaw += ' ' + raw;
+        beforeParts.push(raw);
       }
     }
   });

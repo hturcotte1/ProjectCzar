@@ -569,3 +569,26 @@ describe('review follow-ups', () => {
     expect(held(decisions(s.w)[2])).toMatchObject({ kind: 'reword', previous_text: FOUR_SHORT, text: FIVE_SHORT });
   });
 });
+
+describe('the done-when line is checked as a goal', () => {
+  // An instruction that ends with a label for copy ("Use this wording:") must not hide the goal
+  // after it: the limits check reads the done-when line as "Done when: ...", never as the copy.
+  const WORDING = 'Draft the reply to the pricing question. Use this wording:';
+  const SENT = 'The reply has been emailed to the client.';
+
+  it('a new instruction whose done-when line is outside the limits becomes a decision', async () => {
+    const s = await setup('autonomous');
+    const actions = await s.conduct({ instructions: [instr('Muse Sam', WORDING, SENT)] });
+    expect(actions.map((a) => a.kind)).toEqual(['decision']);
+    expect(texts(await s.card(s.w.b))).toEqual([]);
+  });
+
+  it('a rewording whose done-when line is outside the limits becomes a decision', async () => {
+    const s = await setup('autonomous');
+    await s.conduct({ instructions: [instr('Muse Sam', QUOTES)] });
+    const id = (s.w.ctx.db.prepare('SELECT id FROM instructions').get() as { id: string }).id;
+    const actions = await s.conduct({ instruction_changes: [reword(id, WORDING, SENT)] });
+    expect(actions.map((a) => a.kind)).toEqual(['decision']);
+    expect(ins(s.w, id).text).toBe(QUOTES);
+  });
+});

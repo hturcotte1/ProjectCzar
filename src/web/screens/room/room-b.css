@@ -300,6 +300,13 @@
   font-size: 1rem;
   line-height: 1.3;
 }
+/* What a decision holds back, with one line under it on what any other answer does. */
+.dec-held {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
 .dec-proposed {
   background: var(--bg-sunken);
   border-radius: var(--radius-sm);
@@ -408,4 +415,10 @@
 }
 .dec-recent-title {
   font-weight: 600;
+}
+.dec-recent-held {
+  color: var(--text-muted);
+  border-left: 2px solid var(--border-strong);
+  padding-left: 7px;
+  overflow-wrap: anywhere;
 }

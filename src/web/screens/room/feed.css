@@ -335,6 +335,9 @@
 .feed-reply-green .feed-reply-head strong {
   color: color-mix(in srgb, var(--green) 65%, var(--text));
 }
+.feed-reply-amber .feed-reply-head strong {
+  color: color-mix(in srgb, var(--amber) 70%, var(--text));
+}
 .feed-detail {
   font-size: 0.92rem;
   min-width: 0;

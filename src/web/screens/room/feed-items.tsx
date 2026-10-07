@@ -539,7 +539,9 @@ function DecisionBody({ ev }: { ev: FeedEvent }) {
 function DecisionThread({ row, env }: { row: FeedRowModel; env: ItemEnv }) {
   const ev = row.root;
   const resolved = row.replies.filter((r) => r.kind === 'decision_resolved');
-  const dismissed = row.replies.filter((r) => r.kind === 'system');
+  // A person approved something that could no longer go out: Tempo says why, under its own heading.
+  const notSent = row.replies.filter((r) => r.kind === 'system' && r.data.event === 'held_not_applied');
+  const dismissed = row.replies.filter((r) => r.kind === 'system' && r.data.event !== 'held_not_applied');
   const resolvedInRoot = ev.data.status === 'resolved' && resolved.length === 0 ? ev.data.resolution : null;
   const open = !resolved.length && !dismissed.length && !resolvedInRoot;
   if (open && !env.complete) return null;
@@ -559,6 +561,13 @@ function DecisionThread({ row, env }: { row: FeedRowModel; env: ItemEnv }) {
           </div>
         </Reply>
       )}
+      {notSent.map((r) => (
+        <Reply key={r.seq} tone="amber" head={<strong>Not sent</strong>} time={r.created_at}>
+          <div className="feed-sub">
+            <SafeText text={r.text} />
+          </div>
+        </Reply>
+      ))}
       {dismissed.map((r) => (
         <Reply key={r.seq} head={<strong>Dismissed</strong>} time={r.created_at}>
           <div className="feed-sub">

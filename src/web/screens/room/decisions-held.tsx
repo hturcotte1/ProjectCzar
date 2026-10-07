@@ -3,10 +3,40 @@ import { SafeText } from '../../components/SafeText';
 import { InstructionFacts, PriorityPill } from './lanes-parts';
 
 /**
+ * One short line saying what a decision held back, for places that otherwise show only its title
+ * (titles leave the held text out, because a decided title reaches agents' cards). Render it with
+ * SafeText: it is the Conductor's text, which can quote agents.
+ */
+export function heldLine(p: ProposedInstructionView, max = 140): string {
+  const text = p.kind === 'reword' ? `New wording: ${p.text}` : p.kind === 'playbook' ? `${p.title ?? ''}: ${p.text}` : p.text;
+  const flat = text.replace(/\s+/g, ' ').trim();
+  return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}…` : flat;
+}
+
+/** What any answer other than the first option does with the held item. */
+const OTHER_ANSWER: Record<ProposedInstructionView['kind'], string> = {
+  instruction: 'Any other answer does not send it.',
+  reword: 'Any other answer keeps the current wording.',
+  question: 'Any other answer does not send it.',
+  answer: 'Any other answer does not send it.',
+  note: 'Any other answer does not post it.',
+  playbook: 'Any other answer does not save it.',
+};
+
+/**
  * What a decision holds back, and what choosing its first option does with it. Everything here
  * was written by the Conductor or quotes an agent, so all of it goes through SafeText.
  */
 export function HeldItem({ held: p, approveLabel }: { held: ProposedInstructionView; approveLabel: string }) {
+  return (
+    <div className="dec-held">
+      <HeldBody held={p} approveLabel={approveLabel} />
+      <div className="tiny muted">{OTHER_ANSWER[p.kind] ?? OTHER_ANSWER.instruction}</div>
+    </div>
+  );
+}
+
+function HeldBody({ held: p, approveLabel }: { held: ProposedInstructionView; approveLabel: string }) {
   const lead = `If you choose “${approveLabel}”, `;
   const agent = p.agent_name ?? 'the agent';
   switch (p.kind) {

@@ -3,7 +3,7 @@ import type { DecisionView } from '../../../shared/app-types';
 import { api } from '../../lib/api';
 import { Dialog, Pill, useAction } from '../../components/ui';
 import { SafeText } from '../../components/SafeText';
-import { HeldItem } from './decisions-held';
+import { HeldItem, heldLine } from './decisions-held';
 import { RelTime } from './strip-now';
 import { SOURCE_WORDS, WriteBox, needsWords, optionLabel, recommendedIndex } from './decisions-common';
 
@@ -143,6 +143,11 @@ function DismissDialog({ decision, onClose, onDone }: { decision: DecisionView; 
         </p>
         <blockquote className="lane-quote">
           <SafeText text={decision.title} />
+          {decision.proposed_instruction && (
+            <div className="small muted">
+              <SafeText text={heldLine(decision.proposed_instruction)} />
+            </div>
+          )}
         </blockquote>
         <div className="row" style={{ justifyContent: 'flex-end' }}>
           <button type="button" className="btn" disabled={busy} onClick={onClose}>

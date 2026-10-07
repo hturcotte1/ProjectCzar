@@ -1,5 +1,6 @@
 import type { DecisionView } from '../../../shared/app-types';
 import { SafeText } from '../../components/SafeText';
+import { heldLine } from './decisions-held';
 import { RelTime } from './strip-now';
 
 /** Decisions that are already settled, collapsed so they do not crowd what still needs a person. */
@@ -15,6 +16,11 @@ export function RecentlyDecided({ decisions }: { decisions: DecisionView[] }) {
             <div className="small dec-recent-title">
               <SafeText text={d.title} />
             </div>
+            {d.proposed_instruction && (
+              <div className="small dec-recent-held">
+                <SafeText text={heldLine(d.proposed_instruction)} />
+              </div>
+            )}
             <div className="small muted">
               {d.status === 'dismissed' ? (
                 'Dismissed without an answer'

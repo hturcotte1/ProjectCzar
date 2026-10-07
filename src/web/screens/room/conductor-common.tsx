@@ -14,7 +14,8 @@ export const MODE_WORDS: Record<ConductorMode, { name: string; explain: string }
   },
   propose: {
     name: 'Propose',
-    explain: 'Every new instruction, and every change to one an agent can already see, waits for your one-tap approval first. You can edit or reject a new one.',
+    explain:
+      'Every new instruction, and any new wording for one an agent can already see, waits for your one-tap approval first. You can edit or reject a new one. It can still cancel its own instructions.',
   },
   relay: {
     name: 'Relay',

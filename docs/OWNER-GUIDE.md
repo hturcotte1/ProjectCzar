@@ -267,16 +267,23 @@ left-hand list, counts them.
   shows what would go out and to whom; for new wording it shows **Now:** and **Would become:** side by
   side. The first option sends it: **Approve and send it** (an instruction, a question or an answer),
   **Approve the new wording**, **Approve and post it** (a room note) or **Approve and save it** (a
-  lesson). Any other answer, or **Dismiss**, sends nothing and changes nothing. If it can no longer go
-  out when you approve it (say the question was answered in the meantime, or the instruction is
-  finished), nothing is sent and the feed says why.
+  lesson). Any other answer does not send it, and a line under what is held says so (for example
+  "Any other answer does not send it.", or for new wording "Any other answer keeps the current
+  wording."). Your answer itself still appears on the agents' cards, as with any decision: for a room
+  note or a lesson, on every agent's card. Writing your own words never sends a changed version of
+  what was held; to get one, say what you want, and the Conductor may try again with new words.
+  **Dismiss** sends nothing. If it can no longer go out when you approve it (say the question was
+  answered in the meantime, or the instruction is finished), nothing is sent, and the feed says why
+  under **Not sent**.
 * **Instructions to approve.** In **Propose** mode, each instruction the Conductor wants to give
   waits here. Click **Approve** to send it, **Edit, then approve** to change it first (then **Approve
   with changes**), or **Reject** (with an optional reason).
 * **Questions for you.** Agents' questions aimed at "people" or at the Conductor. Type an answer and
   click **Send answer**.
 
-Below them, **Recently decided** lists what you settled lately.
+Below them, **Recently decided** lists what you settled lately. For a decision that held something
+back, a line under its title says what (the instruction, question, note or answer, the new wording,
+or the lesson).
 
 ### The Conductor
 
@@ -415,22 +422,33 @@ click.
 | Mode | What it does |
 |---|---|
 | **Autonomous** (the usual choice) | Its instructions go to agents straight away. Anything that needs your approval still waits for you. |
-| **Propose** | Every new instruction, and every change to one an agent can already see, waits for your one-tap approval first. You can edit or reject a new one. |
+| **Propose** | Every new instruction, and any new wording for one an agent can already see, waits for your one-tap approval first. You can edit or reject a new one. It can still cancel its own instructions. |
 | **Relay** | It starts no work of its own. It passes on your instructions, points out overlap and conflicts, and asks questions. |
 
 In every mode, instructions you type yourself go straight to the agent.
 
-In every mode, Tempo checks everything the Conductor writes for agents against the room's limits: new
+In every mode, Tempo's limits check reads everything the Conductor writes for agents: new
 instructions, new wording for an instruction, questions to agents, answers to agents' questions, room
-notes and playbook lessons. Anything that crosses a limit, or that the Conductor flags as needing a
-person, becomes a decision under **Waiting on you**, and no agent sees it until you approve it.
+notes and playbook lessons. Anything the check flags, or that the Conductor itself marks as needing a
+person, becomes a decision under **Waiting on you**, and no agent sees it until you approve it. The
+check is a safety net, not a guarantee (see "How Tempo keeps things safe"): an unusually worded
+request can slip past it. The Conductor's reasons for its instructions are for you; agents never see
+them. If the check flags its reason for cancelling an instruction, the instruction is still cancelled
+(that only takes work away), but the reason is kept in the **Conductor log** instead of on the
+instruction.
 
-**What Propose mode holds back:** every new instruction from the Conductor, and any change to the
-wording of an instruction an agent can already see. **What it does not hold back:** the Conductor's
-questions to agents, its room notes, its answers to agents' questions and its playbook lessons. These
-give no new work, and the Conductor needs them to chase things that are stuck. But if one of them
-crosses one of the room's limits, it becomes a decision first, in every mode. The Conductor can also
-withdraw one of its own instructions without asking.
+When you say no to something the Conductor wanted to send, or dismiss it, it is not raised again if
+the Conductor asks for exactly the same thing later. If you approved it before, a later request for
+the same thing is a new request, and you are asked again.
+
+**What Propose mode holds back:** every new instruction from the Conductor (under **Instructions to
+approve**), and any new wording for an instruction an agent can already see (under **Decisions**).
+**What it does not hold back:** the Conductor's questions to agents, its room notes, its answers to
+agents' questions and its playbook lessons. These give no new work, and the Conductor needs them to
+chase things that are stuck. But if Tempo's limits check flags one of them, it becomes a decision
+first, in every mode; a flagged new instruction also waits under **Decisions** rather than
+**Instructions to approve**. The Conductor can also cancel one of its own instructions without
+asking.
 
 ### The banner, and what "relay" means when it falls back
 

@@ -26,7 +26,8 @@ export function dayWords(isoDate: string): string {
 /**
  * Once the budget is used up, spending stops until next month: the Conductor makes no more calls
  * (rooms act as relay) and daily briefs are written by rules, at no cost. The pace then only says
- * what the month would have cost; it is not where the month is heading. The server decides "used
+ * what the month would have cost; it is not where the month is heading. The server measures that
+ * pace up to the last spending, so the figure stays put after the stop. The server decides "used
  * up" with the same test that stops the spending (`budget_used_up`), never from rounded figures.
  */
 const STOPPED = 'Spending has stopped until next month';

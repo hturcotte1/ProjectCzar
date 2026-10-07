@@ -72,7 +72,11 @@ export interface SpendOutlook {
   paidRuns: number;
   /** Average cost of those runs (briefs are not runs), or null before the first one. */
   avgPerRun: number | null;
-  /** Straight-line month-end total at this month's pace, or null before any spending. */
+  /**
+   * Straight-line month-end total at this month's pace, or null before any spending. Once the budget
+   * is used up, the pace is the one before spending stopped, so this says what the month would have
+   * cost; it stays the same for the rest of the month instead of shrinking day by day.
+   */
   projected: number | null;
   /** The day (yyyy-mm-dd, UTC) the budget would run out at this pace, if before the month ends. */
   runsOutOn: string | null;
@@ -84,6 +88,8 @@ const DAY_MS = 24 * 3600_000;
  * Average cost per run and a month-end projection. The pace is this month's spend divided by the
  * time it covers: from the start of the month, or from the first paid call ever when Tempo started
  * spending mid-month, and never less than one day (so a busy first hour does not project wildly).
+ * Once the budget is used up nothing more is spent until next month, so the pace is measured only up
+ * to the last spending: the stopped days would otherwise pull it down a little more every day.
  * Every figure is Tempo's estimate from the tokens the API reported and the list prices above.
  */
 export function spendOutlook(ctx: AppContext): SpendOutlook {
@@ -103,14 +109,23 @@ export function spendOutlook(ctx: AppContext): SpendOutlook {
   const firstBrief = ctx.db.prepare('SELECT MIN(created_at) AS t FROM briefs WHERE cost_usd > 0').get() as { t: string | null };
   const firsts = [firstRun?.t, firstBrief.t].filter((t): t is string => !!t).map(ms);
   const paceStart = Math.max(monthStart.toMillis(), firsts.length ? Math.min(...firsts) : monthStart.toMillis());
-  const perMs = spent / Math.max(now - paceStart, DAY_MS);
-  const projected = spent + perMs * Math.max(0, monthEnd - now);
   const budget = ctx.config.conductorMonthlyBudgetUsd;
+  const paceEnd = budgetUsedUp(ctx, spent) ? Math.min(now, lastSpendThisMonth(ctx, since) ?? now) : now;
+  const perMs = spent / Math.max(paceEnd - paceStart, DAY_MS);
+  const projected = spent + perMs * Math.max(0, monthEnd - paceEnd);
   let runsOutOn: string | null = null;
   if (budget > 0 && spent < budget && projected > budget) {
     runsOutOn = DateTime.fromMillis(now + (budget - spent) / perMs, { zone: 'utc' }).toISODate();
   }
   return { spent, paidRuns: runs.n, avgPerRun, projected, runsOutOn };
+}
+
+/** The last paid run or model-written brief this month (ms), or null when there is none. */
+function lastSpendThisMonth(ctx: AppContext, since: string): number | null {
+  const run = ctx.db.prepare('SELECT MAX(started_at) AS t FROM conductor_runs WHERE started_at >= ? AND cost_usd > 0').get(since) as { t: string | null };
+  const brief = ctx.db.prepare('SELECT MAX(created_at) AS t FROM briefs WHERE created_at >= ? AND cost_usd > 0').get(since) as { t: string | null };
+  const times = [run.t, brief.t].filter((t): t is string => !!t).map(ms);
+  return times.length ? Math.max(...times) : null;
 }
 
 /** The share of the budget at which admins are warned, once a month. */

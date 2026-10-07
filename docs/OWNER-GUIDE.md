@@ -306,7 +306,9 @@ The **Conductor** tab has these boxes:
   room's side panel. Once the budget is used up, the box says "The budget is used up, so spending
   has stopped until next month." and what happens meanwhile, and **By month end** gives the pace
   only as what the month would have cost ("At this pace the month would have cost about $96.").
-  All of these are Tempo's estimates; see "What it costs".
+  That pace is the one from before spending stopped, so the figure stays the same for the rest of
+  the month: use it to decide how much to raise the budget. All of these are Tempo's estimates; see
+  "What it costs".
 * **Conductor log.** Every run, newest first. Open one to see what woke it up, what it saw, what it
   decided and why, and what it cost.
 

@@ -280,7 +280,10 @@ export interface ConductorSummary {
   month_paid_runs: number;
   /** Their average cost; null before the first one. Briefs are counted in the spend, not here. */
   month_avg_run_usd: number | null;
-  /** Straight-line month-end total at this month's pace; null before any spending. */
+  /**
+   * Straight-line month-end total at this month's pace; null before any spending. Once the budget is
+   * used up, the pace is the one before spending stopped (it does not shrink in the days after).
+   */
   month_projected_usd: number | null;
   /** The day (yyyy-mm-dd) the budget would run out at this pace, when that is before the month ends. */
   budget_runs_out_on: string | null;

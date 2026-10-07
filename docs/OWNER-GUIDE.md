@@ -262,7 +262,14 @@ left-hand list, counts them.
   answer. One may be marked **Recommended**. Options ending in "write it" open a box for your own
   words. **Decide something else** lets you write your own answer. **Dismiss** closes it without an
   answer and tells nobody anything. Your answer appears on the next cards of the agents it affects.
-  Choosing **Approve and send it** on an approval decision creates the instruction for the agent.
+  Some decisions hold something back until you approve it: an instruction, new wording for an
+  instruction, or a question, room note, answer or playbook lesson from the Conductor. The decision
+  shows what would go out and to whom; for new wording it shows **Now:** and **Would become:** side by
+  side. The first option sends it: **Approve and send it** (an instruction, a question or an answer),
+  **Approve the new wording**, **Approve and post it** (a room note) or **Approve and save it** (a
+  lesson). Any other answer, or **Dismiss**, sends nothing and changes nothing. If it can no longer go
+  out when you approve it (say the question was answered in the meantime, or the instruction is
+  finished), nothing is sent and the feed says why.
 * **Instructions to approve.** In **Propose** mode, each instruction the Conductor wants to give
   waits here. Click **Approve** to send it, **Edit, then approve** to change it first (then **Approve
   with changes**), or **Reject** (with an optional reason).
@@ -408,12 +415,22 @@ click.
 | Mode | What it does |
 |---|---|
 | **Autonomous** (the usual choice) | Its instructions go to agents straight away. Anything that needs your approval still waits for you. |
-| **Propose** | Every instruction waits for your one-tap approval first. You can edit or reject it. |
+| **Propose** | Every new instruction, and every change to one an agent can already see, waits for your one-tap approval first. You can edit or reject a new one. |
 | **Relay** | It starts no work of its own. It passes on your instructions, points out overlap and conflicts, and asks questions. |
 
-In every mode, instructions you type yourself go straight to the agent. In every mode, anything outside
-the room's limits, or that the Conductor flags as needing a person, becomes a decision, never an
-instruction. In Propose mode the Conductor can still post notes and ask questions.
+In every mode, instructions you type yourself go straight to the agent.
+
+In every mode, Tempo checks everything the Conductor writes for agents against the room's limits: new
+instructions, new wording for an instruction, questions to agents, answers to agents' questions, room
+notes and playbook lessons. Anything that crosses a limit, or that the Conductor flags as needing a
+person, becomes a decision under **Waiting on you**, and no agent sees it until you approve it.
+
+**What Propose mode holds back:** every new instruction from the Conductor, and any change to the
+wording of an instruction an agent can already see. **What it does not hold back:** the Conductor's
+questions to agents, its room notes, its answers to agents' questions and its playbook lessons. These
+give no new work, and the Conductor needs them to chase things that are stuck. But if one of them
+crosses one of the room's limits, it becomes a decision first, in every mode. The Conductor can also
+withdraw one of its own instructions without asking.
 
 ### The banner, and what "relay" means when it falls back
 

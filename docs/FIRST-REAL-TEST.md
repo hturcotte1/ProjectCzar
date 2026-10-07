@@ -49,10 +49,13 @@ Tick each of these before you touch Muse.
 7. **Set the Conductor's mode to Propose.** Open the room's **Conductor** tab. In the **Mode** box,
    click **Propose**. It saves as soon as you click. Why: in Propose mode, every instruction the
    Conductor writes waits for your one-tap approval (under **Waiting on you**, in **Instructions to
-   approve**) before Muse ever sees it, so the Conductor cannot send Muse a new job without you on
-   day one. Instructions you type yourself always go straight to Muse's card, in every mode. The
-   Conductor can still post short notes in the feed and ask questions, and Muse will see those, but
-   you can read all of that.
+   approve**) before Muse ever sees it, and so does any change it wants to make to an instruction
+   Muse can already see (under **Waiting on you**, in **Decisions**). So the Conductor cannot send
+   Muse a new job, or change one, without you on day one. Instructions you type yourself always go
+   straight to Muse's card, in every mode. The Conductor can still post short notes in the feed, ask
+   Muse questions, answer Muse's questions and save playbook lessons, and Muse will see those, but you
+   can read all of that. If any of them crosses one of the room's limits (spending money, say), it
+   waits for you as a decision first, in every mode.
    - If you have not set `ANTHROPIC_API_KEY`, the Conductor is off and a banner says the room runs
      in relay mode. That is fine for today. You type the instructions yourself, which is the cleanest
      way to learn whether Muse does what a card says.

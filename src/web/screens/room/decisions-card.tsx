@@ -3,7 +3,7 @@ import type { DecisionView } from '../../../shared/app-types';
 import { api } from '../../lib/api';
 import { Dialog, Pill, useAction } from '../../components/ui';
 import { SafeText } from '../../components/SafeText';
-import { InstructionFacts, PriorityPill } from './lanes-parts';
+import { HeldItem } from './decisions-held';
 import { RelTime } from './strip-now';
 import { SOURCE_WORDS, WriteBox, needsWords, optionLabel, recommendedIndex } from './decisions-common';
 
@@ -68,15 +68,7 @@ export function DecisionCard({ decision: d, onChanged }: { decision: DecisionVie
         </div>
       )}
 
-      {d.proposed_instruction && (
-        <div className="dec-proposed">
-          <div className="small dec-proposed-label">
-            If you choose “{shorten(optionLabel(d.options[0] ?? 'the first option'))}”, this goes to {d.proposed_instruction.agent_name ?? 'every agent in the room'}:
-          </div>
-          {d.proposed_instruction.priority && <PriorityPill priority={d.proposed_instruction.priority} />}
-          <InstructionFacts text={d.proposed_instruction.text} doneWhen={d.proposed_instruction.done_when} dueAt={d.proposed_instruction.due_at} />
-        </div>
-      )}
+      {d.proposed_instruction && <HeldItem held={d.proposed_instruction} approveLabel={shorten(optionLabel(d.options[0] ?? 'the first option'))} />}
 
       <div className="dec-options" role="group" aria-label="Your options">
         {d.options.map((opt, i) => {

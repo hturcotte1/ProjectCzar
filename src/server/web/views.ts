@@ -17,7 +17,7 @@ import type {
   RoomSummary,
   RoomView,
 } from '../../shared/app-types.js';
-import { effectiveMode, modelForRoom, modelRunsLastHour, spendOutlook } from '../conductor/budget.js';
+import { budgetUsedUp, effectiveMode, modelForRoom, modelRunsLastHour, spendOutlook } from '../conductor/budget.js';
 import { feedEventId } from '../services/feed.js';
 import { agentRooms, getAgent, getPerson, roomAgents } from '../services/repo.js';
 import type { AgentRow, DecisionRow, FeedRow, InstructionRow, PersonRow, PlaybookRow, QuestionRow, RoomRow } from '../services/rows.js';
@@ -297,6 +297,7 @@ export function conductorSummary(ctx: AppContext, room: RoomRow): ConductorSumma
     month_avg_run_usd: outlook.avgPerRun === null ? null : round4(outlook.avgPerRun),
     month_projected_usd: outlook.projected === null ? null : round4(outlook.projected),
     budget_runs_out_on: outlook.runsOutOn,
+    budget_used_up: budgetUsedUp(ctx, outlook.spent),
     runs_last_hour: modelRunsLastHour(ctx, room.id),
     max_runs_per_hour: ctx.config.conductorMaxRunsPerHour,
     pending_run_at: state?.pending_run_at ?? null,

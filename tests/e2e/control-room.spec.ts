@@ -201,6 +201,40 @@ for (const size of [
   });
 }
 
+test('the cost boxes say plainly that spending has stopped when the budget is used up', async ({ page }) => {
+  const s = seed();
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await signIn(page);
+  // The seeded room has spent almost nothing, so show the screen a month where the budget ran out:
+  // $16.52 spent of $15, at a pace that would have made about $96 (the outside review's numbers).
+  await page.route(`**/api/app/rooms/${s.room_id}`, async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+    body.conductor = {
+      ...body.conductor,
+      month_spent_usd: 16.52,
+      month_budget_usd: 15,
+      month_paid_runs: 40,
+      month_avg_run_usd: 0.413,
+      month_projected_usd: 96.13,
+      budget_runs_out_on: null,
+      budget_used_up: true,
+    };
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.goto(`/rooms/${s.room_id}/conductor`);
+  const usage = page.locator('section.card', { has: page.getByRole('heading', { name: 'Cost and activity' }) });
+  await expect(usage).toContainText('$17 of $15 this month');
+  await expect(usage).toContainText('The budget is used up, so spending has stopped until next month.');
+  await expect(usage).toContainText('Daily briefs still arrive, written without the Conductor, at no cost.');
+  await expect(usage.getByTestId('spend-outlook-detail')).toContainText('At this pace the month would have cost about $96.');
+  await expect(usage).not.toContainText('against a budget of');
+  // The side panel's small print says the same.
+  const panel = page.getByTestId('spend-outlook');
+  await expect(panel).toContainText('Spending has stopped until next month · At this pace the month would have cost about $96');
+  await expect(panel).not.toContainText('by month end at this pace');
+});
+
 test('agent-written script is shown as harmless text', async ({ page }) => {
   const s = seed();
   let dialogs = 0;

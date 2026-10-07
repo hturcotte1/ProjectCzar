@@ -284,6 +284,11 @@ export interface ConductorSummary {
   month_projected_usd: number | null;
   /** The day (yyyy-mm-dd) the budget would run out at this pace, when that is before the month ends. */
   budget_runs_out_on: string | null;
+  /**
+   * The budget is used up: spending has stopped until next month (no Conductor runs, briefs written
+   * by rules), so the projection is only what the month would have cost.
+   */
+  budget_used_up: boolean;
   runs_last_hour: number;
   max_runs_per_hour: number;
   pending_run_at: string | null;

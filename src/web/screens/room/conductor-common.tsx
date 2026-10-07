@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { ConductorMode, ConductorRunView, ConductorSummary, RoomDetail } from '../../../shared/app-types';
 import { api } from '../../lib/api';
-import { DAY_NAMES, fullTime, money, relative } from '../../lib/format';
+import { DAY_NAMES, fullTime, relative } from '../../lib/format';
 import { useAction } from '../../components/ui';
 import './room-c.css';
+
+// The cost sentences live in spend-words.ts (plain functions the tests can check); kept here for the screens that import them.
+export { averageText, cost, dayWords, projectionText, spentText } from './spend-words';
 
 /** Words and small pieces shared by the Conductor panel, the log, the playbook, briefs, health and settings. */
 
@@ -85,36 +88,6 @@ export function plainIds(text: string): string {
     out = out.replace(new RegExp(`\\b${one}(?:,?\\s*(?:and\\s+)?${one})+`, 'g'), (m) => `${m.split(one).length - 1} ${many}`);
   }
   return out.trim();
-}
-
-/** "under $0.01", "$0.02", "$12" */
-export function cost(usd: number): string {
-  if (!usd) return 'no cost';
-  if (usd < 0.005) return 'under $0.01';
-  return money(usd);
-}
-
-/** "October 24" from "2026-10-24". */
-export function dayWords(isoDate: string): string {
-  return new Date(`${isoDate}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
-}
-
-/** Where the month is heading: "About $4.80 by month end at this pace", or when the budget runs out. */
-export function projectionText(c: ConductorSummary): string | null {
-  if (c.budget_runs_out_on) return `At this pace the budget runs out around ${dayWords(c.budget_runs_out_on)}`;
-  if (c.month_projected_usd === null) return null;
-  return `About ${spentText(c.month_projected_usd)} by month end at this pace`;
-}
-
-/** "$0.04 a run on average (23 runs)". */
-export function averageText(c: ConductorSummary): string | null {
-  if (c.month_avg_run_usd === null) return null;
-  return `${spentText(c.month_avg_run_usd)} a run on average (${c.month_paid_runs} ${c.month_paid_runs === 1 ? 'run' : 'runs'})`;
-}
-
-/** Month-to-date spend: "$0.00", "under $0.01", "$0.42", "$12". */
-export function spentText(usd: number): string {
-  return usd > 0 && usd < 0.005 ? cost(usd) : money(usd);
 }
 
 export function sentence(text: string): string {

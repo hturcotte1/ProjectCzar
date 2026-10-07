@@ -1,12 +1,12 @@
 import type { ConductorSummary } from '../../../shared/app-types';
 import { money } from '../../lib/format';
-import { NextRun, SpendBar, dayWords, spentText } from './conductor-common';
+import { NextRun, SpendBar } from './conductor-common';
+import { budgetLeftText, monthEndText, spentText } from './spend-words';
 import './room-c.css';
 
 /** Month-to-date spend against the budget, the model in use and how busy the Conductor has been. */
 export function UsageCard({ summary }: { summary: ConductorSummary }) {
   const c = summary;
-  const left = Math.max(0, c.month_budget_usd - c.month_spent_usd);
   return (
     <div className="stack">
       <div>
@@ -17,7 +17,7 @@ export function UsageCard({ summary }: { summary: ConductorSummary }) {
           <SpendBar spent={c.month_spent_usd} budget={c.month_budget_usd} large />
         </div>
         <p className="small muted" style={{ margin: 0 }}>
-          {left > 0 ? `${money(left)} left.` : 'The budget is used up, so rooms act as relay until next month.'} This one budget is shared by every room, and covers the Conductor's runs and the daily briefs it writes.
+          {budgetLeftText(c)} This one budget is shared by every room, and covers the Conductor's runs and the daily briefs it writes.
         </p>
       </div>
 
@@ -25,13 +25,7 @@ export function UsageCard({ summary }: { summary: ConductorSummary }) {
         <dt>Average per run</dt>
         <dd>{c.month_avg_run_usd === null ? 'No paid runs yet this month' : `${spentText(c.month_avg_run_usd)} (${c.month_paid_runs} paid ${c.month_paid_runs === 1 ? 'run' : 'runs'} this month, all rooms)`}</dd>
         <dt>By month end</dt>
-        <dd>
-          {c.month_projected_usd === null
-            ? 'Nothing spent yet this month'
-            : c.budget_runs_out_on
-              ? `At this pace the budget runs out around ${dayWords(c.budget_runs_out_on)} (the whole month would come to about ${spentText(c.month_projected_usd)})`
-              : `About ${spentText(c.month_projected_usd)} at this pace, against a budget of ${money(c.month_budget_usd)}`}
-        </dd>
+        <dd>{monthEndText(c)}</dd>
         <dt>Model</dt>
         <dd>{c.scripted ? 'A built-in stand-in for practice (free)' : c.has_key ? c.model : `${c.model} (no API key is set)`}</dd>
         <dt>Runs in the last hour</dt>

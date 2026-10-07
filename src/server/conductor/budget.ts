@@ -152,8 +152,17 @@ export function alertBudgetWarning(ctx: AppContext): void {
   });
 }
 
+/**
+ * The budget is used up: no Conductor runs and no model-written briefs until next month (rooms act
+ * as relay and briefs are written by rules). The screens say so using `budgetUsedUp`.
+ */
 export function budgetExhausted(ctx: AppContext): boolean {
-  return monthSpend(ctx) >= ctx.config.conductorMonthlyBudgetUsd;
+  return budgetUsedUp(ctx, monthSpend(ctx));
+}
+
+/** The one test for "used up", given this month's spend. */
+export function budgetUsedUp(ctx: AppContext, spent: number): boolean {
+  return spent >= ctx.config.conductorMonthlyBudgetUsd;
 }
 
 /** Runs in the last hour that called (or tried to call) the model. */

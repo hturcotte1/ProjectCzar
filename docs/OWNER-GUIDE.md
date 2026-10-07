@@ -297,7 +297,10 @@ The **Conductor** tab has these boxes:
   month is heading (**By month end**: "About $4.80 at this pace", or the day the budget runs out at
   this pace), the model, how many runs in the last hour of those allowed, the next run, and a **Run
   now** button. The same projection and average appear in small print under the spend bar on the
-  room's side panel. All of these are Tempo's estimates; see "What it costs".
+  room's side panel. Once the budget is used up, the box says "The budget is used up, so spending
+  has stopped until next month." and what happens meanwhile, and **By month end** gives the pace
+  only as what the month would have cost ("At this pace the month would have cost about $96.").
+  All of these are Tempo's estimates; see "What it costs".
 * **Conductor log.** Every run, newest first. Open one to see what woke it up, what it saw, what it
   decided and why, and what it cost.
 
@@ -480,8 +483,10 @@ costs.
   Anthropic's list prices, and adds it to the month's spend. Your bill in the Anthropic Console is
   the final word; Tempo's figure can differ a little (for example if prices change).
 * **The monthly budget** (15 US dollars unless the person running the server changes it) is a
-  ceiling, not a forecast. When it is used up, rooms act as relay until next month. Every admin gets
-  a **Budget** alert once a month when spending passes 80%.
+  ceiling, not a forecast. When it is used up, spending stops until next month: the Conductor is
+  off, rooms act as relay (people give the instructions; questions, answers and decisions still
+  flow), and daily briefs are written without it, at no cost. Every admin gets a **Budget** alert
+  once a month when spending passes 80%.
 * **The first week with a real key:** open the **Conductor** tab each day, look at **Average per
   run** and **By month end**, and compare the total with the Anthropic Console. That is when the
   real numbers become known. If the month-end figure is above the budget, either raise the budget

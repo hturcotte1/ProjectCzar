@@ -776,6 +776,19 @@ below has a test that fails on the code before the fix and passes after it.
       The owner guide and the first-test guide say plainly what Propose holds back and what it
       does not.
 
+54. **The browser tests run on a fixed clock inside working hours.** The seeded browser-test server
+    used the real clock, so outside Monday to Friday, 8 am to 6 pm in Boise, the demo room's tiles
+    correctly said "Outside working hours." and the test expecting "On time." failed (five times out
+    of five at 8:35 pm). The screen was right; the test was wrong. `scripts/dev-server.ts --clock
+    <date and time>` now starts the server's "now" at a chosen moment and lets it move forward in
+    real time (`clockStartingAt` in `clock.ts`; the real server always uses the real clock), and the
+    browser tests start it on a Wednesday at 10:00 am Boise. The page works out "Next due in" from
+    the browser's own clock, so each browser test sets the browser's clock to the server's and its
+    time zone to the room's; the tile tests now also check "Next due in". Proved by running the whole
+    browser suite with the machine's clock faked to 8:35 pm Boise (`faketime`, which both the
+    server and the browser obey): it fails on the old setup and passes now. Tests:
+    `tests/dev-clock.test.ts` and the browser suite.
+
 55. **A room's own limits are matched by their own words.** A room's extra limit was skipped
     altogether whenever it held a word the built-in rules use (budget, cost, pay, remove, delete,
     share, post publicly...), so "changing the budget numbers in the plan" never matched "Change the
@@ -787,6 +800,27 @@ below has a test that fails on the code before the fix and passes after it.
     first, "Buy the stock photo for $29." was reported as that. The default's own name is used when
     the room has it; a room's rewording of a default ("spending any money at all") still names the
     flag when the default itself is gone. Tests: `tests/limits-room.test.ts` (fail on the old code).
+
+56. **Small things from the review: the cost box, and the message box.**
+    * When the budget is used up ($16.52 of $15), the cost box said "About $96 at this pace, against a
+      budget of $15", although spending stops then. It now says "The budget is used up, so spending
+      has stopped until next month", what happens meanwhile (the Conductor is off, rooms act as relay,
+      daily briefs are written without it at no cost), and gives the pace only as "At this pace the
+      month would have cost about $96." That figure is the pace up to the last spending, so it does
+      not shrink day by day after the stop (the server decides "used up" with the same test that
+      stops the spending). Tests: `tests/spend-words.test.ts`, `tests/budget-used-up.test.ts`, browser.
+    * Message box: clicking into it, pressing Escape (it folds) and then typing left it folded with To
+      and Type hidden. It now unfolds as soon as there is text in it, and never folds while it holds
+      text. When a Ctrl+Enter send failed while it was folded, the error line was in the page but
+      hidden; the box now opens whenever it has a problem to show. The old words "Check your
+      connection; it will retry." were not true: nothing sends a message again by itself. The box now
+      says "was not sent" only when Tempo itself refused the message or undid the save; with no
+      answer, or an error page from the hosting service, Tempo may already have saved it, so the box
+      says it "may not have been sent", that it is still in the box, and to look in the feed before
+      pressing Send again (sending twice would give agents the same instruction twice). Elsewhere a
+      failed action says "Could not reach Tempo. Check your connection and try again." Tests:
+      `tests/composer-words.test.ts`, `tests/api-errors.test.ts`, browser.
+    * A room's own limits: item 55.
 
 ## Part 4: Delegation record
 

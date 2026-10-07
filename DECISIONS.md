@@ -670,6 +670,33 @@ below has a test that fails on the code before the fix and passes after it.
       requests sent all through it never wait 300 ms. All of these fail on the old code (3 to 5
       seconds, 94 MB, a health request waiting 3 seconds).
 
+51. **Who is on the team comes only from the room, not from names written into the rules.** The
+    review found the test team's names (Henry, Sam, Ada, Bo, Muse, Instinct) written into about a
+    dozen rules, and every team name split into single words. So with a team of Henry Turcotte,
+    Priya Nair, Muse Henry and Muse Priya, "Send the pricing proposal to Dana." was flagged but the
+    same sentence with Sam, Ada or Bo was not, though none of them was on the team; "Tell Henry the
+    client approved the draft." passed but "Tell Priya ..." was flagged; and adding an agent called
+    "The Closer" (or a person called "An Do") made "the" (or "an" and "do") a teammate, which turned
+    off "Message the speakers about their slots." (or "Message an illustrator about the cover.").
+    * The rules no longer contain any name. In each clause, a teammate's name is swapped for a
+      placeholder ("qmmmm") before the rules read it, so a rule says "a teammate" and the list
+      passed in decides who that is. Names outside the team keep the placeholders of item 50.
+    * A one-word name ("Henry", "Ada") is a teammate in any case. A longer name counts as a whole
+      name in any case ("the closer", "muse henry", "an do"); one of its words on its own ("Henry" of
+      "Henry Turcotte", "Closer") counts only when written with a capital, as names are. Small
+      ordinary words (the, a, an, to, do, of, will, may and so on) never count on their own, even
+      when they are part of someone's name. A person whose first name is one of those words, or
+      whose longer name is written in lower case ("tell henry"), is not recognised, so the check
+      leans toward asking a person.
+    * "Draft it so Henry can publish it" starts a new clause at "so" before any teammate, not only
+      before Henry or Sam.
+    * Tests (`tests/limits-team.test.ts`): the reviewer's examples, and every reviewed sentence that
+      names a teammate (370 of them) run again with two other teams, people and agents both renamed
+      (for example Priya, Tomasz, Zephra Priya, Quillon Tomasz), with the same answers. All fail on
+      the old code. With the test team the old and new checks agree on every sentence; with other
+      teams, the only changes found (156 in 19,000 checks) are names not on that team now being
+      treated as outside it.
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

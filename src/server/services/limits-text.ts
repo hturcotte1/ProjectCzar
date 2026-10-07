@@ -34,6 +34,169 @@ export interface Clause {
 }
 
 // ------------------------------------------------------------------------------------------------
+// The team
+//
+// Who is on the team comes only from the names passed in (the room's people and agents), never from
+// names written into the rules. In each clause a teammate's name is swapped for a placeholder of the
+// same length ("Henry" becomes "qmmmm"), so a rule can say "a teammate" without knowing any name.
+// ------------------------------------------------------------------------------------------------
+
+/** The room's people and agents, as the limits check reads them (see teamOf). */
+export interface Team {
+  /** One-word names ("Henry", "Ada"): a teammate in any case. */
+  anyCase: Set<string>;
+  /** Single words of longer names ("Henry" of "Henry Turcotte", "Closer" of "The Closer"): a teammate only when written with a capital, as names are. */
+  capitalOnly: Set<string>;
+  /** Longer names as a whole, word by word ("muse henry", "the closer", "an do"): a teammate in any case. */
+  phrases: string[][];
+}
+
+/** Small ordinary words never count as a teammate on their own, even in a name ("The Closer", "An Do", "Will"). */
+const ORDINARY = new Set(
+  (
+    'the a an to do of and or in on at by for with from into onto it its is be as so no not up out off my our your his her their we you ' +
+    'he she they me us him them this that these those all any some each every one i if then than but also just only very more most new old ' +
+    'get got go let can could will would shall should may might must have has had did does was were are am been being what which who whom ' +
+    'whose when where why how here there now today yes ok okay hi hey dear team room owner owners agent agents conductor people person ' +
+    'everyone anyone someone nobody'
+  ).split(' '),
+);
+
+export function teamOf(names: string[]): Team {
+  const team: Team = { anyCase: new Set(), capitalOnly: new Set(), phrases: [] };
+  for (const name of names) {
+    const words = name.toLowerCase().split(/[^\p{L}\p{N}'-]+/u).filter(Boolean);
+    const real = words.filter((w) => /\p{L}/u.test(w) && w.length > 1 && !ORDINARY.has(w));
+    if (words.length === 1) {
+      for (const w of real) team.anyCase.add(w);
+      continue;
+    }
+    if (words.length > 1) team.phrases.push(words);
+    for (const w of real) team.capitalOnly.add(w);
+  }
+  team.phrases.sort((a, b) => b.join(' ').length - a.join(' ').length);
+  return team;
+}
+
+export const NO_TEAM: Team = teamOf([]);
+
+/** A teammate's placeholder in clause text. */
+export const TEAMMATE = /^qm+$/;
+
+const WORD_CHAR = /[\p{L}\p{N}_]/u;
+const WORD_END = /^(?:s')|^(?![\wÀ-ɏ])/;
+
+/**
+ * Swaps each whole-word occurrence of the given words for a same-length placeholder: "q" and then
+ * the kind's letter ("dana's" with kind "n" becomes "qnnn's"). Longer words win.
+ */
+export function swapWords(s: string, kinds: Map<string, string>): string {
+  if (!kinds.size) return s;
+  const words = [...kinds.keys()].sort((a, b) => b.length - a.length);
+  let out = '';
+  let i = 0;
+  while (i < s.length) {
+    if (i === 0 || !WORD_CHAR.test(s[i - 1])) {
+      const hit = words.find((w) => s.startsWith(w, i) && WORD_END.test(s.slice(i + w.length, i + w.length + 2)));
+      if (hit) {
+        out += 'q' + kinds.get(hit)!.repeat(hit.length - 1);
+        i += hit.length;
+        continue;
+      }
+    }
+    out += s[i];
+    i++;
+  }
+  return out;
+}
+
+/** The words of a text as names are read: "Henry's" gives "Henry". */
+function nameWords(raw: string): string[] {
+  return raw
+    .replace(/[^\p{L}\p{N}_'@.&-]+/gu, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.replace(/'s$|'$/, '').replace(/[.]+$/, ''));
+}
+
+/** Where a teammate's longer name starts at word i, how many words it has (0 if none). */
+function phraseAt(words: string[], i: number, team: Team): number {
+  for (const p of team.phrases) {
+    if (i + p.length <= words.length && p.every((w, k) => words[i + k].toLowerCase() === w)) return p.length;
+  }
+  return 0;
+}
+
+/** The words in a text (lower case) that name a teammate. */
+export function teammatesIn(raw: string, team: Team): Set<string> {
+  const out = new Set<string>();
+  if (!team.anyCase.size && !team.phrases.length) return out;
+  const words = nameWords(raw);
+  for (let i = 0; i < words.length; i++) {
+    const n = phraseAt(words, i, team);
+    if (n) {
+      for (let k = 0; k < n; k++) out.add(words[i + k].toLowerCase());
+      i += n - 1;
+      continue;
+    }
+    const lower = words[i].toLowerCase();
+    if (team.anyCase.has(lower) || (team.capitalOnly.has(lower) && /^\p{Lu}/u.test(words[i]))) out.add(lower);
+  }
+  return out;
+}
+
+/** The lower-case text with every teammate's name swapped for a "qmmm" placeholder. */
+export function swapTeammates(lower: string, raw: string, team: Team): string {
+  if (!team.anyCase.size && !team.phrases.length) return lower;
+  let s = lower;
+  // Longer names first, word by word: "the closer" becomes "qmm qmmmmm".
+  for (const p of team.phrases) {
+    let from = 0;
+    for (;;) {
+      const at = s.indexOf(p[0], from);
+      if (at < 0) break;
+      from = at + 1;
+      if (at > 0 && WORD_CHAR.test(s[at - 1])) continue;
+      let end = at;
+      let ok = true;
+      const parts: [number, number][] = [];
+      for (const [k, w] of p.entries()) {
+        if (k > 0) {
+          const gap = /^\s+/.exec(s.slice(end));
+          if (!gap) {
+            ok = false;
+            break;
+          }
+          end += gap[0].length;
+        }
+        if (!s.startsWith(w, end)) {
+          ok = false;
+          break;
+        }
+        parts.push([end, w.length]);
+        end += w.length;
+      }
+      if (!ok || !WORD_END.test(s.slice(end, end + 2))) continue;
+      for (const [start, len] of parts) s = s.slice(0, start) + 'q' + 'm'.repeat(len - 1) + s.slice(start + len);
+    }
+  }
+  const single = new Map<string, string>();
+  for (const w of teammatesIn(raw, team)) if (team.anyCase.has(w) || team.capitalOnly.has(w)) single.set(w, 'm');
+  for (const w of team.anyCase) single.set(w, 'm');
+  return swapWords(s, single);
+}
+
+/** Is the word at this position of the original text a teammate's name? ("so Henry can publish it") */
+function teammateAt(text: string, at: number, team: Team): boolean {
+  const words = nameWords(text.slice(at, at + 200));
+  if (!words.length) return false;
+  if (phraseAt(words, 0, team)) return true;
+  const lower = words[0].toLowerCase();
+  return team.anyCase.has(lower) || (team.capitalOnly.has(lower) && /^\p{Lu}/u.test(words[0]));
+}
+
+// ------------------------------------------------------------------------------------------------
 // Word lists shared by the frames and the rules
 // ------------------------------------------------------------------------------------------------
 
@@ -56,7 +219,7 @@ export const CONTENT_HEADS = new Set(
 );
 
 /** Words that start a question about facts rather than a request to act. */
-export const FACT_QUESTION = /^(?:how\s+(?:many|much|often|long|do|does|did|is|are|was|were|should\s+we\s+word|can\s+we\s+word)|which|what|what's|whats|who|whom|whose|why|where|did|didn't|does|doesn't|do\s+(?:we|they|you)\s+(?:know|have|still)|has\s+(?:anyone|anybody|someone|somebody|he|she|it|henry|sam)|have\s+(?:you|we|they)|had|were|was|is\s+there|are\s+there|any\s+idea)\b/;
+export const FACT_QUESTION = /^(?:how\s+(?:many|much|often|long|do|does|did|is|are|was|were|should\s+we\s+word|can\s+we\s+word)|which|what|what's|whats|who|whom|whose|why|where|did|didn't|does|doesn't|do\s+(?:we|they|you)\s+(?:know|have|still)|has\s+(?:anyone|anybody|someone|somebody|he|she|it|qm+)|have\s+(?:you|we|they)|had|were|was|is\s+there|are\s+there|any\s+idea)\b/;
 
 const SUBORDINATE = /^(?:when|whenever|once|if|after|as\s+soon\s+as|before|until|unless|since|because|while|so\s+that|in\s+case)\b/;
 
@@ -170,7 +333,7 @@ function quotes(sentence: string): { text: string; pressed: string[] } {
 const VERBISH =
   String.raw`(?:email|e-mail|mail|send|resend|forward|reply|respond|answer|call|phone|text|message|dm|ping|contact|reach|tell|let|ask|invite|pay|buy|purchase|order|get|grab|book|hire|renew|upgrade|subscribe|sign|delete|remove|wipe|drop|clear|purge|destroy|erase|empty|publish|post|tweet|share|upload|launch|deploy|ship|push|release|make|put|go|take|turn|open|give|add|start|run|set|switch|move|cancel|close|confirm|accept|approve|charge|bill|invoice|refund|transfer|wire|spend|place|loop|cc|follow|check|draft|write|review|edit|fix|finish|polish|prepare|update|use|create|keep|announce|present|show|demo|pitch|meet|schedule|book|notify|inform|introduce|intro|forward|top|expense|tip|donate|pledge|back|bid|register|enroll|enrol|onboard|offboard|archive|restore|merge|kick|trigger|flip|roll|promote|list|submit|stream|livestream|reveal|unveil|paste|commit|expose|leak|disclose|announce|queue|drop|shoot|circle|touch|sync|loop|line|do|hop|jump|lock|settle|cover|treat|bring|commission|rent|reserve|lease|order|pre-order|preorder|re-order|reorder|venmo|paypal|zelle|recharge|reload|bump|raise|increase|up|double|allocate|throw|boost|promote|sponsor|fund|invest|bin|trash|scrap|nuke|prune|flush|truncate|tear|shut|terminate|deactivate|overwrite|replace|force-push|unpublish|unlist|take|negotiate|reschedule|cancel|decline|reply|deploying|bin|rm|factory|warn|thank|remind|point|agree|countersign|invite|dm|text|ping|proceed)`;
 const CLAUSE_SPLIT = new RegExp(
-  String.raw`\s*(?:,\s*(?:and\s+)?then\s+|\s+and\s+then\s+|\s+then\s+(?=${VERBISH}\b)|,?\s+but\s+(?:also\s+)?|,\s+so\s+|\s+so\s+(?!that\b|far\b|much\b|many\b|long\b|we\s+can\b)(?=(?:we|i|you|they|it|henry|sam|${VERBISH})\b)|,?\s+and\s+(?:also\s+)?(?=${VERBISH}\b(?!\s+(?:list|copy|page|form|button|link|draft|template|address|tracking|events?|flow)\b))|,?\s+and\s+(?=(?:no|nothing|none|never)\b)|,\s+(?!(?:up|down)\s+(?:from|to|by)\b)(?![\w-]+\s+or\s+[\w-]+\b)(?=(?:${VERBISH}|can|could|should|shall|may|is\s+it|would|ok|okay|go\s+ahead|please|don't|do\s+not|never)\b))`,
+  String.raw`\s*(?:\u2063\s*|,\s*(?:and\s+)?then\s+|\s+and\s+then\s+|\s+then\s+(?=${VERBISH}\b)|,?\s+but\s+(?:also\s+)?|,\s+so\s+|\s+so\s+(?!that\b|far\b|much\b|many\b|long\b|we\s+can\b)(?=(?:we|i|you|they|it|${VERBISH})\b)|,?\s+and\s+(?:also\s+)?(?=${VERBISH}\b(?!\s+(?:list|copy|page|form|button|link|draft|template|address|tracking|events?|flow)\b))|,?\s+and\s+(?=(?:no|nothing|none|never)\b)|,\s+(?!(?:up|down)\s+(?:from|to|by)\b)(?![\w-]+\s+or\s+[\w-]+\b)(?=(?:${VERBISH}|can|could|should|shall|may|is\s+it|would|ok|okay|go\s+ahead|please|don't|do\s+not|never)\b))`,
   'i',
 );
 /** A whole word that is a verb from the list above; a clause that starts with one. Built once. */
@@ -228,16 +391,17 @@ function normaliseHead(text: string, conditional: boolean): string {
   return text.replace(/^put\s+together\b/, 'compile');
 }
 
-/** "Muse Henry email the client", "@Ada email the vendor": a team member addressed by name. */
-function stripAddressee(lower: string, team: Set<string>): string {
+/** "Muse Henry email the client", "@Ada email the vendor": a team member addressed by name (names are placeholders here). */
+function stripAddressee(lower: string): string {
+  const mate = (w: string) => TEAMMATE.test(w.replace(/^@/, ''));
   // "could Bo message the journalist", "Muse Sam could reply to the customer": a teammate asked to
   // act. "Henry can publish it" is what a person may do, so "can" only counts as a question.
   {
     const words = lower.split(/\s+/);
     for (const n of [2, 1]) {
       let rest: string[] | null = null;
-      if (/^(?:could|can|should|might|would)$/.test(words[0] ?? '') && words.slice(1, 1 + n).every((w) => team.has(w))) rest = words.slice(1 + n);
-      else if (words.slice(0, n).every((w) => team.has(w)) && /^(?:could|should|might)$/.test(words[n] ?? '')) rest = words.slice(n + 1);
+      if (/^(?:could|can|should|might|would)$/.test(words[0] ?? '') && words.slice(1, 1 + n).every(mate)) rest = words.slice(1 + n);
+      else if (words.slice(0, n).every(mate) && /^(?:could|should|might)$/.test(words[n] ?? '')) rest = words.slice(n + 1);
       if (rest && rest.length && STARTS_WITH_VERB.test(rest.join(' '))) return rest.join(' ');
     }
   }
@@ -247,7 +411,7 @@ function stripAddressee(lower: string, team: Set<string>): string {
     const names = words.slice(0, take);
     const verb = words[take];
     const next = words[take + 1];
-    if (!names.every((n) => team.has(n) || /^(?:muse|instinct|ada|bo|henry|sam|conductor)$/.test(n))) continue;
+    if (!names.every((n) => mate(n) || n === 'conductor')) continue;
     if (!IS_VERB.test(verb)) continue;
     if (!/^(?:it|them|him|her|us|the|a|an|our|their|this|that|these|those|all|every|each|some|any|"q"|\d|[$€£]|to|about|on|with|out|back|up|in)/.test(next)) continue;
     return words.slice(take).join(' ');
@@ -318,7 +482,7 @@ function colonFrame(sentence: string): { read: string; copyFollows: boolean } | 
 // The clauses of a text
 // ------------------------------------------------------------------------------------------------
 
-export function clausesOf(input: string, team: Set<string> = new Set()): Clause[] {
+export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
   const out: Clause[] = [];
   let before = '';
   let beforeRaw = '';
@@ -336,7 +500,7 @@ export function clausesOf(input: string, team: Set<string> = new Set()): Clause[
       copyBlock = false;
     }
     if (copyBlock && lineNo > 0) {
-      before += ' ' + line.toLowerCase();
+      before += ' ' + swapTeammates(line.toLowerCase(), line, team);
       return;
     }
     const quotedTexts = [...line.matchAll(/"([^"]*)"|(?:^|\s)'([^']{1,60})'(?=[\s.,;:!?]|$)/g)].map((m) => (m[1] ?? m[2] ?? '').toLowerCase());
@@ -350,7 +514,7 @@ export function clausesOf(input: string, team: Set<string> = new Set()): Clause[
         if (colon.copyFollows && /:\s*$/.test(body)) copyBlock = true;
         body = colon.read;
         if (!body) {
-          before += ' ' + sentence.toLowerCase();
+          before += ' ' + swapTeammates(sentence.toLowerCase(), sentence, team);
           continue;
         }
       }
@@ -364,12 +528,15 @@ export function clausesOf(input: string, team: Set<string> = new Set()): Clause[
         // "Shopify Payments, Stripe and PayPal": "and" inside a list of names joins them
         .replace(/(\b[A-Z][\w'-]*),?\s+and\s+(?=[A-Z][a-z])/g, (m, name: string, at: number) => (at === 0 ? m : `${name} \u0026 `))
         .replace(/\b((?:how|what|when|where|why|which|whether)\s+(?:to|[\w']+\s+(?:can|could|should|will|would|may|might|must|do|does|did))\s+\w+)\s+and\s+/gi, '$1 \u0026 ')
-        .replace(/\b((?:he|she|they|[A-Z][\w'-]*)\s+(?:will|can|could|should|would|may|might|must|'ll|is\s+going\s+to|are\s+going\s+to)\s+\w+)\s+and\s+/g, '$1 \u0026 ');
+        .replace(/\b((?:he|she|they|[A-Z][\w'-]*)\s+(?:will|can|could|should|would|may|might|must|'ll|is\s+going\s+to|are\s+going\s+to)\s+\w+)\s+and\s+/g, '$1 \u0026 ')
+        // "Draft it so Henry can publish it": a clause starts at "so" before a teammate (marked, then split)
+        .replace(/\s+so\s+(?=\S)/g, (m: string, at: number, all: string) => (teammateAt(all, at + m.length, team) ? ' \u2063 ' : m));
       for (const part of body.split(CLAUSE_SPLIT)) {
         const raw = part.trim().replace(/[.!?;:,]+$/, '');
         if (!raw) continue;
-        let { text, conditional } = stripWrapping(raw.toLowerCase());
-        text = stripAddressee(text, team);
+        const lower = swapTeammates(raw.toLowerCase(), raw, team);
+        let { text, conditional } = stripWrapping(lower);
+        text = stripAddressee(text);
         const again = stripWrapping(text);
         text = again.text;
         conditional ||= again.conditional;
@@ -382,7 +549,7 @@ export function clausesOf(input: string, team: Set<string> = new Set()): Clause[
         if (goal && (frame === 'report' || frame === 'content') && !FACT_QUESTION.test(text) && !CONTENT_HEADS.has(text.split(/\s+/)[0] ?? '')) frame = 'state';
         if (!text) continue;
         out.push({ text, raw, frame, before: before.trim(), beforeRaw: beforeRaw.trim(), pressed, quoted: quotedTexts });
-        before += ' ' + raw.toLowerCase();
+        before += ' ' + lower;
         beforeRaw += ' ' + raw;
       }
     }

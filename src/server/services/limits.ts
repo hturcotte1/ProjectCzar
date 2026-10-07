@@ -12,7 +12,7 @@
  * deleting, or sharing outside the project. When a case is truly unclear they lean toward asking a
  * person. See DECISIONS.md (items 39 and 45 to 48) and tests/limits.test.ts.
  */
-import { clausesOf } from './limits-text.js';
+import { clausesOf, teamOf } from './limits-text.js';
 import { RULES, jobAct, limitPatterns, type RuleContext } from './limits-rules.js';
 
 /** Words that tie a room's own limit to one of the built-in rules. */
@@ -82,9 +82,9 @@ export function limitConcern(text: string, askFirst: string[], team: string[] = 
 }
 
 function concernOf(text: string, askFirst: string[], team: string[], deadline: number): string | null {
-  // Names are words only: "Ada (stand-in 1)" gives "ada" and "stand-in", never a bracket.
-  const words = team.flatMap((n) => n.toLowerCase().split(/[^\p{L}\p{N}'-]+/u)).filter((w) => /\p{L}/u.test(w));
-  const ctx: RuleContext = { team: new Set(words) };
+  // Who is on the team comes only from the names passed in (see teamOf): "Ada (stand-in 1)" gives
+  // the name "ada stand-in 1" and the word "Ada", never a bracket.
+  const ctx: RuleContext = { team: teamOf(team) };
   const clauses = clausesOf(text, ctx.team);
   if (clauses.length > MAX_CLAUSES || performance.now() > deadline) throw new TooMuchWork();
   // "Run the script that deletes all staging data": the job's act is the act.

@@ -14,6 +14,13 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     public problems: { field: string; message: string }[] = [],
+    /**
+     * Tempo itself answered with one of its own error replies: it refused the request, or its
+     * change was undone. False when there was no answer (status 0) or the answer came from
+     * something in front of Tempo, such as the hosting service's error page; then Tempo may have
+     * made the change before the answer was lost.
+     */
+    public fromTempo = false,
   ) {
     super(message);
   }
@@ -42,13 +49,15 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
       body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
     });
   } catch {
-    // Nothing here tries again by itself; screens that show live data fetch again on their next
-    // update. The words say only what is known: many changes are not saves (signing in, Run now),
-    // and a connection that drops after Tempo got the request does not mean the change was not made.
-    // Screens that need to say more (the message box) add their own words.
-    throw new ApiError(0, 'network', method === 'GET' ? 'Could not reach Tempo. Check your connection.' : 'Could not reach Tempo. Check your connection and try again.');
+    throw unreachable(method);
   }
-  const text = await res.text();
+  let text: string;
+  try {
+    text = await res.text();
+  } catch {
+    // The answer broke off halfway: Tempo got the request, but what it did is not known.
+    throw unreachable(method);
+  }
   let data: any = null;
   try {
     data = text ? JSON.parse(text) : null;
@@ -58,9 +67,20 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   if (!res.ok) {
     if (res.status === 401 && url !== '/login') signedOutListeners.forEach((fn) => fn());
     const err = data?.error;
-    throw new ApiError(res.status, err?.code ?? 'error', err?.message ?? `Something went wrong (HTTP ${res.status}).`, err?.problems ?? []);
+    const fromTempo = data?.ok === false && typeof err?.code === 'string';
+    throw new ApiError(res.status, err?.code ?? 'error', err?.message ?? `Something went wrong (HTTP ${res.status}).`, err?.problems ?? [], fromTempo);
   }
   return data as T;
+}
+
+/**
+ * No answer from Tempo. Nothing here tries again by itself; screens that show live data fetch again
+ * on their next update. The words say only what is known: many changes are not saves (signing in,
+ * Run now), and a connection that drops after Tempo got the request does not mean the change was not
+ * made. Screens that need to say more (the message box) add their own words.
+ */
+function unreachable(method: string): ApiError {
+  return new ApiError(0, 'network', method === 'GET' ? 'Could not reach Tempo. Check your connection.' : 'Could not reach Tempo. Check your connection and try again.');
 }
 
 export const api = {

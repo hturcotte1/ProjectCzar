@@ -37,6 +37,10 @@ test.beforeEach(async ({ page }) => {
   await useServerTime(page);
 });
 
+/** What the message box says when nobody can tell whether Tempo got the message. */
+const MAYBE_NOT_SENT =
+  'Your message may not have been sent: Tempo could not be reached. It is still in the box. If it does not show up in the feed, check your connection and press Send again.';
+
 async function signIn(page: Page, email = 'henry@example.com') {
   const res = await page.request.post('/api/app/login', {
     headers: { 'content-type': 'application/json', 'x-requested-with': 'tempo' },
@@ -296,14 +300,14 @@ test('a failed send shows why, even when the message box was folded, and keeps t
   await page.waitForTimeout(2500);
   expect(posts).toBe(1);
 
-  // Tempo cannot be reached at all.
+  // Tempo cannot be reached at all. Whether it got the message cannot be known, so the words do not say "not sent".
   await page.unroute(messages);
   await page.route(messages, (route) => {
     posts++;
     return route.abort('internetdisconnected');
   });
   await composer.getByRole('button', { name: 'Send' }).click();
-  await expect(problem).toHaveText('Your message was not sent: Tempo could not be reached. It is still in the box. Check your connection, then press Send again.');
+  await expect(problem).toHaveText(MAYBE_NOT_SENT);
   await expect(problem).toBeVisible();
   expect(posts).toBe(2);
 
@@ -313,6 +317,32 @@ test('a failed send shows why, even when the message box was folded, and keeps t
   await expect(problem).toHaveCount(0);
   await expect(box).toHaveValue('');
   await expect(page.locator('.feed').getByText('Please check the pricing table.').first()).toBeVisible();
+});
+
+test('a send that may have gone through says so, and the feed shows that it did', async ({ page }) => {
+  const s = seed();
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await signIn(page);
+  await page.goto(`/rooms/${s.room_id}`);
+  const composer = page.locator('form.composer');
+  const box = composer.locator('textarea');
+  const text = `Check the footer links, please (${Date.now()}).`;
+  // Tempo saves the message, but the hosting service in front of it answers with an error page.
+  const messages = `**/api/app/rooms/${s.room_id}/messages`;
+  await page.route(messages, async (route) => {
+    const saved = await route.fetch();
+    expect(saved.status()).toBe(200);
+    return route.fulfill({ status: 502, contentType: 'text/html', body: '<html><body><h1>502 Bad Gateway</h1></body></html>' });
+  });
+  await box.click();
+  await page.keyboard.type(text);
+  await page.keyboard.press('Control+Enter');
+  const problem = composer.locator('.cmp-error');
+  await expect(problem).toHaveText(MAYBE_NOT_SENT);
+  await expect(problem).toBeVisible();
+  await expect(box).toHaveValue(text);
+  // The feed shows it arrived, so there is no need to press Send again.
+  await expect(page.locator('.feed').getByText(text)).toHaveCount(1);
 });
 
 test('agent-written script is shown as harmless text', async ({ page }) => {

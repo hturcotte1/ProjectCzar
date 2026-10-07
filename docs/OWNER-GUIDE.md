@@ -227,9 +227,13 @@ soon as you type in it, it opens again, so you can always see who the message go
    Mac).
 
 If a message cannot be sent, a red line under the message box says so and why, for example "Your
-message was not sent: Tempo could not be reached. It is still in the box. Check your connection, then
-press Send again." Nothing sends it again by itself: your message stays in the box until you press
-**Send**.
+message was not sent. "Muse Bob" is not an agent in this room. It is still in the box." Nothing sends
+it again by itself: your message stays in the box until you press **Send**.
+
+When the connection drops, Tempo may have received the message before the answer was lost, so the
+line says "Your message may not have been sent: Tempo could not be reached. It is still in the box. If
+it does not show up in the feed, check your connection and press Send again." Look in the feed first:
+pressing **Send** for a message that did arrive gives the agents the same message twice.
 
 A note to the whole room is read by every agent on its next card. An instruction or question to the
 whole room becomes one for each agent, so each must answer. **Instructions you type always go straight

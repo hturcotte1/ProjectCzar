@@ -401,6 +401,42 @@ describe('what people and agents can see of a held item', () => {
     expect(note).toMatchObject({ proposed_instruction: { kind: 'note', agent_id: null, agent_name: null, text: NOTE, previous_text: null } });
   });
 
+  it('after a person says no, the held text never reaches the card, not even inside the decision line', async () => {
+    const s = await setup('autonomous');
+    await s.conduct({ instructions: [instr('Muse Sam', REWORD)], questions: [{ to: 'Muse Sam', text: QUESTION, why: 'x' }], room_note: NOTE });
+    const all = decisions(s.w);
+    expect(all.map((d) => held(d).kind)).toEqual(['instruction', 'question', 'note']);
+    for (const d of all) resolveDecision(s.w.ctx, s.w.henry, d.id, { option_index: 1 });
+    const card = await s.card(s.w.b);
+    expect(card.rooms[0].since_last_check_in.filter((i: any) => i.kind === 'decision_resolved')).toHaveLength(3);
+    expect(JSON.stringify(card)).not.toMatch(/press@example\.com|\$499/);
+  });
+
+  it("the Conductor's prompt lists what each waiting decision holds, so it does not ask again", async () => {
+    const model = new StandInModel();
+    const calls: string[] = [];
+    const call = model.call.bind(model);
+    model.call = async (args: any) => {
+      calls.push(args.user);
+      return call();
+    };
+    const w = await makeWorld({ integrations: { conductorModel: model } });
+    model.next = out({ instructions: [instr('Muse Sam', REWORD)], questions: [{ to: 'Muse Sam', text: QUESTION, why: 'x' }] });
+    requestConductorRun(w.ctx.db, w.room.id, { kind: 'manual', detail: 'test' }, w.clock.now(), 0);
+    await runConductor(w.ctx, w.room.id);
+    w.clock.advance(60_000);
+    model.next = out({ nothing_to_do: true });
+    requestConductorRun(w.ctx.db, w.room.id, { kind: 'manual', detail: 'again' }, w.clock.now(), 0);
+    await runConductor(w.ctx, w.room.id);
+    // Raised by the limits check, so each line is wrapped as untrusted (a scripted stand-in's held
+    // item can quote an agent), but it says what is waiting.
+    const lines = calls[1].split('DECISIONS WAITING ON PEOPLE')[1].split('\n\n')[0].split('\n').filter(Boolean);
+    expect(lines).toEqual([
+      `- dec_1: <agent_report from="Tempo, quoting agents">Approve an instruction for Muse Sam? It holds your instruction for Muse Sam: "${REWORD}"</agent_report>`,
+      `- dec_2: <agent_report from="Tempo, quoting agents">Approve a question for Muse Sam? It holds your question to Muse Sam: "${QUESTION}"</agent_report>`,
+    ]);
+  });
+
   it("an agent's lookup never shows text that is waiting for a person", async () => {
     const s = await setup('propose');
     const id = await approvedQuotes(s);

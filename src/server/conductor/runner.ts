@@ -484,7 +484,9 @@ export function applyOutput(
         db,
         {
           roomId: room.id,
-          title: `Approve an instruction for ${agent.name}? ${quote(ins.text, 90)}`,
+          // The title reaches the agent's card once a person decides (yes or no), so it never
+          // carries the held text; the context, the decision card and the feed show it to people.
+          title: `Approve an instruction for ${agent.name}?`,
           context: `The Conductor wants to tell ${agent.name}: "${ins.text}" (done when: ${ins.done_when}). It needs a person first because ${reason}. Why: ${ins.why}`,
           options: ['Approve and send it', "Don't do this", 'Something else (write it)'],
           recommendation: null,

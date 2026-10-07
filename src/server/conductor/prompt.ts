@@ -7,6 +7,7 @@ import type { DecisionRow, FeedRow, InstructionRow, QuestionRow, RoomRow } from 
 import { OPEN_INSTRUCTION_STATUSES } from '../services/rows.js';
 import { computeAgentStatus } from '../services/status.js';
 import { feedFullText } from '../services/agent-actions.js';
+import type { ProposedInstruction } from '../services/work.js';
 import type { Trigger } from './queue.js';
 
 /**
@@ -98,6 +99,31 @@ function personLineWithoutQuotes(ev: FeedRow): string | null {
   if (ev.kind === 'decision_resolved' && d.decision_id) return `${ev.actor_name} decided ${d.decision_id}: ${d.resolution ?? ''}`;
   if (d.event === 'decision_dismissed' && d.decision_id) return `${ev.actor_name} dismissed decision ${d.decision_id}.`;
   return null;
+}
+
+/** " It holds your question to Muse Sam: "…"": what a waiting decision holds back, if anything. */
+function heldNote(db: AppContext['db'], d: DecisionRow): string {
+  const h = d.proposed_instruction ? parseJson<ProposedInstruction | null>(d.proposed_instruction, null) : null;
+  if (!h) return '';
+  const agentName = (id: string) => getAgent(db, id)?.name ?? id;
+  const q = (text: string) => `"${clipItem(text, 300)}"`;
+  switch (h.kind) {
+    case undefined:
+    case 'instruction':
+      return h.issuer_kind === 'person' ? '' : ` It holds your instruction for ${agentName(h.agent_id)}: ${q(h.text)}`;
+    case 'reword':
+      return ` It holds your new wording for ${h.instruction_id}: ${q(h.text)}`;
+    case 'question':
+      return ` It holds your question to ${agentName(h.agent_id)}: ${q(h.text)}`;
+    case 'note':
+      return ` It holds your room note: ${q(h.text)}`;
+    case 'answer':
+      return ` It holds your answer to ${h.question_id}: ${q(h.text)}`;
+    case 'playbook':
+      return ` It holds your playbook lesson ${q(h.title)}.`;
+    default:
+      return '';
+  }
 }
 
 /** Wraps agent-written (or agent-quoting) text so the Conductor can tell it apart. */
@@ -199,8 +225,12 @@ export function buildRunInput(ctx: AppContext, room: RoomRow, mode: string, sinc
   }
   L.push('', `DECISIONS WAITING ON PEOPLE${decisionsTotal > decisions.length ? ` (oldest ${decisions.length} of ${decisionsTotal} shown)` : ''}`);
   if (!decisions.length) L.push('- None.');
-  // Decisions raised by people or the Conductor are shown bare; the rest can quote agents.
-  for (const d of decisions) L.push(`- ${d.id}: ${d.source === 'person' || d.source === 'conductor' ? oneLine(clipItem(d.title, 300)) : wrap('Tempo, quoting agents', clipItem(d.title, 300))}`);
+  // Decisions raised by people or the Conductor are shown bare; the rest can quote agents. A
+  // decision that holds something back says what, so the Conductor does not ask for it again.
+  for (const d of decisions) {
+    const line = `${clipItem(d.title, 300)}${heldNote(db, d)}`;
+    L.push(`- ${d.id}: ${d.source === 'person' || d.source === 'conductor' ? oneLine(line) : wrap('Tempo, quoting agents', line)}`);
+  }
   if (playbookRows.length) {
     L.push('', `PLAYBOOK TITLES: ${playbookRows.map((p) => (p.author_kind === 'agent' ? wrap('an agent', clipItem(p.title, 200)) : oneLine(clipItem(p.title, 200)))).join('; ')}`);
   }

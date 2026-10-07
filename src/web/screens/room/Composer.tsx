@@ -3,6 +3,7 @@ import type { AgentView, RoomDetail } from '../../../shared/app-types';
 import { api } from '../../lib/api';
 import { useToast } from '../../components/ui';
 import { FEED_JUMP_EVENT } from './feed-model';
+import { notSentText } from './composer-words';
 import { MentionList, findMention, mentionOptions, mentionedAgents, type MentionOption } from './feed-mentions';
 import './feed.css';
 
@@ -11,7 +12,8 @@ import './feed.css';
  * (or for every agent). Type "@" to mention an agent. Ctrl or Cmd + Enter sends.
  *
  * It sits as one line under the feed until someone taps or tabs into it; then To, Type and the rest
- * open. It folds back to one line when focus leaves it with nothing written or chosen.
+ * open. It folds back to one line when focus leaves it with nothing written or chosen. It is never
+ * folded while it shows a problem (a send that failed), so the problem line is always visible.
  */
 
 type Kind = 'note' | 'question' | 'instruction';
@@ -80,6 +82,8 @@ export function Composer({ detail }: { detail: RoomDetail }) {
   const [open, setOpen] = useState(() => !isBlank(drafts.get(roomId) ?? EMPTY));
   const taRef = useRef<HTMLTextAreaElement>(null);
   const pendingCaret = useRef<number | null>(null);
+  // Unfolded while it shows a problem, whatever happened to focus.
+  const unfolded = open || !!error;
 
   const setDraft = (patch: Partial<Draft>) =>
     setDraftState((d) => {
@@ -136,7 +140,7 @@ export function Composer({ detail }: { detail: RoomDetail }) {
     // grow with the text, up to the height set in CSS
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight + 2, 200)}px`;
-  }, [draft.text, kind, open]);
+  }, [draft.text, kind, unfolded]);
 
   // ---------------------------------------------------------------- sending
 
@@ -166,7 +170,9 @@ export function Composer({ detail }: { detail: RoomDetail }) {
       window.dispatchEvent(new Event(FEED_JUMP_EVENT));
       taRef.current?.focus();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not send that. Please try again.');
+      // Nothing re-sends it: the message stays in the box, and the words say so.
+      setError(notSentText(e));
+      setOpen(true);
     } finally {
       setBusy(false);
     }
@@ -197,7 +203,7 @@ export function Composer({ detail }: { detail: RoomDetail }) {
       }
     }
     // Escape with nothing written folds the composer back to one line.
-    if (e.key === 'Escape' && open && isBlank(draft)) {
+    if (e.key === 'Escape' && unfolded && isBlank(draft)) {
       e.preventDefault();
       setOpen(false);
     }
@@ -221,16 +227,16 @@ export function Composer({ detail }: { detail: RoomDetail }) {
 
   return (
     <form
-      className={`composer${open ? '' : ' composer-folded'}`}
+      className={`composer${unfolded ? '' : ' composer-folded'}`}
       onSubmit={onSubmit}
       onKeyDown={onFormKeyDown}
       onFocus={() => setOpen(true)}
       onBlur={onFormBlur}
       aria-label="Write to the room"
     >
-      {open && detail.room.paused && <div className="cmp-paused">This room is paused. Agents won't act on anything until it is resumed, but you can still write.</div>}
+      {unfolded && detail.room.paused && <div className="cmp-paused">This room is paused. Agents won't act on anything until it is resumed, but you can still write.</div>}
 
-      {open && (
+      {unfolded && (
         <div className="cmp-row">
           <div className="cmp-pick">
             <label htmlFor="cmp-to">To</label>
@@ -265,7 +271,7 @@ export function Composer({ detail }: { detail: RoomDetail }) {
         </div>
       )}
 
-      {open && kind === 'instruction' && (
+      {unfolded && kind === 'instruction' && (
         <div className="cmp-extra">
           <div className="cmp-inline cmp-done">
             <label htmlFor="cmp-done">Done when</label>
@@ -316,10 +322,10 @@ export function Composer({ detail }: { detail: RoomDetail }) {
           id="cmp-text"
           ref={taRef}
           className="textarea"
-          rows={open ? 2 : 1}
+          rows={unfolded ? 2 : 1}
           value={draft.text}
           maxLength={MAX_TEXT}
-          placeholder={open ? PLACEHOLDERS[kind] : 'Write to the room…'}
+          placeholder={unfolded ? PLACEHOLDERS[kind] : 'Write to the room…'}
           onClick={() => setOpen(true)}
           onChange={(e) => {
             setDraft({ text: e.target.value });
@@ -346,7 +352,7 @@ export function Composer({ detail }: { detail: RoomDetail }) {
       )}
 
       <div className="cmp-foot">
-        {open && (
+        {unfolded && (
           <div className="cmp-hint" aria-live="polite">
             {hint(kind, to, toAgent, agents.length, !!autoTarget)}
             {draft.text.length > MAX_TEXT - 300 && <span className="cmp-count"> {draft.text.length.toLocaleString()} of {MAX_TEXT.toLocaleString()} characters.</span>}

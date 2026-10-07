@@ -235,6 +235,57 @@ test('the cost boxes say plainly that spending has stopped when the budget is us
   await expect(panel).not.toContainText('by month end at this pace');
 });
 
+test('a failed send shows why, even when the message box was folded, and keeps the message', async ({ page }) => {
+  const s = seed();
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await signIn(page);
+  await page.goto(`/rooms/${s.room_id}`);
+  const composer = page.locator('form.composer');
+  const box = composer.locator('textarea');
+  // Click in, then Escape: the box folds back to one line, and the cursor stays in it.
+  await box.click();
+  await page.keyboard.press('Escape');
+  await expect(composer).toHaveClass(/composer-folded/);
+  await expect(box).toBeFocused();
+  // The server fails the send.
+  let posts = 0;
+  const messages = `**/api/app/rooms/${s.room_id}/messages`;
+  await page.route(messages, (route) => {
+    posts++;
+    return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ ok: false, error: { code: 'internal_error', message: 'Something went wrong. Please try again.' } }) });
+  });
+  await page.keyboard.type('Please check the pricing table.');
+  await page.keyboard.press('Control+Enter');
+  // The problem line is there, and must be visible (it used to be hidden while the box was folded).
+  const problem = composer.locator('.cmp-error');
+  await expect(problem).toBeAttached();
+  await expect(problem).toHaveAttribute('role', 'alert');
+  await expect(problem).toBeVisible();
+  await expect(problem).toHaveText('Your message was not sent: something went wrong in Tempo. It is still in the box, so you can press Send to try again.');
+  await expect(box).toHaveValue('Please check the pricing table.');
+  // Nothing sends it again by itself.
+  await page.waitForTimeout(2500);
+  expect(posts).toBe(1);
+
+  // Tempo cannot be reached at all.
+  await page.unroute(messages);
+  await page.route(messages, (route) => {
+    posts++;
+    return route.abort('internetdisconnected');
+  });
+  await composer.getByRole('button', { name: 'Send' }).click();
+  await expect(problem).toHaveText('Your message was not sent: Tempo could not be reached. It is still in the box. Check your connection, then press Send again.');
+  await expect(problem).toBeVisible();
+  expect(posts).toBe(2);
+
+  // Back online: Send works, and the problem line goes away.
+  await page.unroute(messages);
+  await composer.getByRole('button', { name: 'Send' }).click();
+  await expect(problem).toHaveCount(0);
+  await expect(box).toHaveValue('');
+  await expect(page.locator('.feed').getByText('Please check the pricing table.').first()).toBeVisible();
+});
+
 test('agent-written script is shown as harmless text', async ({ page }) => {
   const s = seed();
   let dialogs = 0;

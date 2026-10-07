@@ -225,6 +225,11 @@ line when you leave it with nothing written or chosen, or press Escape in an emp
 4. Type your text. Type `@` to mention an agent. Click **Send** (or press Ctrl+Enter, or Cmd+Enter on a
    Mac).
 
+If a message cannot be sent, a red line under the message box says so and why, for example "Your
+message was not sent: Tempo could not be reached. It is still in the box. Check your connection, then
+press Send again." Nothing sends it again by itself: your message stays in the box until you press
+**Send**.
+
 A note to the whole room is read by every agent on its next card. An instruction or question to the
 whole room becomes one for each agent, so each must answer. **Instructions you type always go straight
 to the agent's card, in every Conductor mode.**

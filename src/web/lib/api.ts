@@ -42,7 +42,13 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
       body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
     });
   } catch {
-    throw new ApiError(0, 'network', 'Could not reach Tempo. Check your connection; it will retry.');
+    // Nothing here tries again by itself. A change (sending, saving, approving) is simply not made;
+    // screens that show live data fetch again on their next update.
+    throw new ApiError(
+      0,
+      'network',
+      method === 'GET' ? 'Could not reach Tempo. Check your connection.' : 'Could not reach Tempo, so this was not saved. Check your connection and try again.',
+    );
   }
   const text = await res.text();
   let data: any = null;

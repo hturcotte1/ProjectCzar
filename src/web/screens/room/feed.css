@@ -661,8 +661,8 @@
   margin-top: 0;
   flex: none;
 }
-.composer-folded .cmp-keys,
-.composer-folded .cmp-error {
+/* A problem line is never hidden: the composer unfolds while it shows one (Composer.tsx). */
+.composer-folded .cmp-keys {
   display: none;
 }
 

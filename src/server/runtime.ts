@@ -7,6 +7,7 @@ import { conductorJob, runConductor, sweepJob } from './conductor/runner.js';
 import { briefJob } from './services/brief.js';
 import { latestRehearsalFor, rehearsalRunning, runRehearsal } from './rehearsal/driver.js';
 import { TempoError } from './lib/errors.js';
+import { warmUpLimits } from './services/limits.js';
 
 /**
  * Wires the long-running parts (Conductor, daily brief, rehearsal) into the scheduler and the app
@@ -14,6 +15,8 @@ import { TempoError } from './lib/errors.js';
  * `internalUrl` returns the address this process listens on (known only after listen).
  */
 export function wireRuntime(ctx: AppContext, scheduler: Scheduler, internalUrl: () => string): AppApiHooks {
+  // Get the limits check ready now (about half a second), not during the first agent's check-in.
+  warmUpLimits();
   if (ctx.config.anthropicApiKey && !ctx.integrations.conductorModel) {
     ctx.integrations.conductorModel = new AnthropicConductorModel(ctx.config.anthropicApiKey, ctx.config.conductorModel, ctx.config.conductorEffort, ctx.config.conductorRefusalFallback);
   }

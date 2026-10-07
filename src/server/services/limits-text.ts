@@ -173,6 +173,11 @@ const CLAUSE_SPLIT = new RegExp(
   String.raw`\s*(?:,\s*(?:and\s+)?then\s+|\s+and\s+then\s+|\s+then\s+(?=${VERBISH}\b)|,?\s+but\s+(?:also\s+)?|,\s+so\s+|\s+so\s+(?!that\b|far\b|much\b|many\b|long\b|we\s+can\b)(?=(?:we|i|you|they|it|henry|sam|${VERBISH})\b)|,?\s+and\s+(?:also\s+)?(?=${VERBISH}\b(?!\s+(?:list|copy|page|form|button|link|draft|template|address|tracking|events?|flow)\b))|,?\s+and\s+(?=(?:no|nothing|none|never)\b)|,\s+(?!(?:up|down)\s+(?:from|to|by)\b)(?![\w-]+\s+or\s+[\w-]+\b)(?=(?:${VERBISH}|can|could|should|shall|may|is\s+it|would|ok|okay|go\s+ahead|please|don't|do\s+not|never)\b))`,
   'i',
 );
+/** A whole word that is a verb from the list above; a clause that starts with one. Built once. */
+const IS_VERB = new RegExp(`^${VERBISH}$`);
+const STARTS_WITH_VERB = new RegExp(`^${VERBISH}\\b`);
+/** "X is approved send it to the client" (see gluedRequest). */
+const GLUED = new RegExp(String.raw`^(?:[\w'-]+\s+){1,4}?(?:is|are|looks|seems)\s+(?:\w+\s+)?(?:approved|ready|done|good|fine|ok|okay|final|signed\s+off|finished)\s+(${VERBISH}\s+.*)$`);
 
 function stripWrapping(text: string): { text: string; conditional: boolean } {
   let t = text.trim().replace(/^[,:;.\s]+/, '');
@@ -201,7 +206,7 @@ const IRREGULAR: Record<string, string> = {
 /** "dropped" after "if I" reads as "drop"; "deploying" at the start reads as "deploy". */
 function baseForm(word: string): string {
   if (IRREGULAR[word]) return IRREGULAR[word];
-  const isVerb = (w: string) => new RegExp(`^${VERBISH}$`).test(w);
+  const isVerb = (w: string) => IS_VERB.test(w);
   const candidates: string[] = [];
   if (/ied$/.test(word)) candidates.push(word.slice(0, -3) + 'y');
   const m = /^(.*?)(?:ed|ing)$/.exec(word);
@@ -233,7 +238,7 @@ function stripAddressee(lower: string, team: Set<string>): string {
       let rest: string[] | null = null;
       if (/^(?:could|can|should|might|would)$/.test(words[0] ?? '') && words.slice(1, 1 + n).every((w) => team.has(w))) rest = words.slice(1 + n);
       else if (words.slice(0, n).every((w) => team.has(w)) && /^(?:could|should|might)$/.test(words[n] ?? '')) rest = words.slice(n + 1);
-      if (rest && rest.length && new RegExp(`^${VERBISH}\\b`).test(rest.join(' '))) return rest.join(' ');
+      if (rest && rest.length && STARTS_WITH_VERB.test(rest.join(' '))) return rest.join(' ');
     }
   }
   for (const take of [2, 1]) {
@@ -243,7 +248,7 @@ function stripAddressee(lower: string, team: Set<string>): string {
     const verb = words[take];
     const next = words[take + 1];
     if (!names.every((n) => team.has(n) || /^(?:muse|instinct|ada|bo|henry|sam|conductor)$/.test(n))) continue;
-    if (!new RegExp(`^${VERBISH}$`).test(verb)) continue;
+    if (!IS_VERB.test(verb)) continue;
     if (!/^(?:it|them|him|her|us|the|a|an|our|their|this|that|these|those|all|every|each|some|any|"q"|\d|[$€£]|to|about|on|with|out|back|up|in)/.test(next)) continue;
     return words.slice(take).join(' ');
   }
@@ -255,7 +260,7 @@ function afterCondition(text: string): string | null {
   if (!SUBORDINATE.test(text)) return null;
   const words = text.split(/\s+/);
   for (let i = 2; i < words.length - 1; i++) {
-    if (new RegExp(`^${VERBISH}$`).test(words[i]) && /^(?:it|them|him|her|the|a|an|our|their|this|that|these|those|all|every|"q"|\d|[$€£]|out|up|down|live|to)/.test(words[i + 1])) {
+    if (IS_VERB.test(words[i]) && /^(?:it|them|him|her|the|a|an|our|their|this|that|these|those|all|every|"q"|\d|[$€£]|out|up|down|live|to)/.test(words[i + 1])) {
       return words.slice(i).join(' ');
     }
   }
@@ -264,7 +269,7 @@ function afterCondition(text: string): string | null {
 
 /** "X is approved send it to the client": a request glued to a short statement in front. */
 function gluedRequest(text: string): string | null {
-  const m = new RegExp(String.raw`^(?:[\w'-]+\s+){1,4}?(?:is|are|looks|seems)\s+(?:\w+\s+)?(?:approved|ready|done|good|fine|ok|okay|final|signed\s+off|finished)\s+(${VERBISH}\s+.*)$`).exec(text);
+  const m = GLUED.exec(text);
   return m ? m[1] : null;
 }
 
@@ -276,7 +281,7 @@ function frameOf(text: string): Frame {
   if (FACT_QUESTION.test(text)) return 'content';
   if (SUBORDINATE.test(text)) return 'content';
   if (CONTENT_HEADS.has(head)) return 'content';
-  if (new RegExp(`^${VERBISH}$`).test(head)) return 'act';
+  if (IS_VERB.test(head)) return 'act';
   // A statement: "The deposit is paid", "Customers bought 40 licences", "Henry will call them".
   if (NEGATED_INSIDE.test(text)) return 'negated';
   const words = text.split(/\s+/);
@@ -304,7 +309,7 @@ function colonFrame(sentence: string): { read: string; copyFollows: boolean } | 
   if (NEGATED_START.test(leftStripped) || /\b(?:rules?|don'ts|never|without\s+asking|off[- ]limits|avoid)\b/.test(leftStripped)) return { read: '', copyFollows: true };
   if (CONTENT_HEADS.has(head) || FACT_QUESTION.test(leftStripped)) return { read: left, copyFollows: true };
   if (COPY_LABEL.test(leftStripped)) return { read: '', copyFollows: true };
-  if (new RegExp(`^${VERBISH}$`).test(head)) return null;
+  if (IS_VERB.test(head)) return null;
   // A topic label ("Holiday email to customers: draft it by Friday"): read what follows.
   return { read: right, copyFollows: false };
 }

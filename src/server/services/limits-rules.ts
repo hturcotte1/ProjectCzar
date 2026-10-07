@@ -24,18 +24,21 @@ export interface Rule {
   test(c: Clause, ctx: RuleContext): boolean;
 }
 
-/** Compiled patterns, kept for reuse: at most 500, oldest dropped first (names make some unique). */
-const compiled = new Map<string, RegExp>();
-function rx(source: string, flags = ''): RegExp {
-  const key = flags + '/' + source;
-  let re = compiled.get(key);
-  if (!re) {
-    re = new RegExp(source, flags);
-    if (compiled.size >= 500) compiled.delete(compiled.keys().next().value as string);
-    compiled.set(key, re);
-  }
-  re.lastIndex = 0;
-  return re;
+/**
+ * Every pattern the rules use, built once when this module loads. Nothing is ever built from the
+ * text being checked or from anyone's name: names are swapped for fixed placeholders instead (see
+ * "Names" below). Building patterns per text made each new name cost tens of milliseconds and kept
+ * memory growing (DECISIONS.md item 50).
+ */
+const PATTERNS: RegExp[] = [];
+function re(source: string, flags = ''): RegExp {
+  const r = new RegExp(source, flags);
+  PATTERNS.push(r);
+  return r;
+}
+/** All patterns, for warming them up when the server starts and for tests. */
+export function limitPatterns(): readonly RegExp[] {
+  return PATTERNS;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -105,20 +108,144 @@ function outsideNames(c: Clause, ctx: RuleContext, humanVerb: boolean, includeFi
   return out;
 }
 
-function namePattern(names: string[]): string {
-  return names.length ? String.raw`(?:${DET}\s+)?(?:${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?:\s*(?:&|and)\s*co\b\.?|\s+(?:inc|ltd|llc|gmbh|plc|co)\b\.?)?(?:${ROLE_AFTER}|(?:'s|s')?(?![\wÀ-ɏ]))` : String.raw`(?!x)x`;
+// ------------------------------------------------------------------------------------------------
+// Names
+//
+// A rule that asks "is this aimed at someone outside the team?" needs the names in the text. They
+// are never written into a pattern. Instead each name is swapped, in a copy of the text, for a
+// placeholder of the same length: "qnnnn" for a name outside the team, "qttttt" for an outside name
+// that is also a known tool ("Slack"), "qfff" for a capitalised first word (counted only where a
+// clause can start with the person: "Dana has been emailed"). Each such rule exists twice, built
+// once: one version for plain words (run on the text), one for placeholders (run on the copy).
+// Keeping the length keeps patterns that count characters ("within 60 characters") the same.
+// ------------------------------------------------------------------------------------------------
+
+/** The names in one clause, and copies of text with them swapped for placeholders. */
+interface NameView {
+  /** Any name outside the team (not counting a capitalised first word). */
+  has: boolean;
+  /** A capitalised first word that may be a name. */
+  first: boolean;
+  tok(s: string, withFirst: boolean): string;
 }
+
+const views = new WeakMap<Clause, NameView>();
+const COMPANY_ENDING = new Set(['co', 'inc', 'ltd', 'llc', 'gmbh', 'plc']);
+const WORD_CHAR = /[\p{L}\p{N}_]/u;
+const NAME_END = /^(?:s')|^(?![\wÀ-ɏ])/;
+
+function namesOf(c: Clause, ctx: RuleContext): NameView {
+  const cached = views.get(c);
+  if (cached) return cached;
+  // "Hollis & Co": the company ending stays a word, so the name rule can read it as part of the name.
+  const human = outsideNames(c, ctx, true).filter((n) => !COMPANY_ENDING.has(n));
+  const strict = new Set(outsideNames(c, ctx, false));
+  const kinds = new Map<string, string>();
+  for (const n of human) kinds.set(n, strict.has(n) ? 'n' : 't');
+  const withFirst = new Map(kinds);
+  for (const n of outsideNames(c, ctx, true, true)) if (!withFirst.has(n) && !COMPANY_ENDING.has(n)) withFirst.set(n, 'f');
+  const memo = new Map<string, string>();
+  const view: NameView = {
+    has: kinds.size > 0,
+    first: withFirst.size > kinds.size,
+    tok(s, first) {
+      const key = (first ? '1' : '0') + s;
+      let out = memo.get(key);
+      if (out === undefined) {
+        out = swapNames(s, first ? withFirst : kinds);
+        memo.set(key, out);
+      }
+      return out;
+    },
+  };
+  views.set(c, view);
+  return view;
+}
+
+/** Swaps each whole-word occurrence of a name for its placeholder ("dana's" becomes "qnnn's"). */
+function swapNames(s: string, kinds: Map<string, string>): string {
+  if (!kinds.size) return s;
+  const names = [...kinds.keys()].sort((a, b) => b.length - a.length);
+  let out = '';
+  let i = 0;
+  while (i < s.length) {
+    if (i === 0 || !WORD_CHAR.test(s[i - 1])) {
+      const hit = names.find((n) => s.startsWith(n, i) && NAME_END.test(s.slice(i + n.length, i + n.length + 2)));
+      if (hit) {
+        out += 'q' + kinds.get(hit)!.repeat(hit.length - 1);
+        i += hit.length;
+        continue;
+      }
+    }
+    out += s[i];
+    i++;
+  }
+  return out;
+}
+
+/** The team's own names (as words), swapped for "qmmm" placeholders, for the few rules that ask "is this a teammate?". */
+function swapTeam(s: string, team: Set<string>): string {
+  return team.size ? swapNames(s, new Map([...team].filter((n) => n.length > 0).map((n) => [n, 'm']))) : s;
+}
+
+/** A name in a rule: "Dana", "the Acme team", "Hollis & Co", "Northwind's CTO". */
+const namePlaceholder = (tok: string) =>
+  String.raw`(?:${DET}\s+)?${tok}(?:\s*(?:&|and)\s*co\b\.?|\s+(?:inc|ltd|llc|gmbh|plc|co)\b\.?)?(?:${ROLE_AFTER}|(?:'s|s')?(?![\wÀ-ɏ]))`;
+const OUTSIDE_NAME = 'q(?:n+|t+)';
+const OUTSIDE_NAME_NOT_TOOL = 'qn+';
+const OUTSIDE_NAME_OR_FIRST = 'q(?:n+|t+|f+)';
+
+/**
+ * Who a clause is aimed at, if anyone outside the team, in three flavours: "human" for verbs that
+ * reach a person (a tool's name counts: "Message Zoom support"), "strict" for verbs that could
+ * also move data (a tool's name does not count: "Send the export to Slack"), and "who" for goals
+ * that start with the person ("Dana has been emailed").
+ */
+const SLOTS = {
+  human: {
+    words: String.raw`(?:${OUTSIDER}|${AUDIENCE})`,
+    names: String.raw`(?:${namePlaceholder(OUTSIDE_NAME)}|(?:\w+\s+){0,2}(?:at|from)\s+${namePlaceholder(OUTSIDE_NAME)})`,
+  },
+  strict: {
+    words: String.raw`(?:${OUTSIDER}|${AUDIENCE})`,
+    names: String.raw`(?:${namePlaceholder(OUTSIDE_NAME_NOT_TOOL)}|(?:\w+\s+){0,2}(?:at|from)\s+${namePlaceholder(OUTSIDE_NAME)})`,
+  },
+  who: {
+    words: String.raw`(?:${OUTSIDER}|${AUDIENCE}|every\s+(?:new\s+)?(?:customer|lead|user|subscriber|client|candidate)|each\s+(?:customer|lead|client|candidate))`,
+    names: namePlaceholder(OUTSIDE_NAME_OR_FIRST),
+  },
+};
+
+interface Pair {
+  words: RegExp;
+  names: RegExp;
+  withFirst: boolean;
+}
+function pair(kind: keyof typeof SLOTS, build: (slot: string) => string): Pair {
+  return { words: re(build(SLOTS[kind].words)), names: re(build(SLOTS[kind].names)), withFirst: kind === 'who' };
+}
+/** Does the rule match, with its slot filled by an outsider word or by a name outside the team? */
+function seen(p: Pair, s: string, nv: NameView): boolean {
+  if (p.words.test(s)) return true;
+  if (!nv.has && !(p.withFirst && nv.first)) return false;
+  return p.names.test(nv.tok(s, p.withFirst));
+}
+
+const REACHED = String.raw`(?:e-?mailed|messaged|texted|called|phoned|notified|informed|contacted|told|invited|cc'd|briefed|pitched|pinged|reached|thanked|replied\s+to|sent\s+(?:the|an?|our)\b)`;
+/** "let Henry know": a teammate (as a placeholder) right after "let". */
+const LET_TEAMMATE = /^let\s+qm+(?![\w])/;
+/** "posted for Henry", "shared with Sam": a teammate (as a placeholder) after "for" or "with". */
+const FOR_TEAMMATE = /\b(?:for|with)\s+qm+(?![\w])/;
+const firstSpace = (t: string) => {
+  const i = t.search(/\s/);
+  return i < 0 ? t.length : i;
+};
 
 /** "to check", "to review": what the thing is for, not who gets it. */
 const PURPOSE_VERB = /^(?:check|review|read|look|see|approve|sign|verify|compare|test|print|fill|edit|use|proofread|confirm|skim|study|keep|file|reconcile|audit|tidy|fix|update|finish|polish|help|consider|discuss|decide|choose|pick|vote|annotate|comment|translate|format|work)\b/;
 
-/** Who the clause is aimed at, if anyone outside the team. */
-function recipients(c: Clause, ctx: RuleContext, humanVerb: boolean): string {
-  return String.raw`(?:${OUTSIDER}|${AUDIENCE}|${namePattern(outsideNames(c, ctx, humanVerb))}|(?:\w+\s+){0,2}(?:at|from)\s+${namePattern(outsideNames(c, ctx, true))})`;
-}
-
 function mentionsOutsider(text: string): boolean {
-  return rx(String.raw`\b(?:${OUTSIDER}|${AUDIENCE})`).test(text);
+  return S1.test(text);
 }
 
 const PRONOUN_OBJ = String.raw`(?:it|them|him|her|this|that|these|those|the\s+(?:reply|email|message|update|deck|draft|note|answer|response|invite|invitation|quote|file|files|doc|pdf|link|news))`;
@@ -137,10 +264,10 @@ const INTERNAL = /\bposted\s+here\b|\bhere\s+(?:for|in|so)\b|\b(?:posted|shared|
 
 const NUM_WORD = String.raw`(?:a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|a\s+few|a\s+couple(?:\s+of)?|several|hundred|thousand)`;
 const AMOUNT = String.raw`(?:(?:[$€£¥₹₩₽₺₪฿₫₴₦]|\b(?:us|au|ca|nz|hk|s|r)\$)\s?\d|\d[\d.,]*\s?(?:k|m)?\s?[$€£¥₹]|\b(?:usd|eur|gbp|cad|aud|chf|jpy|inr|nzd|sek|nok|dkk|mxn|brl|sgd|hkd|cny|rmb|zar|pln|czk|huf|ils|aed)\s?\d|\b\d[\d.,]*\s?(?:k|m|bn)?\s?(?:usd|eur|gbp|cad|aud|chf|jpy|inr|nzd|sek|nok|dkk|mxn|brl|sgd|hkd|dollars?|bucks|euros?|pounds(?!\s+(?:of|heavier|lighter))|quid|rupees?|yen|francs?|kronor|krona|cents)\b|\b${NUM_WORD}(?:[\s-]+(?:hundred|thousand|grand))?\s+(?:dollars?|bucks|euros?|pounds|quid|grand|k)\b|\ba\s+grand\b|\b(?:a|one|two|three|five|ten)\s+hundred\b(?=\s*(?:\??$|,|;|\.|\s+(?:for|on|to)\b)))`;
-const AMOUNT_RE = rx(AMOUNT, 'g');
+const AMOUNT_RE = re(AMOUNT, 'g');
 /** An amount given as a rate in a price list ("$29/month", "$9 per seat", "€15 monthly"). */
 const RATE = String.raw`${AMOUNT}[\d.,]*\s?(?:k|m)?\s?(?:(?:\/|per\s+|a\s+|an\s+|each\s+)\s?(?:mo|month|months|yr|year|annum|seat|user|member|person|licen[cs]e|head|week|wk|day|message|sms|transaction|channel|workspace|order|booking|editor|creator|5\s+users)\b|(?:monthly|yearly|annually|one-time|lifetime)\b)`;
-const RATE_RE = rx(RATE, 'g');
+const RATE_RE = re(RATE, 'g');
 /** With a rate, these still mean spending: "Allocate $30 a day to ads". */
 const SPEND_CONTEXT = /\b(?:agree|accept|approve|sign|offer|salary|wage|retainer|fee|hire|budget|spend|spending|plan\s+for|put|throw|ads?|advertising|campaign|boost|pay|paying|buy|purchase|order|subscribe|upgrade|hire|book|approve|accept|charge|top\s+up|commit)\b/;
 const CODE_CONTEXT = /\bas\s+the\s+(?:\w+\s+)?(?:name|argument|arg|parameter|param|value|variable|path|id)\b|\b(?:script|shell|bash|zsh|command|argument|arg|param|parameter|variable|env|cli|regex|placeholder|template\s+string|positional)\b/;
@@ -172,9 +299,9 @@ function objectAfter(text: string, verb: RegExp): string | null {
 
 function paidObject(obj: string | null): boolean {
   if (!obj) return false;
-  if (rx(String.raw`\b${PAID_THING_SKIP}$`).test(obj) && !rx(String.raw`\b(?:paid|premium|pro)\b`).test(obj)) return false;
-  if (rx(String.raw`\b(?:image|photo|picture|font)\s+credits?$`).test(obj)) return false;
-  return rx(String.raw`\b${PAID_THING}$`).test(obj) || rx(String.raw`\b(?:paid|premium|pro|business|team|enterprise|plus|annual|yearly|lifetime)\s+(?:[\w-]+\s+)?(?:version|plan|tier|account|edition|licen[cs]e|seat|seats|subscription|membership)\b`).test(obj) || hasAmount(obj) || /\b(?:\d+|a\s+few|more|extra|another|two|three|five|ten)\s+(?:more\s+)?(?:[\w-]+\s+)?(?:seats?|licen[cs]es?|copies|credits)\b/.test(obj);
+  if (S2.test(obj) && !S3.test(obj)) return false;
+  if (S4.test(obj)) return false;
+  return S5.test(obj) || S6.test(obj) || hasAmount(obj) || /\b(?:\d+|a\s+few|more|extra|another|two|three|five|ten)\s+(?:more\s+)?(?:[\w-]+\s+)?(?:seats?|licen[cs]es?|copies|credits)\b/.test(obj);
 }
 
 const TECH_THING = String.raw`(?:packages?|dependenc(?:y|ies)|deps|librar(?:y|ies)|lib|sdk|framework|service|services|module|parser|node|postgres|mysql|database|db|section|page|photos?|copy|deck|slides?|settings|docs|readme|workflow|scripts?|tests?|ci|runner|browser|os|firmware|schema|api|client|model|image|runtime|python|typescript|react|vite|eslint|compiler|toolchain|engine|component|components|cli|plugin\s+version|code|checklist|outline|onboarding\s+plan|launch\s+plan|project\s+plan|content\s+plan|test\s+plan|migration\s+plan|plan\s+parser|team\s+page|business\s+section|account\s+service|sso\s+module)`;
@@ -339,9 +466,8 @@ function contactTest(c: Clause, ctx: RuleContext): boolean {
   const t = c.text;
   // "Present the pricing to customers as three tiers on the page": page copy, not a meeting.
   if (/^(?:present|show|explain|introduce)\b.*\b(?:on|in)\s+(?:the\s+|our\s+)?(?:page|site|website|deck|copy|pricing\s+page|doc|landing\s+page|homepage|slide|faq)\b/.test(t)) return false;
-  const human = recipients(c, ctx, true);
-  const strict = recipients(c, ctx, false);
-  const recipientHere = rx(String.raw`\b(?:${human})`).test(t);
+  const nv = namesOf(c, ctx);
+  const recipientHere = seen(P1, t, nv);
   if (c.pressed.some((p) => /\b(?:send|reply|email|invite|call)\b/.test(p)) && (recipientHere || mentionsOutsider(c.before) || /\b(?:newsletter|campaign|blast|announcement|launch\s+e-?mail)\b/.test(t))) return true;
   // message the speakers, text the shuttle driver, invite jordan from northwind: anyone not on the team
   if (personObject(t, ctx)) return true;
@@ -362,36 +488,36 @@ function contactTest(c: Clause, ctx: RuleContext): boolean {
   }
   if (/^(?:dm|pm|message|text|ping|invite|tell|ask|e-?mail|follow\s+up\s+with|reach\s+out\s+to)\s+@[\w.]+/.test(t) && !/^\S+(?:\s+\S+)?\s+@(?:ada|bo|henry|sam|muse|instinct)/.test(t)) return true;
   // email the client, ask our vendor, reach out to the press, reply to the user's issue
-  if (rx(String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL})\s+(?:back\s+|out\s+to\s+|up\s+with\s+|with\s+|again\s+|directly\s+|personally\s+|quickly\s+|now\s+)?(?:${human})`).test(t)) return true;
-  if (rx(String.raw`^negotiate\b.{0,50}\bwith\s+(?:${human})`).test(t)) return true;
+  if (seen(P2, t, nv)) return true;
+  if (seen(P3, t, nv)) return true;
   // replying to comments, reviews, tickets and emails from people outside
   if (/^(?:answer|reply\s+(?:to|on)|respond\s+(?:to|on)|address|work\s+through|get\s+back\s+to)\s+(?:the\s+|all\s+|every\s+|each\s+|any\s+|our\s+|those\s+|these\s+)?(?:[\w'-]+\s+){0,2}?(?:questions?|comments?|reviews?|replies|reply|mentions?|messages?|dms?|e-?mails?|tickets?|inquir(?:y|ies)|enquir(?:y|ies)|complaints?|threads?|issues?|requests?|applications?)\b/.test(t) && !/\b(?:sam|henry|ada|bo|team|conductor|teammate)'?s?\b.{0,20}\b(?:comments?|questions|messages|replies|review)|\b(?:in|on)\s+(?:the\s+)?(?:doc|draft|room|tempo|pr|pull\s+request|code\s+review|outline)\b|\bcode\s+review\b/.test(t)) return true;
-  if (rx(String.raw`^proceed\s+(?:the\s+|a\s+|our\s+)?(?:[\w-]+\s+){0,2}?(?:outreach|e-?mails?|calls?|follow-?ups?|reply|replies|announcement\s+e-?mail|newsletter|invites?|intro|introduction|campaign|blast|message|messages)\b.{0,40}\b(?:to|with|for)\s+(?:${human})`).test(t)) return true;
+  if (seen(P4, t, nv)) return true;
   if (/^proceed\s+(?:the\s+|our\s+)?(?:[\w-]+\s+)?(?:outreach|newsletter|e-?mail\s+blast|blast)\b/.test(t)) return true;
   // email the draft to the client; send the deck over to Acme's CFO; demo the beta for customers
-  if (rx(String.raw`^${CONTACT_SEND}\b(?!\s+(?:a\s+|the\s+)?(?:banner|message|modal|pop-?up|tooltip|notice|warning|error|prompt|toast|alert)\s+to\s+users)(?:\s+(?!to\b|with\b|for\b|cc\b)[\w'"$€£.-]+){0,10}?\s+(?:over\s+|out\s+|along\s+|back\s+)?(?:to|for|cc)\s+(?:${strict})`).test(t)) return true;
-  if (rx(String.raw`^(?:share|reshare|forward|show)\b(?!\s+(?:your|my|our|some|any)\s+(?:thoughts|feedback|ideas|notes|views|opinions|take|findings|concerns|questions)\b).{0,60}?\bwith\s+(?:${strict})`).test(t)) return true;
+  if (seen(P5, t, nv)) return true;
+  if (seen(P6, t, nv)) return true;
   // send the client the contract; give the client a call; drop the prospect a line
-  if (rx(String.raw`^(?:send|resend|forward|mail|e-?mail|text|give|show|hand|offer|tell|ask|drop|shoot|fire\s+off|get|write|pass)\s+(?:${human})\s+(?:a|an|the|our|this|that|these|those|some|it|them|\d|"q"|quick|short|heads|details|word|news|info)\b`).test(t)) return true;
+  if (seen(P7, t, nv)) return true;
   // let the client know, keep the vendor in the loop, loop the agency in, put the client on cc
-  if (rx(String.raw`^let\s+(?:${human}).{0,60}?\s(?:know|hear)\b`).test(t)) return true;
-  if (/^let\s+(?!me\b|us\b|you\b|them\s+know\b|the\s+team\b|everyone\b|(?:henry|sam|ada|bo|muse|instinct)\b)(?!(?:the\s+)?(?:conductor|agents?|owners?|room|team|people\s+in\s+the\s+room)\b).{1,60}?\s+know\b/.test(t) && ![...ctx.team].some((n) => new RegExp(String.raw`^let\s+${n}\b`).test(t))) return true;
-  if (rx(String.raw`^(?:keep|loop|bring|add|put|cc|copy)\s+(?:in\s+)?(?:${human})\s+(?:in\s+the\s+loop|posted|updated|informed|in\b|into\b|on\s+(?:the\s+)?(?:cc|bcc|thread|email|chain)|to\s+the\s+(?:email\s+)?(?:thread|chain|conversation|call|loop))`).test(t)) return true;
-  if (rx(String.raw`^(?:loop\s+in|cc\s+in|bring\s+in)\s+(?:${human})`).test(t)) return true;
+  if (seen(P8, t, nv)) return true;
+  if (/^let\s+(?!me\b|us\b|you\b|them\s+know\b|the\s+team\b|everyone\b|(?:henry|sam|ada|bo|muse|instinct)\b)(?!(?:the\s+)?(?:conductor|agents?|owners?|room|team|people\s+in\s+the\s+room)\b).{1,60}?\s+know\b/.test(t) && !LET_TEAMMATE.test(swapTeam(t, ctx.team))) return true;
+  if (seen(P9, t, nv)) return true;
+  if (seen(P10, t, nv)) return true;
   // calls, meetings and demos with outsiders
-  if (rx(String.raw`^(?:book|schedule|set\s+up|arrange|organi[sz]e|line\s+up|hold|run|do|have|plan|reschedule|cancel|move|accept|confirm|take|join|attend|host|lead)\s+(?:a\s+|an\s+|the\s+|our\s+|another\s+|\d+\s+)?(?:[\w-]+\s+){0,2}?(?:calls?|meetings?|demos?|chats?|interviews?|zoom|video\s+call|phone\s+screen|screens?|coffee|lunch|kickoff|kick-off|check-?ins?|walkthroughs?|sessions?|invites?|presentations?|pitch(?:es)?|intro\s+calls?|call\s+back|follow-?up)\s+(?:with|for|to)\s+(?:${human})`).test(t)) return true;
-  if (rx(String.raw`^(?:book|schedule)\s+(?:${human})\s+(?:in\s+)?(?:for|into)\b`).test(t)) return true;
-  if (rx(String.raw`^accept\s+(?:the\s+)?(?:${human})\s+(?:[\w-]+\s+)?(?:invite|invitation|request)`).test(t)) return true;
+  if (seen(P11, t, nv)) return true;
+  if (seen(P12, t, nv)) return true;
+  if (seen(P13, t, nv)) return true;
   if (/^(?:phone-?screen|interview|check\s+references|do\s+(?:a\s+)?phone\s+screen|line\s+up\s+interviews|reference[- ]check)\b/.test(t) && /\b(?:candidates?|applicants?|finalists?|references?|the\s+\w+\s+candidate|for\s+the\s+(?:senior|junior))\b|^check\s+references/.test(t)) return true;
   // announcements to many people at once
   if (/^(?:send|send\s+out|e-?mail|mail|text|message|blast|resend|push|fire\s+off|schedule|queue|trigger|launch|go\s+out\s+with|announce|notify|dm|pm)\b.{0,60}\b(?:waitlist|wait\s+list|mailing\s+list|email\s+list|e-?mail\s+lists?|press\s+list|customer\s+(?:list|base)|subscriber\s+list|subscribers|contact\s+list|prospect\s+list|leads?\s+list|user\s+base|everyone|everybody|all\s+(?:\d+\s+)?(?:users|customers|subscribers|leads|contacts|members)|every\s+(?:customer|user|subscriber|lead|contact)|journalist\s+list|influencer\s+list|newsletter)\b/.test(t)) return true;
   if (/^(?:send|send\s+out|schedule|push|release|launch|go\s+out\s+with|blast)\s+(?:the\s+|our\s+|this\s+|a\s+|today's\s+)?(?:[\w-]+\s+){0,2}?(?:newsletter|survey|questionnaire|poll|email\s+blast|mass\s+e-?mail|e-?mail\s+campaign|drip|announcement\s+e-?mail|launch\s+e-?mail|press\s+release|price-?change\s+notice|notice\s+to)s?\b(?!\s+(?:draft|copy|template|outline|plan|ideas?)s?\b)/.test(t)) return true;
   if (/^(?:hit|press|click)\s+send\b/.test(t)) return true;
   if (/^set\s+(?:the\s+)?(?:newsletter|email|campaign|announcement|blast)\s+to\s+(?:go\s+out|send)/.test(t)) return true;
-  if (rx(String.raw`^(?:enrol+|enroll|add|put|subscribe)\s+(?:${human}).{0,40}\b(?:sequence|campaign|drip|cadence|nurture|outreach|newsletter|mailing\s+list)\b`).test(t)) return true;
+  if (seen(P14, t, nv)) return true;
   if (/^(?:open|file|raise|submit|log|create)\s+(?:a\s+|an\s+)?(?:support\s+)?(?:ticket|case|request|issue)\s+with\s+/.test(t)) return true;
   if (/^upload\b.{0,60}?\bto\s+(?:the|our|their|an?)\s+(?:[\w-]+\s+){0,2}?(?:agency|vendor|supplier|client|customer|printer|partner|accountant|lawyer|auditor|photographer|contractor|freelancer|studio|lab)(?:'s|s')?(?:\s+(?:portal|site|server|dropbox|drive|inbox|ftp|folder|upload\s+page))?\b/.test(t)) return true;
-  if (rx(String.raw`^upload\s+.{0,50}?\bto\s+(?=the\s|our\s|their\s|an?\s)(?:${OUTSIDER})`).test(t) && !/\b(?:tool|checker|platform|app|ai|service|website|online|portal\s+for\s+tools)\b/.test(t.split(/\bto\s+/).slice(1).join(' '))) return true;
+  if (S7.test(t) && !/\b(?:tool|checker|platform|app|ai|service|website|online|portal\s+for\s+tools)\b/.test(t.split(/\bto\s+/).slice(1).join(' '))) return true;
   if (/^(?:close|resolve|answer|update)\s+.{0,40}\b(?:ticket|case|request|thread|issue)\b.{0,20}\bwith\s+(?:a\s+|an\s+)?(?:short\s+|quick\s+|brief\s+|polite\s+)?(?:reply|response|note|message|email|answer)\b/.test(t)) return true;
   if (/^contact\b(?!\s+(?:page|form|details|info|sheet|list|section|us\s+(?:page|form)|fields?|button)\b)/.test(t)) return true;
   if (/^(?:request|get|ask\s+for|gather|collect)\s+(?:a\s+)?(?:quotes?|bids|estimates?|proposals?)\s+from\s+(?:\w+\s+)?(?:\d+|a\s+few|several|three|two|some|other|local|different)?\s*(?:[\w-]+\s+)?(?:vendors?|suppliers?|printers?|print\s+shops?|agencies|contractors|freelancers|shops?|companies|venues|caterers|photographers)\b/.test(t)) return true;
@@ -402,36 +528,34 @@ function contactTest(c: Clause, ctx: RuleContext): boolean {
   if (/^(?:decline|turn\s+down|reject|accept|counter)\s+(?:the\s+)?[\w'-]+'s\s+(?:proposal|pitch|offer|invite|invitation|request|application)\b/.test(t)) return true;
   if (/^brief\s+(?:the\s+)?(?:reporters|journalists|press|media|analysts)/.test(t)) return true;
   // a pronoun or no object, with someone outside mentioned just before: "Send it to them today"
-  if (!rx(String.raw`\b(?:on|to|onto)\s+(?:the\s+|our\s+)?${PUBLIC}`).test(t) && rx(String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL}|${CONTACT_SEND})\s+(?:(?:${PRONOUN_OBJ})\b(?!\s+(?:to|with)\s+(?:sam|henry|ada|bo|muse|instinct|the\s+team|me|us|${[...ctx.team].map((n) => n.replace(/[^\w-]/g, '')).filter(Boolean).join('|') || 'x'})\b)|back\b|today|now|tomorrow|asap|by\s+\w+|before\s+\w+|this\s+\w+)`).test(t) || rx(String.raw`^(?:reply|respond|call|e-?mail|phone|text|answer|follow\s+up)\s*$`).test(t)) {
-    if (mentionsOutsider(c.before) || rx(String.raw`\b(?:to|with)\s+(?:them|him|her)\b`).test(t) && mentionsOutsider(c.before)) return true;
+  if (!S8.test(t) && (PRONOUN_SEND.test(t.slice(0, firstSpace(t)) + swapTeam(t.slice(firstSpace(t)), ctx.team)) || PRONOUN_SEND_WHEN.test(t)) || S9.test(t)) {
+    if (mentionsOutsider(c.before) || S10.test(t) && mentionsOutsider(c.before)) return true;
     if (outsideNames({ ...c, raw: c.before.replace(/\b(\w)/g, (m) => m) }, ctx, true).length && /\b(?:at|from)\s+[a-z]/.test(c.before)) return true;
   }
   // "Send it to them today" where they were named before; "Email her the signed copy"
-  if (rx(String.raw`^(?:${CONTACT_SEND}|${CONTACT_DIRECT})\b.{0,40}\b(?:to|with)\s+(?:them|him|her)\b`).test(t) && mentionsOutsiderOrName(c.before)) return true;
-  if (rx(String.raw`^(?:${CONTACT_DIRECT}|send|give|show|tell)\s+(?:them|him|her)\b`).test(t) && mentionsOutsiderOrName(c.before)) return true;
+  if (S11.test(t) && mentionsOutsiderOrName(c.before)) return true;
+  if (S12.test(t) && mentionsOutsiderOrName(c.before)) return true;
   if (/^(?:keep|leave)\s+(?:them|him|her)\s+(?:in\s+the\s+loop|posted|updated)/.test(t) && mentionsOutsiderOrName(c.before)) return true;
   // goals: "The client has been emailed", "All 40 subscribers have been notified", "the reply is sent"
   if (c.frame === 'state') {
     const t = c.text.replace(/\s+(?:before|until|unless|once|so\s+that|in\s+case)\s+.*$/, '');
-    const who = String.raw`(?:${OUTSIDER}|${AUDIENCE}|every\s+(?:new\s+)?(?:customer|lead|user|subscriber|client|candidate)|each\s+(?:customer|lead|client|candidate)|${namePattern(outsideNames(c, ctx, true, true))})`;
-    const reached = String.raw`(?:e-?mailed|messaged|texted|called|phoned|notified|informed|contacted|told|invited|cc'd|briefed|pitched|pinged|reached|thanked|replied\s+to|sent\s+(?:the|an?|our)\b)`;
     // "The client has been emailed", "All 40 subscribers have been notified"
-    if (rx(String.raw`(?:^|\s)${who}\s+(?:has|have|had)?\s*(?:been\s+|was\s+|were\s+|is\s+|are\s+|gets?\s+|got\s+|(?:should|must|needs?\s+to|has\s+to|have\s+to|will|is\s+to|are\s+to)\s+be\s+)(?:all\s+|now\s+|already\s+)?${reached}`).test(t)) return true;
+    if (seen(P15, t, nv)) return true;
     // "Every new customer has received it", "Acme has the update in their inbox"
-    if (rx(String.raw`(?:^|\s)${who}\s+(?:has|have)\s+(?:received|got|had)\b|(?:^|\s)${who}\s+(?:has|have)\s+.{0,30}\bin\s+(?:their|his|her|its)\s+inbox\b`).test(t)) return true;
-    if (rx(String.raw`^(?:${OUTSIDER}|each\s+\w+|every\s+\w+).{0,30}\b(?:has|have)\s+(?:okayed|ok'd|approved|agreed|confirmed|signed\s+off)\b.{0,30}\bby\s+(?:e-?mail|phone|text)`).test(t)) return true;
+    if (seen(P16, t, nv)) return true;
+    if (S13.test(t)) return true;
     // "the reply is sent", "the first email has gone out to this week's sign-ups", "it's in her inbox"
     const sent = /\b(?:has|have|is|are|'s|was|gets?|got)\s+(?:been\s+)?(?:all\s+)?(?:sent|delivered|forwarded|mailed|e-?mailed)\b/.test(t) || /\b(?:gone|go|goes|went)\s+out\b/.test(t) || /\b(?:in|reached)\s+(?:his|her|their)\s+inbox\b/.test(t);
-    const outsiderNear = rx(String.raw`\b(?:to|with|for)\s+${who}`).test(t) || rx(String.raw`\b(?:${OUTSIDER}|${AUDIENCE})`).test(t) || mentionsOutsider(c.before) || outsideNames({ ...c, raw: 'x ' + c.beforeRaw }, ctx, true).length > 0;
+    const outsiderNear = seen(P17, t, nv) || S14.test(t) || mentionsOutsider(c.before) || outsideNames({ ...c, raw: 'x ' + c.beforeRaw }, ctx, true).length > 0;
     if (sent && outsiderNear) return true;
     // "it has been shared with Northwind's team"
-    if (rx(String.raw`\bshared\s+(?:it\s+)?with\s+${who}`).test(t)) return true;
+    if (seen(P18, t, nv)) return true;
   }
   if (c.frame === 'content' || c.frame === 'report') {
-    if (/^is\s+.{1,40}\bgood\s+to\s+go\s+out\s+to\b/.test(t) && rx(String.raw`\bto\s+(?:${human})`).test(t)) return true;
+    if (/^is\s+.{1,40}\bgood\s+to\s+go\s+out\s+to\b/.test(t) && seen(P19, t, nv)) return true;
     return false;
   }
-  if (rx(String.raw`\bgo(?:es|ing)?\s+out\s+to\s+(?:${human})`).test(t)) return true;
+  if (seen(P20, t, nv)) return true;
   return false;
 }
 
@@ -461,7 +585,7 @@ function deleteTest(c: Clause): boolean {
   if (/^(?:run|trigger|execute|kick\s+off|start)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?(?:deletion|delete|cleanup|clean-?up|purge|wipe|teardown|destroy|reset)\s+(?:script|job|task|command|migration|workflow)\b/.test(t)) return true;
   if (/^(?:run|trigger|execute|kick\s+off|start)\s+(?:the\s+)?(?:[\w-]+\s+){0,3}?(?:job|task|script|workflow|cron|migration|automation|command)\s+(?:that|which|to)\s+(?:deletes?|wipes?|purges?|drops?|removes?|truncates?|clears?|destroys?)\b/.test(t)) return true;
   if (/^replace\s+(?:the\s+)?(?:prod|production|live)\s+(?:data|database|db)\b/.test(t)) return true;
-  if (/^overwrite\b/.test(t) && (/\b(?:prod|production|live|database|db|customers|users|records|accounts|backups?)\b/.test(t) || !rx(String.raw`^overwrite\s+(?:the\s+|this\s+|that\s+)?(?:[\w-]+\s+){0,2}?${CONTENT_PART}\b`).test(t)) && !/\b(?:draft|copy|text|wording|intro|paragraph)\b/.test(t.split(/\s+with\s+/)[0])) return true;
+  if (/^overwrite\b/.test(t) && (/\b(?:prod|production|live|database|db|customers|users|records|accounts|backups?)\b/.test(t) || !S15.test(t)) && !/\b(?:draft|copy|text|wording|intro|paragraph)\b/.test(t.split(/\s+with\s+/)[0])) return true;
   if (/^(?:close|cancel|terminate|deactivate|shut\s+down|delete|remove|kill)\s+(?:the\s+|our\s+|my\s+|their\s+|this\s+|old\s+)?(?:[\w-]+\s+){0,3}?(?:accounts?|workspaces?|subscriptions?\s+and)\b(?!\s+(?:settings|page|form|copy|name|email|password|section|details|tab|screen|menu|manager)\b)/.test(t)) return true;
   if (/^take\s+.{1,50}?\s+down\b(?!\s+(?:a\s+notch|to))/.test(t) && !/^take\s+(?:it|this|that)\s+down\s+a\b/.test(t)) return true;
   if (/^factory\s+reset\b|^(?:wipe|reset)\s+.{0,30}\b(?:phone|laptop|device|computer|tablet|drive|disk|machine|mac|pc)\b/.test(t)) return true;
@@ -470,17 +594,17 @@ function deleteTest(c: Clause): boolean {
   if (/^(?:flush|clear|wipe|purge|reset)\s+(?:out\s+)?(?:the\s+|all\s+)?(?:prod|production|live)\b/.test(t)) return true;
   if (/^(?:flush|purge)\s+(?:the\s+)?(?:[\w-]+\s+)?(?:redis|database|db|cache|queue|cdn)\b/.test(t)) return true;
   if (/^empty\s+(?:the\s+)?(?:[\w-]+\s+)?(?:trash|bin|recycle\s+bin|bucket|folder|drive|inbox|database|table|list)\b/.test(t)) return true;
-  if (/^(?:clean\s+up|clear\s+out|clean\s+out|prune|cull)\b/.test(t) && rx(String.raw`\b(?:${DATA_THING}|old|stale|unused|merged|inactive|duplicate)\b`).test(t) && !/\b(?:code|copy|text|wording|outline|draft\s+text|css|styles|imports|formatting|layout)\b/.test(t)) return true;
+  if (/^(?:clean\s+up|clear\s+out|clean\s+out|prune|cull)\b/.test(t) && S16.test(t) && !/\b(?:code|copy|text|wording|outline|draft\s+text|css|styles|imports|formatting|layout)\b/.test(t)) return true;
   if (/^(?:clear|reset)\s+(?:out\s+)?(?:the\s+|all\s+|our\s+)?(?:[\w-]+\s+)?(?:data|database|db|records|history|backups?|contacts|subscribers|logs|repo|repository|server|drive|folder|inbox)\b(?!\s+(?:[\w-]+\s+)?(?:fields?|form|section|filters?|search|selection|badge|count|pool|timeout|connection|connections|settings|cache\s+key|config))/.test(t) && !/\b(?:after|when|on)\s+(?:the\s+)?(?:user|submit|save|logout|unmount|close)\b/.test(t) && !/\bform\s+data\b/.test(t)) return true;
   if (/^(?:empty|clear)\s+.{0,30}\btrash\b/.test(t)) return true;
   if (/^(?:move|put|send|drag)\s+.{0,40}\bto\s+(?:the\s+)?(?:trash|bin|recycle\s+bin)\b/.test(t)) return true;
-  if (/\bby\s+(?:getting\s+rid\s+of|deleting|removing|wiping|clearing\s+out|purging|binning|trashing|throwing\s+away|emptying|pruning|dropping)\b/.test(t) && !rx(String.raw`\bby\s+[\w-]+(?:\s+[\w-]+)?\s+(?:the\s+|any\s+|some\s+)?(?:[\w-]+\s+){0,2}?${CONTENT_PART}\b`).test(t)) return true;
+  if (/\bby\s+(?:getting\s+rid\s+of|deleting|removing|wiping|clearing\s+out|purging|binning|trashing|throwing\s+away|emptying|pruning|dropping)\b/.test(t) && !S17.test(t)) return true;
   if (c.frame !== 'content' && /\b(?:and\s+)?(?:dropping|deleting|removing|purging|discarding|wiping)\s+(?:the\s+|all\s+)?(?:rest|duplicates|others|remaining\s+[\w-]+|old\s+(?:records|rows|data|ones|files|entries))\b/.test(t)) return true;
   if (/^take\s+.{1,50}?\s+off\s+(?:the\s+|our\s+)?(?:[\w-]+\s+)?(?:site|website|blog|page|portfolio|store|shop|channel|feed|instagram|linkedin|homepage|listing)\b/.test(t)) return true;
-  if (/^proceed\s+.{0,30}\b(?:deletion|wipe|purge|cleanup|clean-?up|teardown|removal|delete)\b/.test(t) && !rx(String.raw`\bof\s+(?:the\s+)?(?:[\w'-]+\s+){0,2}?(?:${CONTENT_PART}|${CONTENT_PLACE})\b`).test(t)) return true;
+  if (/^proceed\s+.{0,30}\b(?:deletion|wipe|purge|cleanup|clean-?up|teardown|removal|delete)\b/.test(t) && !S18.test(t)) return true;
   if (/^(?:the\s+)?(?:[\w-]+\s+){0,2}?(?:wipe|deletion|purge)\b/.test(t) && c.frame !== 'report' && c.frame !== 'content') return true;
   // delete / remove / bin ... with an object
-  const verb = rx(String.raw`^${DELETE_VERB}\b`).exec(t);
+  const verb = S19.exec(t);
   if (verb) {
     const rest = t.slice(verb[0].length).trim();
     // "drop it in Tempo for feedback": putting something somewhere, not deleting it
@@ -491,16 +615,16 @@ function deleteTest(c: Clause): boolean {
     if (/^(?:it|them|this|that|these|those)\b/.test(rest)) {
       // "Drop it" after "The test database is stale"; "Delete it" after "The second paragraph is weak"
       const back = c.before.split(/[.;!?]|\s+and\s+/).filter(Boolean).pop() ?? c.before;
-      if (rx(String.raw`\b${CONTENT_PART}\b`).test(back) && !rx(String.raw`\b${DATA_THING}\b`).test(back)) return false;
-      if (/^(?:reset|replace|close|cancel|clear|kill|drop|retire|terminate)$/.test(verb[0].trim())) return rx(String.raw`\b${DATA_THING}\b`).test(back);
+      if (S20.test(back) && !S21.test(back)) return false;
+      if (/^(?:reset|replace|close|cancel|clear|kill|drop|retire|terminate)$/.test(verb[0].trim())) return S22.test(back);
       return true;
     }
-    if (/^(?:reset|replace|close|cancel|clear|kill|drop|retire|terminate)$/.test(verb[0].trim()) && !rx(String.raw`\b${DATA_THING}\b`).test(rest)) return false;
+    if (/^(?:reset|replace|close|cancel|clear|kill|drop|retire|terminate)$/.test(verb[0].trim()) && !S23.test(rest)) return false;
     const head = (objectAfter(' ' + rest, /^/) ?? rest).replace(/\s+(?:you|we|i|they|that|which|who)\s+\w+.*$/, '');
     const fromPlace = /\b(?:from|in|on|of)\s+(?:the\s+|this\s+|that\s+|our\s+|my\s+|your\s+|slide\s+\d+\s+of\s+the\s+)?(?:[\w-]+\s+){0,3}?([\w.-]+)\b/.exec(rest);
-    const partAtEnd = rx(String.raw`\b${CONTENT_PART}$`).test(head.replace(/\s+(?:about|for|on|with|from|in|of)\b.*$/, ''));
-    const inContentPlace = fromPlace && rx(String.raw`\b(?:from|in|on|of)\s+(?:the\s+|this\s+|that\s+|our\s+|my\s+|your\s+|slide\s+\d+\s+of\s+the\s+)?(?:[\w-]+\s+){0,3}?${CONTENT_PLACE}\b`).test(rest);
-    const dataHead = rx(String.raw`\b${DATA_THING}$`).test(head) || rx(String.raw`^(?:all|everything|anything|the\s+lot)\b`).test(rest);
+    const partAtEnd = S24.test(head.replace(/\s+(?:about|for|on|with|from|in|of)\b.*$/, ''));
+    const inContentPlace = fromPlace && S25.test(rest);
+    const dataHead = S26.test(head) || S27.test(rest);
     if (partAtEnd && !dataHead) return false;
     if (inContentPlace && !dataHead) return false;
     if (inContentPlace && dataHead && /\b(?:draft|doc|deck|slide|mock-?up|readme|copy)\b/.test(rest) && !/\b(?:folders?|files?|drafts\s+folder|cms|drive)\b/.test(rest)) return false;
@@ -513,7 +637,7 @@ function deleteTest(c: Clause): boolean {
   if (c.frame === 'state') {
     if (/\b(?:no|nothing|none|not\s+a\s+single)\b/.test(t.split(/\b(?:is|are|has|have|was|were|gets?)\b/)[0] ?? '')) return false;
     const subject = t.split(/\b(?:is|are|has|have|was|were|gets?|got)\b/)[0] ?? '';
-    const draftPart = rx(String.raw`\b${CONTENT_PART}\b`).test(subject) && !rx(String.raw`\b${DATA_THING}\b`).test(subject);
+    const draftPart = S28.test(subject) && !S29.test(subject);
     if (!draftPart && /\b(?:is|are|be|been|being|has|have|gets?|got)\s+(?:all\s+|now\s+|already\s+|permanently\s+)?(?:deleted|removed|erased|purged|wiped|destroyed|dropped|emptied|cleared\s+out|pruned|overwritten|torn\s+down|taken\s+down|shut\s+down|binned|trashed)\b/.test(t)) return true;
     if (!draftPart && /\b(?:is|are|'s|'re|be|been)\s+(?:all\s+|now\s+)?gone\b(?!\s+out)/.test(t)) return true;
     if (/\b(?:accounts?|subscriptions?|workspaces?|repos?|channels?)\b.{0,20}\b(?:is|are|has\s+been|have\s+been)\s+(?:closed|cancell?ed|deactivated|terminated)\b/.test(t)) return true;
@@ -531,9 +655,9 @@ const TECH_PUBLISH = /\b(?:events?|messages?|metrics?|logs?\s+to|to\s+(?:the\s+)
 
 function shareTest(c: Clause, ctx: RuleContext): boolean {
   const t = c.text;
-  const publicHere = rx(String.raw`\b${PUBLIC}`).test(t);
+  const publicHere = S30.test(t);
   if (c.pressed.some((p) => /\b(?:publish|post|share|tweet|go\s+live|make\s+public|deploy|release|launch)\b/.test(p))) return true;
-  const internal = INTERNAL.test(t) || [...ctx.team].some((n) => n.length > 1 && new RegExp(String.raw`\b(?:for|with)\s+${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\b`).test(t) && /\b(?:posted|shared|post|share|for\s+review)\b/.test(t));
+  const internal = INTERNAL.test(t) || (/\b(?:posted|shared|post|share|for\s+review)\b/.test(t) && FOR_TEAMMATE.test(swapTeam(t, new Set([...ctx.team].filter((n) => n.length > 1)))));
   // project data into an outside tool: "Upload our customer list to Canva", "Paste the tickets into an online AI tool"
   // Data about people: customers, users, contacts, support tickets, interview recordings.
   const dataThing = /\b(?:(?:customer|client|user|contact|subscriber|lead|member|candidate|employee|patient|donor|personal|private|support|sales|billing|crm|e-?mail|interview|survey|payroll|hr|attendee|participant|guest|staff|vendor|device|applicant|volunteer)s?\s+(?:[\w-]+\s+)?(?:list|lists|data|database|db|records|e-?mails|addresses|contacts|tickets|events|exports?|recordings?|transcripts?|logs|spreadsheet|sheet|csv|responses|details|info|table)|(?:customer|client|user|contact|subscriber|lead|member)\s+(?:list|lists|base|data|database|db)|(?:exported|full|our|the|all)\s+(?:support\s+)?tickets|(?:the|our)\s+(?:customer|user|production)\s+(?:database|db)|^(?:connect|sync)\s+(?:the\s+|our\s+)?(?:[\w-]+\s+)?(?:database|db|warehouse|data\s+warehouse|crm)|leads|subscribers|contacts|customers|(?:full\s+)?(?:response|responses|survey)\s+exports?|including\s+(?:their\s+|the\s+)?(?:e-?mails|e-?mail\s+addresses|names|phone\s+numbers|addresses|personal\s+(?:data|details|info)))\b/;
@@ -542,14 +666,14 @@ function shareTest(c: Clause, ctx: RuleContext): boolean {
     && !/\b(?:to|into|in)\s+(?:the\s+|our\s+)?(?:shared\s+drive|drive|folder|room|tempo|doc|team|playbook)\b/.test(t)) return true;
   if (/^(?:upload|import|paste|feed|load|copy|sync|connect|export)\b/.test(t) && dataThing.test(t) && outsideNames(c, ctx, true).some((n) => !/^(?:tempo|henry|sam)$/.test(n))) return true;
   // giving outsiders access
-  const human = recipients(c, ctx, true);
-  if (rx(String.raw`^(?:give|grant|share|offer)\s+(?:${human})\s+(?:edit|view|viewer|read|write|comment|full|admin|owner|editor|guest)?\s*(?:access|rights|permissions?)\b`).test(t)) return true;
+  const nv = namesOf(c, ctx);
+  if (seen(P21, t, nv)) return true;
   {
     const m = /^(?:give|grant)\s+(.{1,60}?)\s+(?:edit|view|viewer|read|write|comment|full|admin|owner|editor|guest)?\s*(?:access|rights|permissions?)\b/.exec(t);
     if (m && !TEAM_WORDS.test(m[1]) && !m[1].split(/\s+/).some((w) => ctx.team.has(w.replace(/'s$/, '')) || /^(?:henry|sam|ada|bo|muse|instinct|me|us|yourself)$/.test(w))) return true;
   }
-  if (rx(String.raw`^(?:add|invite)\s+(?:${human})\s+(?:as\s+(?:a\s+|an\s+)?(?:collaborator|viewer|editor|guest|member|admin|owner|contributor)|to\s+(?:our|the)\s+(?:shared\s+)?(?:[\w-]+\s+)?(?:figma|github|repo|drive|folder|workspace|slack|notion|file|doc|board|channel|project|org|organi[sz]ation))`).test(t)) return true;
-  if (rx(String.raw`^(?:let|allow)\s+(?:${human})\s+(?:see|view|access|edit|look\s+at|read|into|download)\b`).test(t)) return true;
+  if (seen(P22, t, nv)) return true;
+  if (seen(P23, t, nv)) return true;
   if (/^(?:push|move|bump|postpone|delay|defer|shift)\b.{0,50}\bto\s+(?:next|later|another|the\s+following|tomorrow|monday|tuesday|wednesday|thursday|friday)\b|^push\s+back\b/.test(t)) return false;
   // publish (not events to a queue, not a private registry)
   if (/^(?:publish|republish)\b/.test(t) && !TECH_PUBLISH.test(t)) return true;
@@ -558,8 +682,8 @@ function shareTest(c: Clause, ctx: RuleContext): boolean {
   if (/^announce\b/.test(t) && !/\b(?:internally|to\s+the\s+team|in\s+the\s+room|to\s+(?:sam|henry|the\s+conductor))\b/.test(t)) return true;
   if (/^go\s+public\b|^break\s+(?:the\s+)?embargo\b|^open-?source\b|\bnpm\s+publish\b|^(?:go|goes|going)\s+live\b/.test(t)) return true;
   // post / upload / put ... on a public place
-  if (!internal && rx(String.raw`^${SHARE_VERB}\b(?:\s+(?!on\b|to\b|onto\b|in\b|into\b|at\b|across\b|via\b)[\w'"$€£.&-]+){0,10}?\s+(?:up\s+|out\s+|live\s+)?(?:on|to|onto|in|into|at|across|via|through)\s+(?:the\s+)?${PUBLIC}`).test(t) && !/^(?:push)\s+(?:the\s+)?(?:[\w-]+\s+)?(?:branch|commit|commits|fix|code|changes|pr)\b/.test(t) && !/^share\s+(?:your|my|our|some|any)\s+(?:thoughts|feedback|ideas|notes|views|opinions|take|findings|concerns|questions)\b/.test(t)) return true;
-  if (!internal && rx(String.raw`^${SHARE_VERB}\s+(?:it|them|this|that)\s+(?:up\s+)?(?:on|to)\s+${PUBLIC}`).test(t)) return true;
+  if (!internal && S31.test(t) && !/^(?:push)\s+(?:the\s+)?(?:[\w-]+\s+)?(?:branch|commit|commits|fix|code|changes|pr)\b/.test(t) && !/^share\s+(?:your|my|our|some|any)\s+(?:thoughts|feedback|ideas|notes|views|opinions|take|findings|concerns|questions)\b/.test(t)) return true;
+  if (!internal && S32.test(t)) return true;
   // go live / make live / put live / take live / ship to production
   if (/^(?:make|put|take|get|push|bring|set|turn|switch|flip)\s+(?:.{0,40}?\s+)?live\b(?!\s+(?:chat|demo|session|stream\s+plan))/.test(t)) return true;
   if (/^(?:deploy|ship|release|push|promote|roll\s+out|launch|move|merge|cut\s+over)\b.{0,50}?\b(?:to|into|on|onto|in|for)\s+(?:the\s+)?(?:production|prod|live|live\s+site|main\s+and\s+let\s+the\s+pipeline\s+deploy|netlify|vercel|heroku|all\s+(?:users|visitors|customers)|100%\s+of\s+(?:users|traffic|visitors)|everyone|the\s+public|public|app\s+store|play\s+store|chrome\s+web\s+store|npm)\b/.test(t)) return true;
@@ -592,15 +716,15 @@ function shareTest(c: Clause, ctx: RuleContext): boolean {
   if (/^proceed\s+.{0,40}\b(?:launch|announcement|release|publication|go-?live|deploy(?:ment)?|post|reveal)\b/.test(t)) return true;
   // post with no place: only clearly public things, or "post it" after a public place
   if (/^(?:post|share)\s+(?:the\s+|our\s+|a\s+|this\s+)?(?:[\w-]+\s+)?(?:news|announcement|launch|thread|tweet|video|teaser|reveal|press\s+release|job|opening|story|case\s+study|blog\s+post|article|reel|funding\s+news|update\s+publicly)\b/.test(t) && !internal && !/\bwith\s+/.test(t)) return true;
-  if (/^(?:post|publish|share|upload|put\s+up)\s+(?:it|them|this|that)\b/.test(t) && rx(String.raw`\b${PUBLIC}`).test(c.before)) return true;
+  if (/^(?:post|publish|share|upload|put\s+up)\s+(?:it|them|this|that)\b/.test(t) && S33.test(c.before)) return true;
   // goals: "The post is live on LinkedIn", "Visitors to tempo.app can see it", "Done when: posted"
   if (c.frame === 'state' && !internal) {
     if (/^(?:no|nothing|none)\b/.test(t)) return false;
-    if (rx(String.raw`(?:\b(?:is|are|be|been|being|has\s+been|have\s+been|goes|went|gone|go)|'s|'re)\s+(?:now\s+|already\s+|fully\s+)?(?:live|public|published|tweeted|deployed|released|launched|shipped|up\s+on|out\s+on|on\s+(?:the\s+|our\s+)?${PUBLIC_PLACE}|visible\s+to\s+(?:everyone|anyone|the\s+public|visitors))\b`).test(t)) return true;
-    if (rx(String.raw`^(?:it|the\s+[\w-]+(?:\s+[\w-]+)?)(?:\s+(?:is|are)|'s|'re)\s+(?:now\s+)?(?:up\s+|live\s+)?on\s+(?:the\s+|our\s+)?${PUBLIC_PLACE}`).test(t)) return true;
+    if (S34.test(t)) return true;
+    if (S35.test(t)) return true;
     if (/\b(?:visitors|anyone|everyone|the\s+public|customers|users|people)\b.{0,40}\bcan\s+(?:see|view|access|read|find|download)\b/.test(t)) return true;
-    if (rx(String.raw`(?:\b(?:is|are|be|been|being|has\s+been|have\s+been)|'s|'re)\s+(?:now\s+|already\s+)?posted\b`).test(t) && (rx(String.raw`\b${PUBLIC}`).test(t) || rx(String.raw`\b${PUBLIC}`).test(c.before) || /\b(?:announcement|tweet|press\s+release|job\s+(?:ad|post|listing)|listing|video|reel|teaser|launch\s+post|article)s?\b/.test(t))) return true;
-    if (/^(?:published|live|tweeted|shipped|deployed|released|launched)\s*$/.test(t) || (/^(?:posted|up)\s*$/.test(t) && rx(String.raw`\b${PUBLIC}`).test(c.before))) return true;
+    if (S36.test(t) && (S37.test(t) || S38.test(c.before) || /\b(?:announcement|tweet|press\s+release|job\s+(?:ad|post|listing)|listing|video|reel|teaser|launch\s+post|article)s?\b/.test(t))) return true;
+    if (/^(?:published|live|tweeted|shipped|deployed|released|launched)\s*$/.test(t) || (/^(?:posted|up)\s*$/.test(t) && S39.test(c.before))) return true;
     if (/\b(?:in|on)\s+production\b/.test(t) && /\b(?:is|are|runs?|running)\b/.test(t)) return true;
   }
   return false;
@@ -622,3 +746,71 @@ export function jobAct(text: string): string | null {
   return m[1].replace(/^(\w+?)(ches|shes|xes|sses|zes)\b/, (_w, a: string, b: string) => a + b.slice(0, -2)).replace(/^(\w+[^s])s\b/, '$1');
 }
 
+// Patterns used inside the rules above, built once when this module loads.
+/** "Send it to them today", but not "send it to Henry" (teammates are "qmmm" placeholders here). */
+const PRONOUN_SEND = re(String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL}|${CONTACT_SEND})\s+(?:${PRONOUN_OBJ})\b(?!\s+(?:to|with)\s+(?:sam|henry|ada|bo|muse|instinct|the\s+team|me|us|qm+)\b)`);
+const PRONOUN_SEND_WHEN = re(String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL}|${CONTACT_SEND})\s+(?:back\b|today|now|tomorrow|asap|by\s+\w+|before\s+\w+|this\s+\w+)`);
+const S1 = re(String.raw`\b(?:${OUTSIDER}|${AUDIENCE})`);
+const S2 = re(String.raw`\b${PAID_THING_SKIP}$`);
+const S3 = re(String.raw`\b(?:paid|premium|pro)\b`);
+const S4 = re(String.raw`\b(?:image|photo|picture|font)\s+credits?$`);
+const S5 = re(String.raw`\b${PAID_THING}$`);
+const S6 = re(String.raw`\b(?:paid|premium|pro|business|team|enterprise|plus|annual|yearly|lifetime)\s+(?:[\w-]+\s+)?(?:version|plan|tier|account|edition|licen[cs]e|seat|seats|subscription|membership)\b`);
+const S7 = re(String.raw`^upload\s+.{0,50}?\bto\s+(?=the\s|our\s|their\s|an?\s)(?:${OUTSIDER})`);
+const S8 = re(String.raw`\b(?:on|to|onto)\s+(?:the\s+|our\s+)?${PUBLIC}`);
+const S9 = re(String.raw`^(?:reply|respond|call|e-?mail|phone|text|answer|follow\s+up)\s*$`);
+const S10 = re(String.raw`\b(?:to|with)\s+(?:them|him|her)\b`);
+const S11 = re(String.raw`^(?:${CONTACT_SEND}|${CONTACT_DIRECT})\b.{0,40}\b(?:to|with)\s+(?:them|him|her)\b`);
+const S12 = re(String.raw`^(?:${CONTACT_DIRECT}|send|give|show|tell)\s+(?:them|him|her)\b`);
+const S13 = re(String.raw`^(?:${OUTSIDER}|each\s+\w+|every\s+\w+).{0,30}\b(?:has|have)\s+(?:okayed|ok'd|approved|agreed|confirmed|signed\s+off)\b.{0,30}\bby\s+(?:e-?mail|phone|text)`);
+const S14 = re(String.raw`\b(?:${OUTSIDER}|${AUDIENCE})`);
+const S15 = re(String.raw`^overwrite\s+(?:the\s+|this\s+|that\s+)?(?:[\w-]+\s+){0,2}?${CONTENT_PART}\b`);
+const S16 = re(String.raw`\b(?:${DATA_THING}|old|stale|unused|merged|inactive|duplicate)\b`);
+const S17 = re(String.raw`\bby\s+[\w-]+(?:\s+[\w-]+)?\s+(?:the\s+|any\s+|some\s+)?(?:[\w-]+\s+){0,2}?${CONTENT_PART}\b`);
+const S18 = re(String.raw`\bof\s+(?:the\s+)?(?:[\w'-]+\s+){0,2}?(?:${CONTENT_PART}|${CONTENT_PLACE})\b`);
+const S19 = re(String.raw`^${DELETE_VERB}\b`);
+const S20 = re(String.raw`\b${CONTENT_PART}\b`);
+const S21 = re(String.raw`\b${DATA_THING}\b`);
+const S22 = re(String.raw`\b${DATA_THING}\b`);
+const S23 = re(String.raw`\b${DATA_THING}\b`);
+const S24 = re(String.raw`\b${CONTENT_PART}$`);
+const S25 = re(String.raw`\b(?:from|in|on|of)\s+(?:the\s+|this\s+|that\s+|our\s+|my\s+|your\s+|slide\s+\d+\s+of\s+the\s+)?(?:[\w-]+\s+){0,3}?${CONTENT_PLACE}\b`);
+const S26 = re(String.raw`\b${DATA_THING}$`);
+const S27 = re(String.raw`^(?:all|everything|anything|the\s+lot)\b`);
+const S28 = re(String.raw`\b${CONTENT_PART}\b`);
+const S29 = re(String.raw`\b${DATA_THING}\b`);
+const S30 = re(String.raw`\b${PUBLIC}`);
+const S31 = re(String.raw`^${SHARE_VERB}\b(?:\s+(?!on\b|to\b|onto\b|in\b|into\b|at\b|across\b|via\b)[\w'"$€£.&-]+){0,10}?\s+(?:up\s+|out\s+|live\s+)?(?:on|to|onto|in|into|at|across|via|through)\s+(?:the\s+)?${PUBLIC}`);
+const S32 = re(String.raw`^${SHARE_VERB}\s+(?:it|them|this|that)\s+(?:up\s+)?(?:on|to)\s+${PUBLIC}`);
+const S33 = re(String.raw`\b${PUBLIC}`);
+const S34 = re(String.raw`(?:\b(?:is|are|be|been|being|has\s+been|have\s+been|goes|went|gone|go)|'s|'re)\s+(?:now\s+|already\s+|fully\s+)?(?:live|public|published|tweeted|deployed|released|launched|shipped|up\s+on|out\s+on|on\s+(?:the\s+|our\s+)?${PUBLIC_PLACE}|visible\s+to\s+(?:everyone|anyone|the\s+public|visitors))\b`);
+const S35 = re(String.raw`^(?:it|the\s+[\w-]+(?:\s+[\w-]+)?)(?:\s+(?:is|are)|'s|'re)\s+(?:now\s+)?(?:up\s+|live\s+)?on\s+(?:the\s+|our\s+)?${PUBLIC_PLACE}`);
+const S36 = re(String.raw`(?:\b(?:is|are|be|been|being|has\s+been|have\s+been)|'s|'re)\s+(?:now\s+|already\s+)?posted\b`);
+const S37 = re(String.raw`\b${PUBLIC}`);
+const S38 = re(String.raw`\b${PUBLIC}`);
+const S39 = re(String.raw`\b${PUBLIC}`);
+
+// Patterns that name who is reached, built once: one for plain words, one for name placeholders.
+const P1 = pair('human', (slot) => String.raw`\b(?:${slot})`);
+const P2 = pair('human', (slot) => String.raw`^(?:${CONTACT_DIRECT}|${CONTACT_PHRASAL})\s+(?:back\s+|out\s+to\s+|up\s+with\s+|with\s+|again\s+|directly\s+|personally\s+|quickly\s+|now\s+)?(?:${slot})`);
+const P3 = pair('human', (slot) => String.raw`^negotiate\b.{0,50}\bwith\s+(?:${slot})`);
+const P4 = pair('human', (slot) => String.raw`^proceed\s+(?:the\s+|a\s+|our\s+)?(?:[\w-]+\s+){0,2}?(?:outreach|e-?mails?|calls?|follow-?ups?|reply|replies|announcement\s+e-?mail|newsletter|invites?|intro|introduction|campaign|blast|message|messages)\b.{0,40}\b(?:to|with|for)\s+(?:${slot})`);
+const P5 = pair('strict', (slot) => String.raw`^${CONTACT_SEND}\b(?!\s+(?:a\s+|the\s+)?(?:banner|message|modal|pop-?up|tooltip|notice|warning|error|prompt|toast|alert)\s+to\s+users)(?:\s+(?!to\b|with\b|for\b|cc\b)[\w'"$€£.-]+){0,10}?\s+(?:over\s+|out\s+|along\s+|back\s+)?(?:to|for|cc)\s+(?:${slot})`);
+const P6 = pair('strict', (slot) => String.raw`^(?:share|reshare|forward|show)\b(?!\s+(?:your|my|our|some|any)\s+(?:thoughts|feedback|ideas|notes|views|opinions|take|findings|concerns|questions)\b).{0,60}?\bwith\s+(?:${slot})`);
+const P7 = pair('human', (slot) => String.raw`^(?:send|resend|forward|mail|e-?mail|text|give|show|hand|offer|tell|ask|drop|shoot|fire\s+off|get|write|pass)\s+(?:${slot})\s+(?:a|an|the|our|this|that|these|those|some|it|them|\d|"q"|quick|short|heads|details|word|news|info)\b`);
+const P8 = pair('human', (slot) => String.raw`^let\s+(?:${slot}).{0,60}?\s(?:know|hear)\b`);
+const P9 = pair('human', (slot) => String.raw`^(?:keep|loop|bring|add|put|cc|copy)\s+(?:in\s+)?(?:${slot})\s+(?:in\s+the\s+loop|posted|updated|informed|in\b|into\b|on\s+(?:the\s+)?(?:cc|bcc|thread|email|chain)|to\s+the\s+(?:email\s+)?(?:thread|chain|conversation|call|loop))`);
+const P10 = pair('human', (slot) => String.raw`^(?:loop\s+in|cc\s+in|bring\s+in)\s+(?:${slot})`);
+const P11 = pair('human', (slot) => String.raw`^(?:book|schedule|set\s+up|arrange|organi[sz]e|line\s+up|hold|run|do|have|plan|reschedule|cancel|move|accept|confirm|take|join|attend|host|lead)\s+(?:a\s+|an\s+|the\s+|our\s+|another\s+|\d+\s+)?(?:[\w-]+\s+){0,2}?(?:calls?|meetings?|demos?|chats?|interviews?|zoom|video\s+call|phone\s+screen|screens?|coffee|lunch|kickoff|kick-off|check-?ins?|walkthroughs?|sessions?|invites?|presentations?|pitch(?:es)?|intro\s+calls?|call\s+back|follow-?up)\s+(?:with|for|to)\s+(?:${slot})`);
+const P12 = pair('human', (slot) => String.raw`^(?:book|schedule)\s+(?:${slot})\s+(?:in\s+)?(?:for|into)\b`);
+const P13 = pair('human', (slot) => String.raw`^accept\s+(?:the\s+)?(?:${slot})\s+(?:[\w-]+\s+)?(?:invite|invitation|request)`);
+const P14 = pair('human', (slot) => String.raw`^(?:enrol+|enroll|add|put|subscribe)\s+(?:${slot}).{0,40}\b(?:sequence|campaign|drip|cadence|nurture|outreach|newsletter|mailing\s+list)\b`);
+const P15 = pair('who', (slot) => String.raw`(?:^|\s)${slot}\s+(?:has|have|had)?\s*(?:been\s+|was\s+|were\s+|is\s+|are\s+|gets?\s+|got\s+|(?:should|must|needs?\s+to|has\s+to|have\s+to|will|is\s+to|are\s+to)\s+be\s+)(?:all\s+|now\s+|already\s+)?${REACHED}`);
+const P16 = pair('who', (slot) => String.raw`(?:^|\s)${slot}\s+(?:has|have)\s+(?:received|got|had)\b|(?:^|\s)${slot}\s+(?:has|have)\s+.{0,30}\bin\s+(?:their|his|her|its)\s+inbox\b`);
+const P17 = pair('who', (slot) => String.raw`\b(?:to|with|for)\s+${slot}`);
+const P18 = pair('who', (slot) => String.raw`\bshared\s+(?:it\s+)?with\s+${slot}`);
+const P19 = pair('human', (slot) => String.raw`\bto\s+(?:${slot})`);
+const P20 = pair('human', (slot) => String.raw`\bgo(?:es|ing)?\s+out\s+to\s+(?:${slot})`);
+const P21 = pair('human', (slot) => String.raw`^(?:give|grant|share|offer)\s+(?:${slot})\s+(?:edit|view|viewer|read|write|comment|full|admin|owner|editor|guest)?\s*(?:access|rights|permissions?)\b`);
+const P22 = pair('human', (slot) => String.raw`^(?:add|invite)\s+(?:${slot})\s+(?:as\s+(?:a\s+|an\s+)?(?:collaborator|viewer|editor|guest|member|admin|owner|contributor)|to\s+(?:our|the)\s+(?:shared\s+)?(?:[\w-]+\s+)?(?:figma|github|repo|drive|folder|workspace|slack|notion|file|doc|board|channel|project|org|organi[sz]ation))`);
+const P23 = pair('human', (slot) => String.raw`^(?:let|allow)\s+(?:${slot})\s+(?:see|view|access|edit|look\s+at|read|into|download)\b`);

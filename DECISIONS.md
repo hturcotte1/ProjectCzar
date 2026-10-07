@@ -632,6 +632,44 @@ below has a test that fails on the code before the fix and passes after it.
     let through or stopping the check-in. Tests cover odd names (brackets, symbols, accents) against
     the whole table, and a deliberately broken rule.
 
+## Part 6: Second round of fixes from the outside review (before the first deploy)
+
+50. **The limits check no longer freezes the server when a text names people.** The outside review
+    found that a text naming people or companies outside the team made the check build about two
+    dozen new search patterns per sentence, each thousands of characters long, with the names written
+    in. A question listing ten job candidates took about 4 seconds, 25 lines each naming someone took
+    10 seconds, and 2,000 characters of made-up names took 42 seconds. The check runs on the server's
+    only thread, inside the check-in, so nothing else was answered meanwhile (a health request waited
+    the full 4 seconds), and memory grew by gigabytes before it was cleared. A 500-pattern cache could
+    not help, because every new name made new patterns. This room will be used for recruiting, so
+    nearly every message names people.
+    * Every pattern is now built once, when the module loads; nothing is built from the text or from
+      anyone's name while a check runs (a test watches for it). Names are found in plain code and,
+      in a copy of the text, swapped for fixed placeholders of the same length ("Dana" becomes
+      "qnnn"; a known tool's name, a teammate and a capitalised first word each have their own
+      letter). Each rule that asks "is this aimed at someone outside the team?" exists twice: once for
+      plain words ("the client") on the text, once for placeholders on the copy. Keeping the length
+      keeps rules that count characters the same. "Hollis & Co" keeps its "Co".
+    * There is a ceiling on the work one text can cause: more than 400 clauses, or more than a quarter
+      of a second, and the check answers "something the limits check could not read", so a person
+      decides. Ordinary texts take about a millisecond, the largest an agent may send about 10 to 20.
+    * Getting the patterns ready takes about half a second; the server now does it when it starts
+      (and the check does it before its first use if nothing else has), not inside the first check-in
+      of the day, and that time never counts against the ceiling.
+    * Same answers: the old and new checks were run side by side on every reviewed sentence, the
+      four review rounds, copies of them with every name replaced by a made-up one, and generated
+      sentences full of new names, each with four different teams. The first 13,000 checks found one
+      difference ("drop Priya at Hollis & Co a note": the "Co" had become a placeholder); after that
+      fix, 43,600 more checks found none. All 2,879 reviewed sentences and the 109-sentence table pass unchanged.
+    * Measured (the same texts, new made-up names each time): see the table in the report for this
+      round. Tests in `tests/limits-speed.test.ts` use new made-up names on every run and print the
+      seed: each of the reviewer's texts in under 50 ms after the warm-up; 300 questions with a new
+      person and company in under 3 seconds; 2,000 checks with new names grow memory by less than
+      30 MB after a full garbage collection (in a separate process); and, end to end, the
+      10-candidate question posted through the REST door is answered in under 300 ms while health
+      requests sent all through it never wait 300 ms. All of these fail on the old code (3 to 5
+      seconds, 94 MB, a health request waiting 3 seconds).
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

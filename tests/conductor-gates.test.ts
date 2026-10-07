@@ -358,11 +358,12 @@ describe('one decision per held item', () => {
       expect.stringMatching(/already waiting for a person as dec_5\b/),
     ]);
 
-    // Henry says no to the new kinds; the Conductor tries again; nothing new is raised.
-    for (const d of decisions(s.w).slice(1)) resolveDecision(s.w.ctx, s.w.henry, d.id, { option_index: 1 });
-    const third = await s.conduct({ ...sameAgain, instructions: [] });
+    // Henry says no to all of them; the Conductor tries again; nothing new is raised.
+    for (const d of decisions(s.w)) resolveDecision(s.w.ctx, s.w.henry, d.id, { option_index: 1 });
+    const third = await s.conduct(sameAgain);
     expect(decisions(s.w).length).toBe(5);
     expect(third.map((a) => a.text)).toEqual([
+      expect.stringMatching(/already decided as dec_1\b/),
       expect.stringMatching(/already decided as dec_2\b/),
       expect.stringMatching(/already decided as dec_3\b/),
       expect.stringMatching(/already decided as dec_4\b/),
@@ -449,5 +450,122 @@ describe('what people and agents can see of a held item', () => {
       const one = await rest(s.w.app, s.w.b.apiKey, 'POST', '/api/v1/agent/lookup', { id: lookupId });
       expect(JSON.stringify(one.body)).not.toContain('press@example.com');
     }
+  });
+});
+
+/**
+ * Review of this fix, round 2: what the reviewers found still open. Each test failed before its fix.
+ */
+describe('review follow-ups', () => {
+  const PHOTO = 'Buy a $49 stock photo license for the hero image.';
+  const FIVE_SHORT = 'Collect five customer quotes.';
+  const FOUR_SHORT = 'Collect four customer quotes.';
+  const lookup = async (s: Awaited<ReturnType<typeof setup>>, body: Record<string, unknown>) => {
+    const r = await rest(s.w.app, s.w.b.apiKey, 'POST', '/api/v1/agent/lookup', body);
+    expect(r.status).toBe(200);
+    return r.body;
+  };
+
+  it("the Conductor's reason for an instruction (its why) never reaches an agent, not even through lookup", async () => {
+    const s = await setup('autonomous');
+    const actions = await s.conduct({ instructions: [{ ...instr('Muse Sam', QUOTES), why: `Also email${REWORD.slice('Email'.length)}` }] });
+    expect(actions.map((a) => a.kind)).toEqual(['instruction']);
+    const id = (s.w.ctx.db.prepare('SELECT id FROM instructions').get() as { id: string }).id;
+    const one = await lookup(s, { id });
+    expect(one.results).toMatchObject([{ id, from: 'the Conductor', text: expect.stringContaining(`Instruction for Muse Sam: ${QUOTES}`) }]);
+    expect(JSON.stringify(one)).not.toContain('press@example.com');
+    for (const query of ['press', 'quotes']) expect(JSON.stringify(await lookup(s, { query }))).not.toContain('press@example.com');
+    // People still read it: the instruction keeps its reason.
+    expect(ins(s.w, id).why).toContain('press@example.com');
+  });
+
+  it("the Conductor's reason for cancelling an instruction reaches no agent when the limits check flags it", async () => {
+    const s = await setup('autonomous');
+    await s.conduct({ instructions: [instr('Muse Sam', QUOTES), instr('Muse Henry', FIVE)] });
+    const [quotes, five] = (s.w.ctx.db.prepare('SELECT id FROM instructions ORDER BY rowid').all() as { id: string }[]).map((r) => r.id);
+    const cancel = (instruction_id: string, why: string) => ({ instruction_id, action: 'cancel' as const, new_text: null, new_done_when: null, why });
+    const actions = await s.conduct({ instruction_changes: [cancel(quotes, `${REWORD} Do that instead.`), cancel(five, 'Muse Sam already has enough quotes.')] });
+    expect(ins(s.w, quotes).status).toBe('cancelled');
+    expect(ins(s.w, five)).toMatchObject({ status: 'cancelled', status_note: 'Cancelled by the Conductor: Muse Sam already has enough quotes.' });
+    // People read the reason in the Conductor's log.
+    expect(actions.map((a) => a.kind)).toEqual(['cancel', 'cancel']);
+    expect(actions[0]?.text).toContain('press@example.com');
+    const status = s.w.ctx.db.prepare("SELECT seq FROM feed_events WHERE kind = 'instruction_status' AND ref_id = ?").get(quotes) as { seq: number };
+    for (const body of [{ id: quotes }, { id: `evt_${status.seq}` }, { query: 'cancelled' }, { query: 'press' }]) {
+      expect(JSON.stringify(await lookup(s, body))).not.toContain('press@example.com');
+    }
+  });
+
+  it('a flagged instruction a person said no to is not raised again when the Conductor repeats it', async () => {
+    const s = await setup('autonomous');
+    await s.conduct({ instructions: [instr('Muse Henry', PHOTO)] });
+    const [d1] = decisions(s.w);
+    expect(d1).toMatchObject({ source: 'limits', status: 'open' });
+    resolveDecision(s.w.ctx, s.w.henry, d1.id, { option_index: 1 });
+    const again = await s.conduct({ instructions: [instr('Muse Henry', PHOTO)] });
+    expect(decisions(s.w).map((d) => [d.id, d.status])).toEqual([[d1.id, 'resolved']]);
+    expect(again).toEqual([{ kind: 'skipped', id: null, text: expect.stringMatching(new RegExp(`already decided as ${d1.id}\\b`)) }]);
+    expect(count(s.w.ctx, 'SELECT COUNT(*) n FROM instructions')).toBe(0);
+  });
+
+  it('a flagged instruction a person approved, once finished, is asked about again when the Conductor repeats it', async () => {
+    const s = await setup('autonomous');
+    await s.conduct({ instructions: [instr('Muse Henry', PHOTO)] });
+    const [d1] = decisions(s.w);
+    resolveDecision(s.w.ctx, s.w.henry, d1.id, { option_index: 0 });
+    const first = s.w.ctx.db.prepare('SELECT * FROM instructions').get() as any;
+    expect(first).toMatchObject({ text: PHOTO, status: 'new' });
+    // Still open: the Conductor's repeat is a duplicate.
+    expect((await s.conduct({ instructions: [instr('Muse Henry', PHOTO)] })).map((a) => a.text)).toEqual([expect.stringContaining(`already open for Muse Henry as ${first.id}`)]);
+    withTx(s.w.ctx, (emit) =>
+      setInstructionStatus(s.w.ctx.db, first, { status: 'done', proof: 'https://example.com/receipt' }, { kind: 'agent', id: s.w.a.agent.id, name: 'Muse Henry' }, new Date(s.w.clock.now()).toISOString(), emit),
+    );
+    const again = await s.conduct({ instructions: [instr('Muse Henry', PHOTO)] });
+    expect(again.map((a) => a.kind)).toEqual(['decision']);
+    expect(decisions(s.w).map((d) => d.status)).toEqual(['resolved', 'open']);
+  });
+
+  it('new wording a person approved before is asked about again once the instruction has changed back (A to B, B to A, A to B)', async () => {
+    const s = await setup('propose');
+    const id = await approvedQuotes(s);
+    const change = async (text: string) => {
+      const actions = await s.conduct({ instruction_changes: [reword(id, text)] });
+      expect(actions.map((a) => a.text)).toEqual([expect.stringContaining('Needs approval')]);
+      const d = decisions(s.w).at(-1);
+      expect(d).toMatchObject({ status: 'open', id: actions[0]?.id });
+      return d;
+    };
+    resolveDecision(s.w.ctx, s.w.henry, (await change(FIVE_SHORT)).id, { option_index: 0 });
+    expect(ins(s.w, id).text).toBe(FIVE_SHORT);
+    resolveDecision(s.w.ctx, s.w.henry, (await change(QUOTES)).id, { option_index: 0 });
+    expect(ins(s.w, id).text).toBe(QUOTES);
+
+    const third = await change(FIVE_SHORT);
+    expect(held(third)).toMatchObject({ kind: 'reword', previous_text: QUOTES, text: FIVE_SHORT });
+    expect(ins(s.w, id).text).toBe(QUOTES);
+    // Repeated while it waits: no second decision.
+    expect((await s.conduct({ instruction_changes: [reword(id, FIVE_SHORT)] })).map((a) => a.text)).toEqual([
+      expect.stringMatching(new RegExp(`already waiting for a person as ${third.id}\\b`)),
+    ]);
+    resolveDecision(s.w.ctx, s.w.henry, third.id, { option_index: 0 });
+    expect(texts(await s.card(s.w.b))).toEqual([FIVE_SHORT]);
+    expect(decisions(s.w)).toHaveLength(3);
+  });
+
+  it('new wording a person turned down is not asked about again, unless the instruction now reads differently', async () => {
+    const s = await setup('propose');
+    const id = await approvedQuotes(s);
+    await s.conduct({ instruction_changes: [reword(id, FIVE_SHORT)] });
+    const [no] = decisions(s.w);
+    resolveDecision(s.w.ctx, s.w.henry, no.id, { option_index: 1 });
+    expect((await s.conduct({ instruction_changes: [reword(id, FIVE_SHORT)] })).map((a) => a.text)).toEqual([expect.stringMatching(new RegExp(`already decided as ${no.id}\\b`))]);
+
+    await s.conduct({ instruction_changes: [reword(id, FOUR_SHORT)] });
+    resolveDecision(s.w.ctx, s.w.henry, decisions(s.w)[1].id, { option_index: 0 });
+    expect(ins(s.w, id).text).toBe(FOUR_SHORT);
+    // From four quotes to five is a different change from three to five: a person is asked.
+    const actions = await s.conduct({ instruction_changes: [reword(id, FIVE_SHORT)] });
+    expect(actions.map((a) => a.kind)).toEqual(['decision']);
+    expect(held(decisions(s.w)[2])).toMatchObject({ kind: 'reword', previous_text: FOUR_SHORT, text: FIVE_SHORT });
   });
 });

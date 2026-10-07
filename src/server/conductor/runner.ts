@@ -363,7 +363,13 @@ function fingerprint(...parts: string[]): string {
   return createHash('sha256').update(parts.join('\u0000')).digest('hex').slice(0, 16);
 }
 
-const PROPOSE_REWORD_WHY = 'In Propose mode, a person approves every change to an instruction an agent can already see.';
+const PROPOSE_REWORD_WHY = 'In Propose mode, a person approves new wording for an instruction an agent can already see.';
+
+/**
+ * How many times in a row the exact same held item is raised again after a person approved it
+ * (each time the Conductor asks for it anew). Keeps the lookup of earlier decisions bounded.
+ */
+const MAX_REASKS = 20;
 
 /**
  * Applies the Conductor's output according to the room's mode and the guardrails.
@@ -374,7 +380,9 @@ const PROPOSE_REWORD_WHY = 'In Propose mode, a person approves every change to a
  * through the limits check. Anything it flags becomes a decision for a person and reaches no agent
  * until a person approves it (resolveDecision in services/decisions.ts applies it). In Propose
  * mode, new instructions wait as proposals and new wording for an instruction an agent can already
- * see waits as a decision. See DECISIONS.md items 17, 18, 19 and 36.
+ * see waits as a decision. The Conductor's reason for an instruction ("why") is never shown to an
+ * agent (not on the card, not by lookup), and a flagged reason for a cancellation stays in the
+ * Conductor log. See DECISIONS.md items 17, 18, 19 and 36.
  */
 export function applyOutput(
   ctx: AppContext,
@@ -401,8 +409,10 @@ export function applyOutput(
 
   /**
    * Holds back one item for a person: a decision carries it, and it is applied only if a person
-   * chooses the first option. The same item on a later run raises no second decision, whether
-   * the first is still open or already decided (createDecision returns the existing row).
+   * chooses the first option. `key` names the item (decisions.source_key). The same item on a
+   * later run raises no second decision while the first waits, nor after a person said no to it or
+   * dismissed it. If a person approved it, it went out (or the feed said why not); the Conductor
+   * asking for it again is a new request, so a person is asked again (key `<key>@<earlier id>`).
    */
   const hold = (h: {
     key: string;
@@ -412,13 +422,21 @@ export function applyOutput(
     context: string;
     options: string[];
     concern: string | null;
+    why?: string;
     agentIds: string[];
     item: ProposedInstruction;
   }): void => {
-    const existing = db.prepare('SELECT id, status FROM decisions WHERE source_key = ?').get(h.key) as { id: string; status: string } | undefined;
-    if (existing) {
-      skip(existing.status === 'open' ? `${h.what} is already waiting for a person as ${existing.id}.` : `${h.what} was already decided as ${existing.id}, so it was not raised again.`);
-      return;
+    const byKey = db.prepare('SELECT id, status, resolution_option FROM decisions WHERE source_key = ?');
+    let key = h.key;
+    for (let reasks = 0; ; reasks++) {
+      const earlier = byKey.get(key) as { id: string; status: string; resolution_option: number | null } | undefined;
+      if (!earlier) break;
+      const approved = earlier.status === 'resolved' && earlier.resolution_option === 0;
+      if (!approved || reasks >= MAX_REASKS) {
+        skip(earlier.status === 'open' ? `${h.what} is already waiting for a person as ${earlier.id}.` : `${h.what} was already decided as ${earlier.id}, so it was not raised again.`);
+        return;
+      }
+      key = `${h.key}@${earlier.id}`;
     }
     const d = createDecision(
       db,
@@ -428,9 +446,9 @@ export function applyOutput(
         context: h.context,
         options: h.options,
         recommendation: null,
-        why: h.concern ? `It involves ${h.concern}, which needs a person first.` : PROPOSE_REWORD_WHY,
+        why: h.why ?? (h.concern ? `It involves ${h.concern}, which needs a person first.` : PROPOSE_REWORD_WHY),
         source: h.concern ? 'limits' : 'conductor',
-        sourceKey: h.key,
+        sourceKey: key,
         agentIds: h.agentIds,
         proposedInstruction: h.item,
         raisedBy: CONDUCTOR,
@@ -480,27 +498,20 @@ export function applyOutput(
     const due = ins.due && !Number.isNaN(Date.parse(ins.due)) ? new Date(ins.due).toISOString() : null;
     if (ins.needs_approval || concern) {
       const reason = ins.approval_reason ?? (concern ? `it involves ${concern}` : 'it needs a person to approve it');
-      const d = createDecision(
-        db,
-        {
-          roomId: room.id,
-          // The title reaches the agent's card once a person decides (yes or no), so it never
-          // carries the held text; the context, the decision card and the feed show it to people.
-          title: `Approve an instruction for ${agent.name}?`,
-          context: `The Conductor wants to tell ${agent.name}: "${ins.text}" (done when: ${ins.done_when}). It needs a person first because ${reason}. Why: ${ins.why}`,
-          options: ['Approve and send it', "Don't do this", 'Something else (write it)'],
-          recommendation: null,
-          why: `Outside what agents may do without asking: ${reason}.`,
-          source: concern ? 'limits' : 'conductor',
-          agentIds: [agent.id],
-          proposedInstruction: { kind: 'instruction', agent_id: agent.id, text: ins.text, done_when: ins.done_when, priority: ins.priority, due_at: due, why: ins.why, issuer_kind: 'conductor', run_id: runId },
-          raisedBy: CONDUCTOR,
-          runId,
-          at,
-        },
-        emit,
-      );
-      actions.push({ kind: 'decision', id: d.id, text: `Needs approval before ${agent.name} gets it: ${quote(ins.text, 80)}` });
+      hold({
+        key: `ins:${room.id}:${agent.id}:${fingerprint(ins.text, ins.done_when)}`,
+        what: `"${quote(ins.text, 60)}" for ${agent.name}`,
+        action: `Needs approval before ${agent.name} gets it: ${quote(ins.text, 80)}`,
+        // The title reaches the agent's card once a person decides (yes or no), so it never
+        // carries the held text; the context, the decision card and the feed show it to people.
+        title: `Approve an instruction for ${agent.name}?`,
+        context: `The Conductor wants to tell ${agent.name}: "${ins.text}" (done when: ${ins.done_when}). It needs a person first because ${reason}. Why: ${ins.why}`,
+        options: ['Approve and send it', "Don't do this", 'Something else (write it)'],
+        concern,
+        why: `Outside what agents may do without asking: ${reason}.`,
+        agentIds: [agent.id],
+        item: { kind: 'instruction', agent_id: agent.id, text: ins.text, done_when: ins.done_when, priority: ins.priority, due_at: due, why: ins.why, issuer_kind: 'conductor', run_id: runId },
+      });
       continue;
     }
     if (open.length >= maxOpen) {
@@ -573,8 +584,17 @@ export function applyOutput(
       continue;
     }
     if (c.action === 'cancel') {
-      setInstructionStatus(db, ins, { status: 'cancelled', note: `Cancelled by the Conductor: ${c.why}` }, CONDUCTOR, at, emit);
-      actions.push({ kind: 'cancel', id: ins.id, text: `Cancelled ${ins.id}: ${c.why}` });
+      // Cancelling only takes work away, so it goes ahead. But the note on the instruction is
+      // something an agent can look up, so a reason the limits check flags stays with people: it is
+      // kept in the Conductor log (this run's actions), which no agent reads.
+      const concern = concernOf(c.why);
+      const note = concern ? 'Cancelled by the Conductor. Its reason is in the Conductor log.' : `Cancelled by the Conductor: ${c.why}`;
+      setInstructionStatus(db, ins, { status: 'cancelled', note }, CONDUCTOR, at, emit);
+      actions.push({
+        kind: 'cancel',
+        id: ins.id,
+        text: concern ? `Cancelled ${ins.id}. Its reason was kept from agents because it involves ${concern}: ${c.why}` : `Cancelled ${ins.id}: ${c.why}`,
+      });
     } else if (c.new_text) {
       const doneWhen = c.new_done_when ?? ins.done_when;
       if (c.new_text === ins.text && doneWhen === ins.done_when) {
@@ -587,7 +607,9 @@ export function applyOutput(
       if (concern || (mode === 'propose' && seen)) {
         const agentName = getAgent(db, ins.agent_id)?.name ?? ins.agent_id;
         hold({
-          key: `reword:${ins.id}:${fingerprint(c.new_text, doneWhen)}`,
+          // A change from this wording to that one: the same new wording from a different starting
+          // point is a different change (applyHeld also checks the wording has not moved on).
+          key: `reword:${ins.id}:${fingerprint(ins.text, ins.done_when, c.new_text, doneWhen)}`,
           what: `The new wording for ${ins.id} ("${quote(c.new_text, 60)}")`,
           action: `Needs approval before ${agentName} gets the new wording of ${ins.id}: ${quote(c.new_text, 80)}`,
           title: `Approve a change to ${ins.id} for ${agentName}?`,

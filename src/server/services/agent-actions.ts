@@ -239,7 +239,10 @@ export function lookup(ctx: AppContext, agentIn: AgentRow, raw: unknown, _door: 
       text = `Question: ${row.text}${row.status === 'answered' ? `\nAnswer: ${row.answer}` : `\nStatus: ${row.status}`}`;
       from = row.asker_kind === 'agent' ? (getAgent(ctx.db, row.asker_id)?.name ?? '') : row.asker_kind === 'person' ? (getPerson(ctx.db, row.asker_id)?.name ?? '') : 'the Conductor';
     } else if (prefix === 'ins') {
-      text = `Instruction for ${getAgent(ctx.db, row.agent_id)?.name ?? row.agent_id}: ${row.text}\nDone when: ${row.done_when}\nStatus: ${row.status}${row.status_note ? `\nNote: ${row.status_note}` : ''}${row.proof ? `\nProof: ${row.proof}` : ''}${row.why ? `\nWhy: ${row.why}` : ''}`;
+      // The Conductor's reason ("why") is for people, like on the card: agents act on the text and
+      // done-when line, which pass the limits check. A person's own reason is shown.
+      const why = row.why && row.issuer_kind === 'person' ? `\nWhy: ${row.why}` : '';
+      text = `Instruction for ${getAgent(ctx.db, row.agent_id)?.name ?? row.agent_id}: ${row.text}\nDone when: ${row.done_when}\nStatus: ${row.status}${row.status_note ? `\nNote: ${row.status_note}` : ''}${row.proof ? `\nProof: ${row.proof}` : ''}${why}`;
       from = row.issuer_kind === 'person' ? (getPerson(ctx.db, row.issuer_person_id)?.name ?? '') : 'the Conductor';
       if (row.status === 'proposed' || row.status === 'rejected') throw notFound();
     } else if (prefix === 'dec') {

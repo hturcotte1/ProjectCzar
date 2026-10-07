@@ -18,6 +18,8 @@ export interface Actor {
   name: string;
 }
 
+export const CONDUCTOR: Actor = { kind: 'conductor', id: null, name: 'Conductor' };
+
 export function quote(text: string, max = 80): string {
   const t = text.replace(/\s+/g, ' ').trim();
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
@@ -356,11 +358,54 @@ export function setInstructionStatus(
   return true;
 }
 
+/**
+ * Gives one of the Conductor's instructions new wording, in place. Callers check first that the
+ * change may go out now (runner.ts), or that a person approved it (decisions.ts).
+ */
+export function rewordInstruction(
+  db: DB,
+  ins: InstructionRow,
+  next: { text: string; doneWhen: string; why: string | null; approval?: { personName: string; decisionId: string } | null },
+  at: string,
+  emit: Emit,
+): void {
+  db.prepare('UPDATE instructions SET text = ?, done_when = ?, updated_at = ? WHERE id = ?').run(next.text, next.doneWhen, at, ins.id);
+  const agent = getAgent(db, ins.agent_id);
+  const approved = next.approval ? ` (approved by ${next.approval.personName}, ${next.approval.decisionId})` : '';
+  const note = `Reworded: ${next.why ?? ''}`.trim() + (next.approval ? ` Approved by ${next.approval.personName} (${next.approval.decisionId}).` : '');
+  appendFeed(
+    db,
+    {
+      roomId: ins.room_id,
+      kind: 'instruction_status',
+      actorKind: 'conductor',
+      actorName: 'Conductor',
+      targetAgentId: ins.agent_id,
+      threadId: ins.id,
+      refId: ins.id,
+      text: `${ins.id} for ${agent?.name ?? ''} was reworded by the Conductor${approved}: ${next.text}`,
+      data: { instruction_id: ins.id, status: ins.status, previous_status: ins.status, note, reworded_to: next.text, approved_by: next.approval?.personName ?? null },
+      at,
+    },
+    emit,
+  );
+  db.prepare(`INSERT INTO instruction_events (instruction_id, status, note, actor_kind, at) VALUES (?, ?, ?, 'conductor', ?)`).run(ins.id, ins.status, note, at);
+}
+
 // ----------------------------------------------------------------------------------------------
 // Decisions
 // ----------------------------------------------------------------------------------------------
 
-export interface ProposedInstruction {
+/**
+ * What a decision holds back until a person approves it (stored as JSON in
+ * decisions.proposed_instruction). Choosing the first option applies it; any other answer, or
+ * dismissing, leaves everything as it was. Rows written before `kind` existed are instructions.
+ */
+export type ProposedInstruction = HeldInstruction | HeldReword | HeldQuestion | HeldNote | HeldAnswer | HeldPlaybook;
+
+/** A new instruction for an agent. */
+export interface HeldInstruction {
+  kind?: 'instruction';
   agent_id: string;
   text: string;
   done_when: string;
@@ -370,6 +415,52 @@ export interface ProposedInstruction {
   issuer_kind: 'conductor' | 'person';
   issuer_person_id?: string | null;
   run_id?: string | null;
+}
+
+/** New wording for one of the Conductor's open instructions. */
+export interface HeldReword {
+  kind: 'reword';
+  agent_id: string;
+  instruction_id: string;
+  previous_text: string;
+  previous_done_when: string;
+  text: string;
+  done_when: string;
+  why: string | null;
+  run_id: string | null;
+}
+
+/** A question from the Conductor to an agent. */
+export interface HeldQuestion {
+  kind: 'question';
+  agent_id: string;
+  text: string;
+  why: string | null;
+  run_id: string | null;
+}
+
+/** A room note from the Conductor (every agent in the room sees it). */
+export interface HeldNote {
+  kind: 'note';
+  text: string;
+  run_id: string | null;
+}
+
+/** The Conductor's answer to an agent's question. */
+export interface HeldAnswer {
+  kind: 'answer';
+  agent_id: string;
+  question_id: string;
+  text: string;
+  run_id: string | null;
+}
+
+/** A lesson for the playbook (shown on every agent's card). */
+export interface HeldPlaybook {
+  kind: 'playbook';
+  title: string;
+  text: string;
+  run_id: string | null;
 }
 
 export interface NewDecisionArgs {
@@ -513,4 +604,29 @@ export function createPlaybookEntry(
     emit,
   );
   return id;
+}
+
+// ----------------------------------------------------------------------------------------------
+// Conductor notes
+// ----------------------------------------------------------------------------------------------
+
+/** A short note from the Conductor in the room's feed; every agent in the room sees it on its card. */
+export function postConductorNote(
+  db: DB,
+  a: { roomId: string; text: string; runId: string | null; approval?: { personName: string; decisionId: string } | null; at: string },
+  emit: Emit,
+): number {
+  return appendFeed(
+    db,
+    {
+      roomId: a.roomId,
+      kind: 'conductor_note',
+      actorKind: 'conductor',
+      actorName: 'Conductor',
+      text: a.text,
+      data: { text: a.text, run_id: a.runId, ...(a.approval ? { approved_by: a.approval.personName, decision_id: a.approval.decisionId } : {}) },
+      at: a.at,
+    },
+    emit,
+  );
 }

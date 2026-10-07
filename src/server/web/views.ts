@@ -7,10 +7,12 @@ import type {
   ConductorSummary,
   DecisionView,
   FeedEvent,
+  HeldKind,
   InstructionView,
   Lane,
   Light,
   PlaybookEntryView,
+  ProposedInstructionView,
   QuestionView,
   RoomSummary,
   RoomView,
@@ -175,6 +177,33 @@ export function questionView(ctx: AppContext, q: QuestionRow): QuestionView {
   };
 }
 
+const HELD_KINDS: HeldKind[] = ['instruction', 'reword', 'question', 'note', 'answer', 'playbook'];
+
+/** What a decision holds back, in the shape the control room shows it. */
+function heldView(ctx: AppContext, d: DecisionRow, p: Record<string, any>): ProposedInstructionView {
+  const kind: HeldKind = HELD_KINDS.includes(p.kind) ? p.kind : 'instruction';
+  const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+  const agentId = kind === 'note' || kind === 'playbook' ? null : str(p.agent_id);
+  const q = kind === 'answer' && str(p.question_id) ? (ctx.db.prepare('SELECT room_id, text FROM questions WHERE id = ?').get(p.question_id) as { room_id: string; text: string } | undefined) : undefined;
+  const instructionLike = kind === 'instruction' || kind === 'reword';
+  return {
+    kind,
+    agent_id: agentId,
+    agent_name: agentId ? (getAgent(ctx.db, agentId)?.name ?? agentId) : null,
+    text: str(p.text) ?? '',
+    done_when: instructionLike ? (str(p.done_when) ?? '') : null,
+    priority: kind === 'instruction' ? (p.priority ?? 'normal') : null,
+    due_at: kind === 'instruction' ? (str(p.due_at) ?? null) : null,
+    why: str(p.why),
+    instruction_id: kind === 'reword' ? str(p.instruction_id) : null,
+    previous_text: kind === 'reword' ? str(p.previous_text) : null,
+    previous_done_when: kind === 'reword' ? str(p.previous_done_when) : null,
+    question_id: kind === 'answer' ? str(p.question_id) : null,
+    question_text: q && q.room_id === d.room_id ? q.text : null,
+    title: kind === 'playbook' ? str(p.title) : null,
+  };
+}
+
 export function decisionView(ctx: AppContext, d: DecisionRow): DecisionView {
   const p = d.proposed_instruction ? parseJson<Record<string, any> | null>(d.proposed_instruction, null) : null;
   return {
@@ -192,17 +221,7 @@ export function decisionView(ctx: AppContext, d: DecisionRow): DecisionView {
     resolved_at: d.resolved_at,
     resolved_by_name: d.resolved_by ? (getPerson(ctx.db, d.resolved_by)?.name ?? null) : null,
     resolution: d.resolution,
-    proposed_instruction: p
-      ? {
-          agent_id: p.agent_id,
-          agent_name: getAgent(ctx.db, p.agent_id)?.name ?? p.agent_id,
-          text: p.text,
-          done_when: p.done_when,
-          priority: p.priority,
-          due_at: p.due_at ?? null,
-          why: p.why ?? null,
-        }
-      : null,
+    proposed_instruction: p ? heldView(ctx, d, p) : null,
   };
 }
 

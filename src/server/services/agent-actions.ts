@@ -221,6 +221,8 @@ export function lookup(ctx: AppContext, agentIn: AgentRow, raw: unknown, _door: 
       if (!ev || !inRooms(ev.room_id) || ![...LOOKUP_KINDS_HISTORY, 'system', 'playbook'].includes(ev.kind)) throw notFound();
       // Nor status lines about proposals (they quote what people have not approved).
       if (ev.kind === 'instruction_status' && parseJson<Record<string, unknown>>(ev.data, {}).previous_status === 'proposed') throw notFound();
+      // Nor a decision that holds something back for a person (it quotes it).
+      if (ev.kind === 'decision' && ctx.db.prepare('SELECT 1 FROM decisions WHERE feed_seq = ? AND proposed_instruction IS NOT NULL').get(ev.seq)) throw notFound();
       return {
         ok: true,
         message: `Found ${id}.`,
@@ -241,6 +243,7 @@ export function lookup(ctx: AppContext, agentIn: AgentRow, raw: unknown, _door: 
       from = row.issuer_kind === 'person' ? (getPerson(ctx.db, row.issuer_person_id)?.name ?? '') : 'the Conductor';
       if (row.status === 'proposed' || row.status === 'rejected') throw notFound();
     } else if (prefix === 'dec') {
+      if (row.proposed_instruction) throw notFound();
       const opts = parseJson<string[]>(row.options, []);
       text = `Decision: ${row.title}\n${row.context}\nOptions: ${opts.map((o, i) => `${i + 1}. ${o}`).join(' ')}\nStatus: ${row.status}${row.resolution ? `\nDecided: ${row.resolution}` : ''}`;
       from = 'Tempo';
@@ -275,6 +278,7 @@ export function lookup(ctx: AppContext, agentIn: AgentRow, raw: unknown, _door: 
       .prepare(
         `SELECT * FROM feed_events WHERE room_id IN (${placeholders}) AND kind IN (${kindPh}) ${where ? `AND ${where}` : ''}
          AND kind != 'proposal' AND NOT (kind = 'instruction_status' AND json_extract(data, '$.previous_status') = 'proposed')
+         AND NOT (kind = 'decision' AND EXISTS (SELECT 1 FROM decisions d WHERE d.feed_seq = feed_events.seq AND d.proposed_instruction IS NOT NULL))
          ORDER BY seq DESC LIMIT ?`,
       )
       .all(...roomIds, ...LOOKUP_KINDS_HISTORY, ...terms.map((t) => `%${t}%`), limit + 1) as FeedRow[];

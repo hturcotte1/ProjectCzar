@@ -5,7 +5,7 @@ import { nextId, parseJson } from '../db/index.js';
 import type { BusEvent } from '../lib/bus.js';
 import { iso, ms } from '../lib/time.js';
 import type { Job, Scheduler } from '../scheduler/index.js';
-import { appendFeed, maxFeedSeq } from '../services/feed.js';
+import { maxFeedSeq } from '../services/feed.js';
 import { limitConcern } from '../services/limits.js';
 import { getAgent, getRoom, roomAgents, roomLimits, roomMaxOpenInstructions, roomTeamNames } from '../services/repo.js';
 import type { FeedRow, InstructionRow, QuestionRow, RoomRow } from '../services/rows.js';
@@ -14,15 +14,18 @@ import { scaled, scheduleFromRow } from '../services/schedule.js';
 import { computeAgentStatus } from '../services/status.js';
 import {
   answerQuestion,
+  CONDUCTOR,
   createDecision,
   createInstruction,
   createPlaybookEntry,
   createQuestion,
   getInstruction,
   getQuestion,
+  postConductorNote,
   quote,
+  rewordInstruction,
   setInstructionStatus,
-  type Actor,
+  type ProposedInstruction,
 } from '../services/work.js';
 import { costUsd, effectiveMode, modelForRoom, modelRunsLastHour, priceFor } from './budget.js';
 import { retryMaxTokens } from './model.js';
@@ -38,7 +41,6 @@ import { CONDUCTOR_JSON_SCHEMA, ConductorOutput, type ConductorOutputT } from '.
  */
 
 type Emit = (e: BusEvent) => void;
-const CONDUCTOR: Actor = { kind: 'conductor', id: null, name: 'Conductor' };
 const SWEEP_MINUTES = 15;
 
 const locks = new WeakMap<AppContext, Set<string>>();
@@ -356,7 +358,24 @@ async function runLocked(ctx: AppContext, roomId: string): Promise<string | null
   return runId;
 }
 
-/** Applies the Conductor's output according to the room's mode and the guardrails. */
+/** A short fingerprint of held text, so the same item is held once (decisions.source_key). */
+function fingerprint(...parts: string[]): string {
+  return createHash('sha256').update(parts.join('\u0000')).digest('hex').slice(0, 16);
+}
+
+const PROPOSE_REWORD_WHY = 'In Propose mode, a person approves every change to an instruction an agent can already see.';
+
+/**
+ * Applies the Conductor's output according to the room's mode and the guardrails.
+ *
+ * Everything the Conductor writes that an agent will read passes the same gates as a new
+ * instruction: new instructions, new wording for an instruction (text and done-when line),
+ * questions to agents, answers to agents' questions, the room note and playbook lessons all go
+ * through the limits check. Anything it flags becomes a decision for a person and reaches no agent
+ * until a person approves it (resolveDecision in services/decisions.ts applies it). In Propose
+ * mode, new instructions wait as proposals and new wording for an instruction an agent can already
+ * see waits as a decision. See DECISIONS.md items 17, 18, 19 and 36.
+ */
 export function applyOutput(
   ctx: AppContext,
   room: RoomRow,
@@ -375,9 +394,53 @@ export function applyOutput(
   const maxOpen = roomMaxOpenInstructions(room, ctx.config.maxOpenInstructionsPerAgent);
   const askFirst = roomLimits(room).ask_a_person_first;
   const team = roomTeamNames(db, room.id);
+  const concernOf = (text: string) => limitConcern(text, askFirst, team);
   const ph = OPEN_INSTRUCTION_STATUSES.map(() => '?').join(',');
   const openOf = (agentId: string) =>
     db.prepare(`SELECT * FROM instructions WHERE room_id = ? AND agent_id = ? AND (status IN (${ph}) OR status = 'proposed')`).all(room.id, agentId, ...OPEN_INSTRUCTION_STATUSES) as InstructionRow[];
+
+  /**
+   * Holds back one item for a person: a decision carries it, and it is applied only if a person
+   * chooses the first option. The same item on a later run raises no second decision, whether
+   * the first is still open or already decided (createDecision returns the existing row).
+   */
+  const hold = (h: {
+    key: string;
+    what: string;
+    action: string;
+    title: string;
+    context: string;
+    options: string[];
+    concern: string | null;
+    agentIds: string[];
+    item: ProposedInstruction;
+  }): void => {
+    const existing = db.prepare('SELECT id, status FROM decisions WHERE source_key = ?').get(h.key) as { id: string; status: string } | undefined;
+    if (existing) {
+      skip(existing.status === 'open' ? `${h.what} is already waiting for a person as ${existing.id}.` : `${h.what} was already decided as ${existing.id}, so it was not raised again.`);
+      return;
+    }
+    const d = createDecision(
+      db,
+      {
+        roomId: room.id,
+        title: h.title,
+        context: h.context,
+        options: h.options,
+        recommendation: null,
+        why: h.concern ? `It involves ${h.concern}, which needs a person first.` : PROPOSE_REWORD_WHY,
+        source: h.concern ? 'limits' : 'conductor',
+        sourceKey: h.key,
+        agentIds: h.agentIds,
+        proposedInstruction: h.item,
+        raisedBy: CONDUCTOR,
+        runId,
+        at,
+      },
+      emit,
+    );
+    actions.push({ kind: 'decision', id: d.id, text: h.action });
+  };
 
   for (const ins of out.instructions) {
     const agent = byName(ins.agent);
@@ -402,7 +465,18 @@ export function applyOutput(
       skip(`"${quote(ins.text, 60)}" is already open for ${agent.name} as ${dup.id}.`);
       continue;
     }
-    const concern = limitConcern(`${ins.text}\n${ins.done_when}`, askFirst, team);
+    const waiting = db
+      .prepare(
+        `SELECT id FROM decisions WHERE room_id = ? AND status = 'open' AND proposed_instruction IS NOT NULL
+         AND COALESCE(json_extract(proposed_instruction, '$.kind'), 'instruction') = 'instruction'
+         AND json_extract(proposed_instruction, '$.agent_id') = ? AND json_extract(proposed_instruction, '$.text') = ?`,
+      )
+      .get(room.id, agent.id, ins.text) as { id: string } | undefined;
+    if (waiting) {
+      skip(`"${quote(ins.text, 60)}" for ${agent.name} is already waiting for a person as ${waiting.id}.`);
+      continue;
+    }
+    const concern = concernOf(`${ins.text}\n${ins.done_when}`);
     const due = ins.due && !Number.isNaN(Date.parse(ins.due)) ? new Date(ins.due).toISOString() : null;
     if (ins.needs_approval || concern) {
       const reason = ins.approval_reason ?? (concern ? `it involves ${concern}` : 'it needs a person to approve it');
@@ -417,7 +491,7 @@ export function applyOutput(
           why: `Outside what agents may do without asking: ${reason}.`,
           source: concern ? 'limits' : 'conductor',
           agentIds: [agent.id],
-          proposedInstruction: { agent_id: agent.id, text: ins.text, done_when: ins.done_when, priority: ins.priority, due_at: due, why: ins.why, issuer_kind: 'conductor', run_id: runId },
+          proposedInstruction: { kind: 'instruction', agent_id: agent.id, text: ins.text, done_when: ins.done_when, priority: ins.priority, due_at: due, why: ins.why, issuer_kind: 'conductor', run_id: runId },
           raisedBy: CONDUCTOR,
           runId,
           at,
@@ -453,6 +527,7 @@ export function applyOutput(
   for (const q of out.questions) {
     const to = q.to.trim().toLowerCase();
     if (to === 'people' || to === 'person' || to === 'humans') {
+      // People read these themselves, so they are not held.
       const row = createQuestion(db, { roomId: room.id, asker: CONDUCTOR, target: { kind: 'people' }, text: q.text, why: q.why, at }, emit);
       actions.push({ kind: 'question', id: row.id, text: `Asked the people: ${quote(q.text, 100)}` });
       continue;
@@ -460,6 +535,21 @@ export function applyOutput(
     const agent = byName(q.to);
     if (!agent) {
       skip(`Question for unknown recipient "${q.to}" was not asked.`);
+      continue;
+    }
+    const concern = concernOf(q.text);
+    if (concern) {
+      hold({
+        key: `cq:${room.id}:${agent.id}:${fingerprint(q.text)}`,
+        what: `The question for ${agent.name} ("${quote(q.text, 60)}")`,
+        action: `Needs approval before ${agent.name} is asked: ${quote(q.text, 80)}`,
+        title: `Approve a question for ${agent.name}?`,
+        context: `The Conductor wants to ask ${agent.name}: "${q.text}" Why: ${q.why}`,
+        options: ['Approve and send it', "Don't send it", 'Something else (write it)'],
+        concern,
+        agentIds: [agent.id],
+        item: { kind: 'question', agent_id: agent.id, text: q.text, why: q.why, run_id: runId },
+      });
       continue;
     }
     const row = createQuestion(db, { roomId: room.id, asker: CONDUCTOR, target: { kind: 'agent', agentId: agent.id, name: agent.name }, text: q.text, why: q.why, at }, emit);
@@ -484,25 +574,42 @@ export function applyOutput(
       setInstructionStatus(db, ins, { status: 'cancelled', note: `Cancelled by the Conductor: ${c.why}` }, CONDUCTOR, at, emit);
       actions.push({ kind: 'cancel', id: ins.id, text: `Cancelled ${ins.id}: ${c.why}` });
     } else if (c.new_text) {
-      db.prepare('UPDATE instructions SET text = ?, done_when = ?, updated_at = ? WHERE id = ?').run(c.new_text, c.new_done_when ?? ins.done_when, at, ins.id);
-      const agent = getAgent(db, ins.agent_id);
-      appendFeed(
-        db,
-        {
-          roomId: room.id,
-          kind: 'instruction_status',
-          actorKind: 'conductor',
-          actorName: 'Conductor',
-          targetAgentId: ins.agent_id,
-          threadId: ins.id,
-          refId: ins.id,
-          text: `${ins.id} for ${agent?.name ?? ''} was reworded by the Conductor: ${c.new_text}`,
-          data: { instruction_id: ins.id, status: ins.status, previous_status: ins.status, note: `Reworded: ${c.why}`, reworded_to: c.new_text },
-          at,
-        },
-        emit,
-      );
-      db.prepare(`INSERT INTO instruction_events (instruction_id, status, note, actor_kind, at) VALUES (?, ?, ?, 'conductor', ?)`).run(ins.id, ins.status, `Reworded: ${c.why}`, at);
+      const doneWhen = c.new_done_when ?? ins.done_when;
+      if (c.new_text === ins.text && doneWhen === ins.done_when) {
+        skip(`${ins.id} already has that wording.`);
+        continue;
+      }
+      const concern = concernOf(`${c.new_text}\n${doneWhen}`);
+      // A proposal nobody has approved yet is not on any card, so it may change in place.
+      const seen = ins.status !== 'proposed';
+      if (concern || (mode === 'propose' && seen)) {
+        const agentName = getAgent(db, ins.agent_id)?.name ?? ins.agent_id;
+        hold({
+          key: `reword:${ins.id}:${fingerprint(c.new_text, doneWhen)}`,
+          what: `The new wording for ${ins.id} ("${quote(c.new_text, 60)}")`,
+          action: `Needs approval before ${agentName} gets the new wording of ${ins.id}: ${quote(c.new_text, 80)}`,
+          title: `Approve a change to ${ins.id} for ${agentName}?`,
+          context:
+            `The Conductor wants to change ${ins.id}, ${seen ? `which ${agentName} can already see` : `a proposal ${agentName} has not seen yet`}. ` +
+            `Now: "${ins.text}" (done when: ${ins.done_when}). Would become: "${c.new_text}" (done when: ${doneWhen}). Why: ${c.why}`,
+          options: ['Approve the new wording', 'Keep the current wording', 'Something else (write it)'],
+          concern,
+          agentIds: [ins.agent_id],
+          item: {
+            kind: 'reword',
+            agent_id: ins.agent_id,
+            instruction_id: ins.id,
+            previous_text: ins.text,
+            previous_done_when: ins.done_when,
+            text: c.new_text,
+            done_when: doneWhen,
+            why: c.why,
+            run_id: runId,
+          },
+        });
+        continue;
+      }
+      rewordInstruction(db, ins, { text: c.new_text, doneWhen, why: c.why }, at, emit);
       actions.push({ kind: 'reword', id: ins.id, text: `Reworded ${ins.id}: ${quote(c.new_text, 100)}` });
     }
   }
@@ -523,18 +630,68 @@ export function applyOutput(
       skip(`${a.question_id} is not an open question for the Conductor.`);
       continue;
     }
+    // An answer reaches the asker's card when an agent asked; a person reads it themselves.
+    const asker = q.asker_kind === 'agent' ? getAgent(db, q.asker_id ?? '') : undefined;
+    const concern = asker ? concernOf(a.answer) : null;
+    if (asker && concern) {
+      hold({
+        key: `ans:${q.id}:${fingerprint(a.answer)}`,
+        what: `The answer to ${q.id} ("${quote(a.answer, 60)}")`,
+        action: `Needs approval before ${asker.name} gets the answer to ${q.id}: ${quote(a.answer, 80)}`,
+        title: `Approve an answer to ${asker.name}'s question ${q.id}?`,
+        // The question itself is an agent's words, so it is not repeated here (this line reaches
+        // the Conductor's prompt as its own); the control room shows it next to the answer.
+        context: `The Conductor wants to answer ${asker.name}'s question ${q.id}: "${a.answer}"`,
+        options: ['Approve and send it', "Don't send it", 'Something else (write it)'],
+        concern,
+        agentIds: [asker.id],
+        item: { kind: 'answer', agent_id: asker.id, question_id: q.id, text: a.answer, run_id: runId },
+      });
+      continue;
+    }
     answerQuestion(db, q, CONDUCTOR, a.answer, at, emit);
     actions.push({ kind: 'answer', id: q.id, text: `Answered ${q.id}: ${quote(a.answer, 100)}` });
   }
 
   if (out.room_note) {
-    appendFeed(db, { roomId: room.id, kind: 'conductor_note', actorKind: 'conductor', actorName: 'Conductor', text: out.room_note, data: { text: out.room_note, run_id: runId }, at }, emit);
-    actions.push({ kind: 'note', id: null, text: `Room note: ${quote(out.room_note, 100)}` });
+    const note = out.room_note;
+    const concern = concernOf(note);
+    if (concern) {
+      hold({
+        key: `note:${room.id}:${fingerprint(note)}`,
+        what: `The room note ("${quote(note, 60)}")`,
+        action: `Needs approval before the note is posted: ${quote(note, 80)}`,
+        title: 'Approve a room note from the Conductor?',
+        context: `The Conductor wants to post this note, which every agent in the room would see: "${note}"`,
+        options: ['Approve and post it', "Don't post it", 'Something else (write it)'],
+        concern,
+        agentIds: [],
+        item: { kind: 'note', text: note, run_id: runId },
+      });
+    } else {
+      postConductorNote(db, { roomId: room.id, text: note, runId, at }, emit);
+      actions.push({ kind: 'note', id: null, text: `Room note: ${quote(note, 100)}` });
+    }
   }
 
   for (const p of out.playbook_suggestions) {
     const exists = db.prepare('SELECT 1 FROM playbook_entries WHERE room_id = ? AND LOWER(title) = LOWER(?) AND archived_at IS NULL').get(room.id, p.title);
     if (exists) continue;
+    const concern = concernOf(`${p.title}\n${p.text}`);
+    if (concern) {
+      hold({
+        key: `pb:${room.id}:${fingerprint(p.title, p.text)}`,
+        what: `The lesson "${quote(p.title, 60)}"`,
+        action: `Needs approval before the lesson is saved: ${quote(p.title, 80)}`,
+        title: 'Approve a playbook lesson from the Conductor?',
+        context: `The Conductor wants to save this lesson to the playbook, which every agent in the room sees on its card: "${p.title}: ${p.text}"`,
+        options: ['Approve and save it', "Don't save it", 'Something else (write it)'],
+        concern,
+        agentIds: [],
+        item: { kind: 'playbook', title: p.title, text: p.text, run_id: runId },
+      });
+      continue;
+    }
     const id = createPlaybookEntry(db, { roomId: room.id, title: p.title, body: p.text, author: CONDUCTOR, at }, emit);
     actions.push({ kind: 'playbook', id, text: `Saved a lesson: ${quote(p.title, 80)}` });
   }

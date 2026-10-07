@@ -71,9 +71,9 @@ export function DecisionCard({ decision: d, onChanged }: { decision: DecisionVie
       {d.proposed_instruction && (
         <div className="dec-proposed">
           <div className="small dec-proposed-label">
-            If you choose “{shorten(optionLabel(d.options[0] ?? 'the first option'))}”, this goes to {d.proposed_instruction.agent_name}:
+            If you choose “{shorten(optionLabel(d.options[0] ?? 'the first option'))}”, this goes to {d.proposed_instruction.agent_name ?? 'every agent in the room'}:
           </div>
-          <PriorityPill priority={d.proposed_instruction.priority} />
+          {d.proposed_instruction.priority && <PriorityPill priority={d.proposed_instruction.priority} />}
           <InstructionFacts text={d.proposed_instruction.text} doneWhen={d.proposed_instruction.done_when} dueAt={d.proposed_instruction.due_at} />
         </div>
       )}

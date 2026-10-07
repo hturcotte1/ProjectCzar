@@ -165,14 +165,35 @@ export interface QuestionView {
   created_at: string;
 }
 
+/**
+ * What a decision holds back until a person chooses its first option:
+ * instruction: a new instruction for an agent; reword: new wording for one of the Conductor's
+ * instructions (previous_text is what the agent sees now); question: the Conductor's question to an
+ * agent; note: a room note every agent sees; answer: the Conductor's answer to an agent's question;
+ * playbook: a lesson every agent sees.
+ */
+export type HeldKind = 'instruction' | 'reword' | 'question' | 'note' | 'answer' | 'playbook';
+
 export interface ProposedInstructionView {
-  agent_id: string;
-  agent_name: string;
+  kind: HeldKind;
+  /** Who it goes to; null for a note or a lesson, which every agent in the room sees. */
+  agent_id: string | null;
+  agent_name: string | null;
   text: string;
-  done_when: string;
-  priority: 'low' | 'normal' | 'high';
+  /** Instructions and rewordings only. */
+  done_when: string | null;
+  priority: 'low' | 'normal' | 'high' | null;
   due_at: string | null;
   why: string | null;
+  /** Rewordings: the instruction, and its wording now. */
+  instruction_id: string | null;
+  previous_text: string | null;
+  previous_done_when: string | null;
+  /** Answers: the question being answered (an agent's words). */
+  question_id: string | null;
+  question_text: string | null;
+  /** Lessons: the title. */
+  title: string | null;
 }
 
 export interface DecisionView {

@@ -284,6 +284,12 @@ const THIRD_PERSON_VERB = /^(?:\w+s|is|are|was|were|has|have|had|did|does|will|w
 
 function normalise(text: string): string {
   return text
+    // Formatting is not meaning: "**publish**", "*delete*", "`Email the client`" read as plain words,
+    // and an arrow reads as "then" ("Draft the reply -> send it").
+    .replace(/`+/g, '')
+    .replace(/(^|[\s(\[{"'])(?:\*{1,3}|_{1,3})(?=[^\s*_])/g, '$1')
+    .replace(/(?<=[^\s*_])(?:\*{1,3}|_{1,3})(?=$|[\s)\]}.,;:!?"'])/gm, '')
+    .replace(/\s*(?:-{1,2}>|={1,2}>|[→⇒⟶➔➜⇨])\s*/g, ', then ')
     // shorthand: "w/ the client", "the old acct", "fix typos + delete the folder"
     .replace(/\bw\/o\b/gi, 'without')
     .replace(/\bw\//gi, 'with ')
@@ -296,7 +302,7 @@ function normalise(text: string): string {
     .replace(/\s\+\s/g, ' and ')
     // "Do not, for now, email the client": the aside does not end the negation.
     .replace(/\b(do\s+not|don't|dont|never|please\s+do\s+not|please\s+don't)\s*,\s*([^,.;]{1,40}?)\s*,\s*/gi, '$1 ')
-    .replace(/[‘’‛′`]/g, "'")
+    .replace(/[‘’‛′]/g, "'")
     .replace(/[“”„″]/g, '"')
     .replace(/\s+[–—]\s+/g, ', ')
     .replace(/[–—]/g, '-')
@@ -304,7 +310,17 @@ function normalise(text: string): string {
     .replace(/[ \t ]+/g, ' ');
 }
 
-const LIST_MARKER = /^\s*(?:[-*•·>]+\s*|\[\s?[xX]?\s?\]\s*|\(?\d{1,2}[.)]\s+|\(?[a-hA-H][.)]\s+)+/;
+const LIST_MARKER = /^\s*(?:[-*•·>]+\s*|#{1,6}\s+|\[\s?[xX]?\s?\]\s*|\(?\d{1,2}[.)]\s+|\(?[a-hA-H][.)]\s+)+/;
+/** A list number or letter at the start of a sentence ("2) Email it to the client"). */
+const SENTENCE_MARKER = /^\(?(?:\d{1,2}|[a-hA-H])[.)]\s+/;
+/** Numbered items written on one line: "1) Draft the reply. 2) Email it to the client." */
+const INLINE_ITEMS = [/(?:^|\s)\(?\d{1,2}\)\s+/g, /(?:^|\s)\d{1,2}\.\s+(?=[A-Za-z])/g, /(?:^|\s)\(?[a-h]\)\s+(?=[A-Za-z])/g];
+function splitInlineItems(line: string): string {
+  for (const re of INLINE_ITEMS) {
+    if ((line.match(re) ?? []).length >= 2) line = line.replace(re, (m) => (/^\s/.test(m) ? '. ' : ''));
+  }
+  return line.replace(/^\.\s+/, '');
+}
 
 /** Splits a line into sentences without breaking "$29.99", "tempo.app" or "e.g.". */
 function sentencesOf(line: string): string[] {
@@ -313,6 +329,13 @@ function sentencesOf(line: string): string[] {
     .split(/(?<=[.!?;])\s+|(?<=[.!?])(?=[A-Z])/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/** Does text in brackets ask for something ("then email it to the client", "don't post it yet")? */
+function bracketRequest(inner: string): boolean {
+  const t = stripWrapping(inner.toLowerCase().replace(/[.!?;:,]+$/, '')).text;
+  const head = t.split(/\s+/)[0] ?? '';
+  return IS_VERB.test(head) || IS_VERB.test(baseForm(head)) || NEGATED_START.test(t);
 }
 
 /** Labels on buttons to press, and the text with every other quote reduced to "q". */
@@ -489,7 +512,7 @@ export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
   let copyBlock = false;
   const lines = normalise(input).split(/\r?\n/);
   lines.forEach((rawLine, lineNo) => {
-    let line = rawLine.replace(LIST_MARKER, '').trim();
+    let line = splitInlineItems(rawLine.trim()).replace(LIST_MARKER, '').trim();
     if (!line) {
       copyBlock = false;
       return;
@@ -507,8 +530,17 @@ export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
     const { text: lineQuoted, pressed } = quotes(line);
     for (let sentence of sentencesOf(lineQuoted)) {
       const goal = doneWhen || lineNo > 0;
-      sentence = sentence.replace(/^done\s+when\b[:,]?\s*/i, '');
-      let body = sentence.replace(/\s*\([^()]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+      sentence = sentence.replace(/^done\s+when\b[:,]?\s*/i, '').replace(SENTENCE_MARKER, '');
+      // Text in brackets is set aside; a request in it ("(then email it to the client)") is read as a
+      // clause of its own, after the sentence. Asides ("(e.g. Stripe)", "(it is $29)") are not.
+      const inBrackets: string[] = [];
+      let body = sentence
+        .replace(/\s*\(([^()]*)\)/g, (_m: string, inner: string) => {
+          if (bracketRequest(inner)) inBrackets.push(inner);
+          return ' ';
+        })
+        .replace(/\s+/g, ' ')
+        .trim();
       const colon = colonFrame(body);
       if (colon) {
         if (colon.copyFollows && /:\s*$/.test(body)) copyBlock = true;
@@ -522,7 +554,8 @@ export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
         const head = stripWrapping(sentence.toLowerCase()).text.split(/\s+/)[0] ?? '';
         if (CONTENT_HEADS.has(head)) copyBlock = true;
       }
-      body = body
+      const prepare = (b: string) =>
+        b
         // "I'd suggest, if it's alright, that we...": a polite aside is not a clause
         .replace(/,\s*(?:if\s+(?:it's|that's|it\s+is|that\s+is)\s+(?:alright|all\s+right|ok|okay|fine)(?:\s+with\s+\w+)?|if\s+possible|if\s+you\s+(?:agree|don't\s+mind)|perhaps|maybe|please)\s*,\s*/gi, ' ')
         // "Shopify Payments, Stripe and PayPal": "and" inside a list of names joins them
@@ -531,7 +564,8 @@ export function clausesOf(input: string, team: Team = NO_TEAM): Clause[] {
         .replace(/\b((?:he|she|they|[A-Z][\w'-]*)\s+(?:will|can|could|should|would|may|might|must|'ll|is\s+going\s+to|are\s+going\s+to)\s+\w+)\s+and\s+/g, '$1 \u0026 ')
         // "Draft it so Henry can publish it": a clause starts at "so" before a teammate (marked, then split)
         .replace(/\s+so\s+(?=\S)/g, (m: string, at: number, all: string) => (teammateAt(all, at + m.length, team) ? ' \u2063 ' : m));
-      for (const part of body.split(CLAUSE_SPLIT)) {
+      const parts = [...prepare(body).split(CLAUSE_SPLIT), ...inBrackets.flatMap((b) => prepare(b.trim()).split(CLAUSE_SPLIT))];
+      for (const part of parts) {
         const raw = part.trim().replace(/[.!?;:,]+$/, '');
         if (!raw) continue;
         const lower = swapTeammates(raw.toLowerCase(), raw, team);

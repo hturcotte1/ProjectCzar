@@ -697,6 +697,28 @@ below has a test that fails on the code before the fix and passes after it.
       teams, the only changes found (156 in 19,000 checks) are names not on that team now being
       treated as outside it.
 
+52. **Formatting no longer hides a request.** The review found that ordinary formatting kept the check
+    from seeing a request it flags when written plainly: text in brackets was removed before checking
+    ("Finish the draft (then email it to the client)."), list numbers were only removed at the start
+    of a line ("1) Draft the reply. 2) Email it to the client."), bold and italic marks were left in
+    ("Can I **publish** the blog post now?", "Please *delete* the old drafts folder."), backticks
+    were read as quotation marks, so the whole sentence counted as quoted copy ("`Email the shortlist
+    to the hiring manager`"), and arrows meant nothing ("Draft the reply -> send it to the client.").
+    * Text in brackets that asks for something (it starts with a verb or "don't" once "then", "and",
+      "please" and the like are set aside) is read as a clause of its own, after the sentence.
+      Asides stay set aside, so "Add the price (it is $29 a month) to the comparison table." and
+      "Compare the three vendors (e.g. Stripe, Paddle and Lemon Squeezy)." are still ordinary work.
+    * Bold, italic and code marks (*, **, _, __, `) are removed, so the words read plainly. Code in
+      backticks is read too: "Run `rm -rf /data/exports`" is deleting.
+    * Numbered or lettered items written on one line ("1) ... 2) ...", "1. ... 2. ...", "a) ... b)
+      ...") are split into sentences, and a number at the start of a sentence is removed. Headings
+      (#) are list markers.
+    * An arrow (->, =>, →) reads as "then".
+    * Tests (`tests/limits-format.test.ts`): the review's 11 examples and 12 more, each with its plain
+      version as the control (21 of the 23 fail on the old code), and 33 ordinary sentences written
+      the same ways that must stay unflagged. Run side by side with the previous version on 19,000
+      checks of the reviewed and generated sentences, nothing changed.
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

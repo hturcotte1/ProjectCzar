@@ -47,6 +47,11 @@ export function warmUpLimits(): void {
   ]) limitConcern(text, [], team);
 }
 
+/** The four default limits, as the rules name them ("spending money", ...). */
+const DEFAULT_LABELS = new Set(RULES.map((r) => r.label));
+const plainWords = (limit: string) => limit.toLowerCase().replace(/[^a-z]+/g, ' ').trim();
+const isDefault = (limit: string) => DEFAULT_LABELS.has(plainWords(limit));
+
 function stem(word: string): string {
   return word.replace(/(?:ing|ed|es|s)$/, '');
 }
@@ -103,15 +108,19 @@ function concernOf(text: string, askFirst: string[], team: string[], deadline: n
   };
   for (const rule of RULES) {
     if (live.some((c) => within() && rule.test(c, ctx))) {
-      // Prefer the room's own wording for the limit when one matches the rule.
-      const own = askFirst.find((l) => BUILT_IN_WORDS[rule.key].test(l));
+      // Name the limit as the room does: the default itself if the room has it, else the room's own
+      // rewording of it ("spending any money at all"). Another limit that merely shares a word
+      // ("changing the budget numbers in the plan") never takes the default's place.
+      if (askFirst.some((l) => plainWords(l) === rule.label)) return rule.label;
+      const own = askFirst.find((l) => !isDefault(l) && BUILT_IN_WORDS[rule.key].test(l));
       return own ?? rule.label;
     }
   }
-  // A room's own limits that the rules above don't cover: match when every key word appears
-  // (as a whole word, any ending) in one clause that is not forbidden.
+  // A room's own limits: match when every key word appears (as a whole word, any ending) in one
+  // clause that is not forbidden. Only the four defaults are left to the rules above; a room's own
+  // limit is matched by its own words even when it shares one with them (budget, remove, share).
   for (const limit of askFirst) {
-    if (Object.values(BUILT_IN_WORDS).some((re) => re.test(limit))) continue;
+    if (isDefault(limit)) continue;
     const keyWords = limit
       .toLowerCase()
       .split(/[^a-z]+/)

@@ -719,6 +719,18 @@ below has a test that fails on the code before the fix and passes after it.
       the same ways that must stay unflagged. Run side by side with the previous version on 19,000
       checks of the reviewed and generated sentences, nothing changed.
 
+55. **A room's own limits are matched by their own words.** A room's extra limit was skipped
+    altogether whenever it held a word the built-in rules use (budget, cost, pay, remove, delete,
+    share, post publicly...), so "changing the budget numbers in the plan" never matched "Change the
+    budget numbers in the plan to match Q4." Now only the four defaults are left to the built-in
+    rules (compared without case or punctuation); every other limit is matched by its own key words,
+    as before: every word longer than four letters (any ending) in one clause that is not forbidden.
+    A related slip is fixed too: when a built-in rule fired, the first of the room's limits sharing a
+    word with it gave the flag its name, so with "changing the budget numbers in the plan" listed
+    first, "Buy the stock photo for $29." was reported as that. The default's own name is used when
+    the room has it; a room's rewording of a default ("spending any money at all") still names the
+    flag when the default itself is gone. Tests: `tests/limits-room.test.ts` (fail on the old code).
+
 ## Part 4: Delegation record
 
 | Piece | Delegated to | Checked how |

@@ -20,6 +20,23 @@ function seed(): Seed {
   return JSON.parse(fs.readFileSync('.tmp/e2e-seed.json', 'utf8')) as Seed;
 }
 
+/**
+ * The seeded server runs on its own clock, started inside the demo room's working hours
+ * (playwright.config.ts passes --clock). The browser works out "Next due in 34 min" and "Was due
+ * 2 h ago" from its own clock, so it gets the server's time too: the screen then agrees with the
+ * lights whatever the real time of day. The browser's clock moves forward in real time from there.
+ */
+async function useServerTime(page: Page) {
+  const res = await page.request.get('/healthz');
+  expect(res.ok()).toBe(true);
+  const { time } = (await res.json()) as { time: string };
+  await page.clock.install({ time: new Date(time) });
+}
+
+test.beforeEach(async ({ page }) => {
+  await useServerTime(page);
+});
+
 async function signIn(page: Page, email = 'henry@example.com') {
   const res = await page.request.post('/api/app/login', {
     headers: { 'content-type': 'application/json', 'x-requested-with': 'tempo' },
@@ -166,6 +183,8 @@ for (const size of [
       const detail = page.getByRole('region', { name: 'About Muse Henry' });
       await expect(detail).toContainText('Owner: Henry (you)');
       await expect(detail).toContainText(/Next due|Was due/);
+      // Muse Henry has just checked in, so its next check-in is ahead (the browser agrees with the server's clock).
+      await expect(detail).toContainText('Next due in');
       await expect(detail.getByRole('link', { name: "Open Muse Henry's page" })).toHaveAttribute('href', `/agents/${muse.id}`);
       await detail.getByRole('button', { name: 'Close' }).click();
       await expect(detail).toHaveCount(0);
@@ -174,6 +193,8 @@ for (const size of [
       const tile = page.locator('.strip-tile', { hasText: 'Muse Henry' }).first();
       await expect(tile).toContainText('Your Muse');
       await expect(tile).toContainText('On time.');
+      // The times line comes from the browser's clock: it must agree with the light.
+      await expect(tile).toContainText('Next due in');
       await expect(tile).toHaveAttribute('href', `/agents/${muse.id}`);
       await expect(page.locator('.strip-tile', { hasText: 'Muse Sam' }).first()).toContainText("Sam's Muse");
     }
@@ -199,6 +220,7 @@ test('renders in dark mode with dark colors', async ({ browser }) => {
   const s = seed();
   const ctx = await browser.newContext({ colorScheme: 'dark' });
   const page = await ctx.newPage();
+  await useServerTime(page);
   await signIn(page);
   await page.goto(`/rooms/${s.room_id}`);
   await expect(page.getByRole('heading', { name: /Launch/ })).toBeVisible();

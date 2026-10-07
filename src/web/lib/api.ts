@@ -42,13 +42,11 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
       body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
     });
   } catch {
-    // Nothing here tries again by itself. A change (sending, saving, approving) is simply not made;
-    // screens that show live data fetch again on their next update.
-    throw new ApiError(
-      0,
-      'network',
-      method === 'GET' ? 'Could not reach Tempo. Check your connection.' : 'Could not reach Tempo, so this was not saved. Check your connection and try again.',
-    );
+    // Nothing here tries again by itself; screens that show live data fetch again on their next
+    // update. The words say only what is known: many changes are not saves (signing in, Run now),
+    // and a connection that drops after Tempo got the request does not mean the change was not made.
+    // Screens that need to say more (the message box) add their own words.
+    throw new ApiError(0, 'network', method === 'GET' ? 'Could not reach Tempo. Check your connection.' : 'Could not reach Tempo. Check your connection and try again.');
   }
   const text = await res.text();
   let data: any = null;

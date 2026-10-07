@@ -374,6 +374,23 @@ test('signs in through the form, and refuses a wrong password with a plain messa
   expect((await page.request.get('/api/app/me')).status()).toBe(401);
 });
 
+test('signing in with no connection says plainly that Tempo could not be reached', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Email').fill('henry@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('tempo demo password');
+  // The connection drops: the sign-in request never reaches Tempo.
+  await page.route('**/api/app/login', (route) => route.abort('internetdisconnected'));
+  await page.getByRole('button', { name: /Sign in/ }).click();
+  const banner = page.getByRole('alert');
+  await expect(banner).toHaveText('Could not reach Tempo. Check your connection and try again.');
+  // Nothing was being saved, so the words must not say so.
+  await expect(banner).not.toContainText('saved');
+  // Back online, the same button signs in.
+  await page.unroute('**/api/app/login');
+  await page.getByRole('button', { name: /Sign in/ }).click();
+  await expect(page.getByRole('heading', { name: /Launch/ })).toBeVisible();
+});
+
 test('the Run rehearsal button starts a rehearsal in a labeled sandbox room', async ({ page }) => {
   await signIn(page);
   await page.goto('/rehearsal');
